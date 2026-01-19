@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'modulops'
+    environment: 'development'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8080']
+  
+  - job_name: 'k8s-service'
+    static_configs:
+      - targets: ['k8s-service:8080']
+  
+  - job_name: 'terraform-service'
+    static_configs:
+      - targets: ['terraform-service:8080']
+  
+  - job_name: 'ansible-service'
+    static_configs:
+      - targets: ['ansible-service:8080']
+  
+  - job_name: 'pipeline-service'
+    static_configs:
+      - targets: ['pipeline-service:8080']
+  
+  - job_name: 'alert-service'
+    static_configs:
+      - targets: ['alert-service:8080']
+  
+  - job_name: 'metrics-service'
+    static_configs:
+      - targets: ['metrics-service:8080']
+  
+  - job_name: 'kong'
+    static_configs:
+      - targets: ['kong:8001']

@@ -1,0 +1,151 @@
+# ModulOps - Plateforme DevOps Microservices
+
+Plateforme DevOps unifiée pour la gestion de clusters Kubernetes, Terraform, Ansible et pipelines CI/CD.
+
+## Architecture
+
+Architecture microservices avec séparation des responsabilités par domaine :
+- **API Gateway** : Kong pour le routage et l'authentification
+- **Services Backend** : Go et Python pour les différents modules
+- **Event Bus** : Kafka pour la communication asynchrone
+- **Cache** : Redis pour les performances
+- **Base de données** : PostgreSQL pour la persistance
+- **Observabilité** : Prometheus et Grafana pour les métriques
+
+## Prérequis
+
+### Pour le développement local (Docker Compose)
+
+- Docker 20.10+
+- Docker Compose 2.0+ (ou docker compose)
+
+### Pour Kubernetes
+
+- kubectl 1.28+
+- Un cluster Kubernetes local :
+  - [minikube](https://minikube.sigs.k8s.io/docs/start/) (recommandé)
+  - [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
+
+## Installation
+
+### Option 1 : Développement local avec Docker Compose
+
+```bash
+# Démarrer tous les services
+./scripts/setup-local.sh
+
+# Ou manuellement
+docker-compose up -d
+```
+
+Les services seront disponibles sur :
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+- Kafka: `localhost:9092`
+- Kong Gateway: `http://localhost:8000`
+- Kong Admin: `http://localhost:8001`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (admin/admin)
+
+### Option 2 : Déploiement sur Kubernetes
+
+```bash
+# Configurer et déployer l'infrastructure
+./scripts/setup-k8s.sh
+
+# Ou manuellement avec kubectl
+kubectl apply -k infrastructure/k8s/
+```
+
+Pour accéder aux services, utilisez port-forward :
+
+```bash
+# PostgreSQL
+kubectl port-forward svc/postgres 5432:5432 -n modulops
+
+# Redis
+kubectl port-forward svc/redis 6379:6379 -n modulops
+
+# Kafka
+kubectl port-forward svc/kafka 9092:9092 -n modulops
+
+# Kong Gateway
+kubectl port-forward svc/kong 8000:8000 -n modulops
+
+# Prometheus
+kubectl port-forward svc/prometheus 9090:9090 -n modulops
+
+# Grafana
+kubectl port-forward svc/grafana 3000:3000 -n modulops
+```
+
+## Structure du projet
+
+```
+ModulOps/
+├── services/              # Services microservices
+│   ├── api-gateway/       # Kong configuration
+│   ├── auth-service/      # Service d'authentification (Go)
+│   ├── k8s-service/       # Service Kubernetes (Go)
+│   ├── terraform-service/ # Service Terraform (Go)
+│   ├── ansible-service/   # Service Ansible Tower (Python)
+│   ├── pipeline-service/  # Service Pipelines (Go)
+│   ├── alert-service/     # Service d'alertes (Go)
+│   └── metrics-service/   # Service de métriques (Go)
+├── frontend/              # Application React + TypeScript
+├── infrastructure/        # Configuration infrastructure
+│   ├── k8s/              # Manifests Kubernetes
+│   ├── docker/           # Dockerfiles
+│   └── helm/             # Charts Helm
+├── shared/                # Bibliothèques partagées
+│   ├── go-common/        # Utilitaires Go communs
+│   └── proto/            # Définitions gRPC
+├── scripts/               # Scripts de déploiement
+└── docs/                  # Documentation
+```
+
+## Services déployés
+
+### Infrastructure de base
+
+- **PostgreSQL 15** : Base de données principale
+- **Redis 7** : Cache distribué
+- **Kafka + Zookeeper** : Message broker pour les événements
+- **Kong 3.4** : API Gateway avec routage et authentification
+- **Prometheus** : Collecte de métriques
+- **Grafana** : Visualisation des métriques et dashboards
+
+## Développement
+
+### Arrêter les services locaux
+
+```bash
+docker-compose down
+```
+
+### Voir les logs
+
+```bash
+docker-compose logs -f [service-name]
+```
+
+### Vérifier le statut sur Kubernetes
+
+```bash
+kubectl get all -n modulops
+```
+
+## Prochaines étapes
+
+1. Implémenter les services backend (auth, k8s, terraform, etc.)
+2. Développer le frontend React
+3. Configurer l'authentification JWT
+4. Implémenter les webhooks et événements temps réel
+
+## Documentation
+
+Voir `docs/` pour plus de détails sur l'architecture et les services.
+
+## Licence
+
+[À définir]

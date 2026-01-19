@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: modulops
+
+resources:
+  - namespace.yaml
+  - postgres/postgres-configmap.yaml
+  - postgres/postgres-pvc.yaml
+  - postgres/postgres-deployment.yaml
+  - redis/redis-configmap.yaml
+  - redis/redis-deployment.yaml
+  - kafka/zookeeper-deployment.yaml
+  - kafka/kafka-deployment.yaml
+  - kong/kong-config.yaml
+  - kong/kong-deployment.yaml
+  - prometheus/prometheus-configmap.yaml
+  - prometheus/prometheus-pvc.yaml
+  - prometheus/prometheus-deployment.yaml
+  - grafana/grafana-deployment.yaml
