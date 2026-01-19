@@ -39,13 +39,19 @@ docker-compose up -d
 ```
 
 Les services seront disponibles sur :
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
-- Kafka: `localhost:9092`
-- Kong Gateway: `http://localhost:8000`
-- Kong Admin: `http://localhost:8001`
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000` (admin/admin)
+
+**Services accessibles via navigateur web :**
+- Kong Gateway: http://localhost:8000
+- Kong Admin: http://localhost:8001
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (admin/admin)
+
+**Services nécessitant des clients spécifiques :**
+- PostgreSQL: `localhost:5432` (utiliser `psql` ou un client SQL)
+- Redis: `localhost:6379` (utiliser `redis-cli` ou un client Redis)
+- Kafka: `localhost:9092` (utiliser un client Kafka)
+
+> **Note importante** : PostgreSQL, Redis et Kafka ne sont **pas** des serveurs web et ne peuvent pas être accédés via un navigateur. Consultez `docs/ACCES_SERVICES.md` pour plus de détails sur comment accéder à ces services.
 
 ### Option 2 : Déploiement sur Kubernetes
 

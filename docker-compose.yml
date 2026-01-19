@@ -90,7 +90,7 @@ services:
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
     volumes:
-      - ./infrastructure/k8s/kong/kong-config.yaml:/usr/local/kong/kong.yml:ro
+      - ./infrastructure/docker/kong.yml:/usr/local/kong/kong.yml:ro
     healthcheck:
       test: ["CMD", "kong", "health"]
       interval: 10s

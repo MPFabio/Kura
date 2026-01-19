@@ -1,4 +1,4 @@
-.PHONY: help setup-local setup-k8s up down logs clean status
+.PHONY: help setup-local setup-k8s up down logs clean status check
 
 help: ## Affiche cette aide
 	@echo "Commandes disponibles:"
@@ -44,6 +44,9 @@ logs-grafana: ## Affiche les logs de Grafana
 status: ## Affiche le statut des services
 	@echo "📊 Statut des services:"
 	@docker-compose ps
+
+check: ## Vérifie l'accessibilité de tous les services
+	@bash scripts/check-services.sh
 
 status-k8s: ## Affiche le statut des services sur Kubernetes
 	@echo "📊 Statut des services Kubernetes:"
