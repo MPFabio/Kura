@@ -85,3 +85,19 @@ apply-k8s: ## Applique les manifests Kubernetes
 delete-k8s: ## Supprime les ressources Kubernetes
 	@echo "🗑️  Suppression des ressources Kubernetes..."
 	kubectl delete -k infrastructure/k8s/
+
+frontend-install: ## Installe les dépendances du frontend
+	@echo "📦 Installation des dépendances du frontend..."
+	cd frontend && npm install
+
+frontend-dev: ## Démarre le serveur de développement du frontend
+	@echo "🚀 Démarrage du frontend en mode développement..."
+	cd frontend && npm run dev
+
+frontend-build: ## Compile le frontend pour la production
+	@echo "🏗️  Compilation du frontend..."
+	cd frontend && npm run build
+
+frontend-preview: ## Prévisualise le build de production du frontend
+	@echo "👀 Prévisualisation du build..."
+	cd frontend && npm run preview
