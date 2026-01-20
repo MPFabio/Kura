@@ -68,15 +68,15 @@ graph TD
     AUTH[Auth Service (Go)]
 
     subgraph Auth_Service
-        H[Handlers HTTP (Gin)]
-        S[AuthService<br/>Logique métier]
-        R[Repository<br/>Accès PostgreSQL]
+        H[Handlers HTTP Gin]
+        S[AuthService - logique métier]
+        R[Repository - accès PostgreSQL]
         JWT[JWT & Refresh Tokens]
     end
 
     PG[(PostgreSQL)]
 
-    FE -->|"HTTP /api/v1/auth/*"| KONG
+    FE --> KONG
     KONG --> AUTH
 
     AUTH --> H
