@@ -1,0 +1,134 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/modulops/auth-service/internal/config"
+	"github.com/modulops/auth-service/internal/handler"
+	"github.com/modulops/auth-service/internal/repository"
+	"github.com/modulops/auth-service/internal/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	// Charger la configuration
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Erreur lors du chargement de la configuration: %v", err)
+	}
+
+	// Initialiser le repository
+	repo, err := repository.New(cfg)
+	if err != nil {
+		log.Fatalf("Erreur lors de l'initialisation du repository: %v", err)
+	}
+	defer repo.Close()
+
+	// Initialiser le service
+	authService := service.NewAuthService(repo, cfg)
+
+	// Initialiser les handlers
+	authHandler := handler.NewAuthHandler(authService, cfg)
+
+	// Configurer le routeur
+	router := setupRouter(authHandler, cfg)
+
+	// Créer le serveur HTTP
+	srv := &http.Server{
+		Addr:    ":" + cfg.ServerPort,
+		Handler: router,
+	}
+
+	// Démarrer le serveur dans une goroutine
+	go func() {
+		log.Printf("Service d'authentification démarré sur le port %s", cfg.ServerPort)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Erreur lors du démarrage du serveur: %v", err)
+		}
+	}()
+
+	// Attendre un signal d'interruption
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Arrêt du service d'authentification...")
+
+	// Arrêt gracieux avec timeout de 5 secondes
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Erreur lors de l'arrêt du serveur: %v", err)
+	}
+
+	log.Println("Service d'authentification arrêté")
+}
+
+func setupRouter(authHandler *handler.AuthHandler, cfg *config.Config) *gin.Engine {
+	if cfg.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.Default()
+
+	// Middleware CORS
+	router.Use(corsMiddleware())
+
+	// Routes de santé
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "auth-service"})
+	})
+
+	// Routes d'authentification
+	v1 := router.Group("/api/v1")
+	{
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.Login)
+			auth.POST("/refresh", authHandler.RefreshToken)
+			auth.POST("/logout", authHandler.Logout)
+			auth.GET("/me", authHandler.RequireAuth(), authHandler.GetCurrentUser)
+			auth.PUT("/me", authHandler.RequireAuth(), authHandler.UpdateCurrentUser)
+			auth.PUT("/password", authHandler.RequireAuth(), authHandler.ChangePassword)
+		}
+
+		// Routes d'administration (nécessitent le rôle admin)
+		admin := v1.Group("/admin")
+		admin.Use(authHandler.RequireAuth())
+		admin.Use(authHandler.RequireRole("admin"))
+		{
+			admin.GET("/users", authHandler.ListUsers)
+			admin.GET("/users/:id", authHandler.GetUser)
+			admin.PUT("/users/:id", authHandler.UpdateUser)
+			admin.DELETE("/users/:id", authHandler.DeleteUser)
+			admin.PUT("/users/:id/role", authHandler.UpdateUserRole)
+		}
+	}
+
+	return router
+}
+
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
