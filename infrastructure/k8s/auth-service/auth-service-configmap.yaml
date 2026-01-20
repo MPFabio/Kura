@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  namespace: modulops
+data:
+  AUTH_SERVICE_PORT: "8080"
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: modulops
+  POSTGRES_PASSWORD: modulops
+  POSTGRES_DB: modulops
+  JWT_EXPIRATION: 24h
+  ENV: production
+  LOG_LEVEL: info

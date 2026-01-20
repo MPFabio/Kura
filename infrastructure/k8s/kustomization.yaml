@@ -18,3 +18,6 @@ resources:
   - prometheus/prometheus-pvc.yaml
   - prometheus/prometheus-deployment.yaml
   - grafana/grafana-deployment.yaml
+  - auth-service/auth-service-configmap.yaml
+  - auth-service/auth-service-secret.yaml
+  - auth-service/auth-service-deployment.yaml
