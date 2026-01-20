@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Script de vérification des services ModulOps
+# Script de vérification des services Kura
 
-echo "🔍 Vérification des services ModulOps..."
+echo "🔍 Vérification des services Kura..."
 echo ""
 
 echo "📊 Services HTTP (accessibles via navigateur):"
@@ -13,27 +13,27 @@ echo "  - Grafana: http://localhost:3000"
 echo ""
 
 echo "🔌 Services base de données/cache (nécessitent des clients spécifiques):"
-if docker exec modulops-postgres pg_isready -U modulops > /dev/null 2>&1; then
-    echo "  ✅ PostgreSQL (port 5432): OK - Utilisez 'docker exec -it modulops-postgres psql -U modulops -d modulops'"
+if docker exec kura-postgres pg_isready -U kura > /dev/null 2>&1; then
+    echo "  ✅ PostgreSQL (port 5432): OK - Utilisez 'docker exec -it kura-postgres psql -U kura -d kura'"
 else
     echo "  ❌ PostgreSQL: ERREUR"
 fi
 
-if docker exec modulops-redis redis-cli ping 2>/dev/null | grep -q PONG; then
-    echo "  ✅ Redis (port 6379): OK - Utilisez 'docker exec -it modulops-redis redis-cli'"
+if docker exec kura-redis redis-cli ping 2>/dev/null | grep -q PONG; then
+    echo "  ✅ Redis (port 6379): OK - Utilisez 'docker exec -it kura-redis redis-cli'"
 else
     echo "  ❌ Redis: ERREUR"
 fi
 echo ""
 
 echo "📨 Services message broker:"
-if docker exec modulops-kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1; then
+if docker exec kura-kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1; then
     echo "  ✅ Kafka (port 9092): OK - Utilisez un client Kafka"
 else
     echo "  ❌ Kafka: ERREUR"
 fi
 
-if docker exec modulops-zookeeper echo ruok 2>/dev/null | nc localhost 2181 2>/dev/null | grep -q imok; then
+if docker exec kura-zookeeper echo ruok 2>/dev/null | nc localhost 2181 2>/dev/null | grep -q imok; then
     echo "  ✅ Zookeeper (port 2181): OK"
 else
     echo "  ❌ Zookeeper: ERREUR"

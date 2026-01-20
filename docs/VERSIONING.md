@@ -1,10 +1,10 @@
-# Guide de Versionnement - ModulOps
+# Guide de Versionnement - Kura
 
-Ce document explique comment gérer les versions du projet ModulOps.
+Ce document explique comment gérer les versions du projet Kura.
 
 ## Format de Version
 
-ModulOps utilise le [Semantic Versioning](https://semver.org/lang/fr/) (SemVer) :
+Kura utilise le [Semantic Versioning](https://semver.org/lang/fr/) (SemVer) :
 
 - **MAJOR** (X.0.0) : Changements incompatibles avec les versions précédentes
 - **MINOR** (0.X.0) : Nouvelles fonctionnalités rétrocompatibles

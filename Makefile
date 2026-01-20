@@ -50,7 +50,7 @@ check: ## Vérifie l'accessibilité de tous les services
 
 status-k8s: ## Affiche le statut des services sur Kubernetes
 	@echo "📊 Statut des services Kubernetes:"
-	@kubectl get all -n modulops
+	@kubectl get all -n kura
 
 clean: ## Nettoie les volumes et données Docker
 	@echo "🧹 Nettoyage des volumes..."
@@ -71,12 +71,12 @@ restart-service: ## Redémarre un service spécifique (usage: make restart-servi
 
 port-forward-k8s: ## Configure les port-forwards pour Kubernetes
 	@echo "🔌 Configuration des port-forwards..."
-	@echo "PostgreSQL: kubectl port-forward svc/postgres 5432:5432 -n modulops"
-	@echo "Redis: kubectl port-forward svc/redis 6379:6379 -n modulops"
-	@echo "Kafka: kubectl port-forward svc/kafka 9092:9092 -n modulops"
-	@echo "Kong: kubectl port-forward svc/kong 8000:8000 -n modulops"
-	@echo "Prometheus: kubectl port-forward svc/prometheus 9090:9090 -n modulops"
-	@echo "Grafana: kubectl port-forward svc/grafana 3000:3000 -n modulops"
+	@echo "PostgreSQL: kubectl port-forward svc/postgres 5432:5432 -n kura"
+	@echo "Redis: kubectl port-forward svc/redis 6379:6379 -n kura"
+	@echo "Kafka: kubectl port-forward svc/kafka 9092:9092 -n kura"
+	@echo "Kong: kubectl port-forward svc/kong 8000:8000 -n kura"
+	@echo "Prometheus: kubectl port-forward svc/prometheus 9090:9090 -n kura"
+	@echo "Grafana: kubectl port-forward svc/grafana 3000:3000 -n kura"
 
 apply-k8s: ## Applique les manifests Kubernetes
 	@echo "📋 Application des manifests Kubernetes..."

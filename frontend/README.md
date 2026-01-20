@@ -1,6 +1,6 @@
-# ModulOps Frontend
+# Kura Frontend
 
-Application React + TypeScript pour la plateforme DevOps ModulOps.
+Application React + TypeScript pour la plateforme DevOps Kura.
 
 ## Technologies
 

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
-  namespace: modulops
+  namespace: kura
 spec:
   accessModes:
     - ReadWriteOnce

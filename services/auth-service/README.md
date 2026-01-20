@@ -1,4 +1,4 @@
-# Auth Service - Service d'authentification ModulOps
+# Auth Service - Service d'authentification Kura
 
 Service d'authentification microservice développé en Go avec support JWT, gestion des utilisateurs et rôles.
 

@@ -1,6 +1,6 @@
-# Guide d'accès aux services ModulOps
+# Guide d'accès aux services Kura
 
-Ce document explique comment accéder à chaque service de l'infrastructure ModulOps.
+Ce document explique comment accéder à chaque service de l'infrastructure Kura.
 
 ## Services accessibles via navigateur web
 
@@ -123,7 +123,7 @@ Créez un fichier `check-services.sh` :
 ```bash
 #!/bin/bash
 
-echo "Vérification des services ModulOps..."
+echo "Vérification des services Kura..."
 echo ""
 
 echo "Services HTTP (navigateur):"

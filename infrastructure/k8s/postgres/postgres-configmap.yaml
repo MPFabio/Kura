@@ -2,8 +2,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-config
-  namespace: modulops
+  namespace: kura
 data:
-  POSTGRES_DB: modulops
-  POSTGRES_USER: modulops
-  POSTGRES_PASSWORD: modulops
+  POSTGRES_DB: kura
+  POSTGRES_USER: kura
+  POSTGRES_PASSWORD: kura

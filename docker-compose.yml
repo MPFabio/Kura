@@ -3,26 +3,26 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: modulops-postgres
+    container_name: kura-postgres
     environment:
-      POSTGRES_DB: modulops
-      POSTGRES_USER: modulops
-      POSTGRES_PASSWORD: modulops
+      POSTGRES_DB: kura
+      POSTGRES_USER: kura
+      POSTGRES_PASSWORD: kura
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U modulops"]
+      test: ["CMD-SHELL", "pg_isready -U kura"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - modulops-network
+      - kura-network
 
   redis:
     image: redis:7-alpine
-    container_name: modulops-redis
+    container_name: kura-redis
     ports:
       - "6379:6379"
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
@@ -32,11 +32,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - modulops-network
+      - kura-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
-    container_name: modulops-zookeeper
+    container_name: kura-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -48,11 +48,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - modulops-network
+      - kura-network
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
-    container_name: modulops-kafka
+    container_name: kura-kafka
     depends_on:
       - zookeeper
     ports:
@@ -71,11 +71,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - modulops-network
+      - kura-network
 
   kong:
     image: kong:3.4
-    container_name: modulops-kong
+    container_name: kura-kong
     ports:
       - "8000:8000"
       - "8443:8443"
@@ -97,11 +97,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - modulops-network
+      - kura-network
 
   prometheus:
     image: prom/prometheus:v2.48.0
-    container_name: modulops-prometheus
+    container_name: kura-prometheus
     ports:
       - "9090:9090"
     command:
@@ -117,11 +117,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - modulops-network
+      - kura-network
 
   grafana:
     image: grafana/grafana:10.2.0
-    container_name: modulops-grafana
+    container_name: kura-grafana
     ports:
       - "3000:3000"
     environment:
@@ -139,22 +139,22 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - modulops-network
+      - kura-network
 
   auth-service:
     build:
       context: ./services/auth-service
       dockerfile: Dockerfile
-    container_name: modulops-auth-service
+    container_name: kura-auth-service
     ports:
       - "8080:8080"
     environment:
       AUTH_SERVICE_PORT: "8080"
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: modulops
-      POSTGRES_PASSWORD: modulops
-      POSTGRES_DB: modulops
+      POSTGRES_USER: kura
+      POSTGRES_PASSWORD: kura
+      POSTGRES_DB: kura
       JWT_SECRET: your-secret-key-change-in-production
       JWT_EXPIRATION: 24h
       ENV: development
@@ -168,7 +168,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - modulops-network
+      - kura-network
 
   # k8s-service: Commenté car tourne localement sur le port 8081
   # Si tu veux le démarrer dans Docker, arrête d'abord le service local (Ctrl+C)
@@ -176,7 +176,7 @@ services:
   #   build:
   #     context: ./services/k8s-service
   #     dockerfile: Dockerfile
-  #   container_name: modulops-k8s-service
+  #   container_name: kura-k8s-service
   #   ports:
   #     - "8081:8081"
   #   environment:
@@ -201,7 +201,7 @@ services:
   #     timeout: 5s
   #     retries: 5
   #   networks:
-  #     - modulops-network
+  #     - kura-network
 
 volumes:
   postgres-data:
@@ -209,5 +209,5 @@ volumes:
   grafana-data:
 
 networks:
-  modulops-network:
+  kura-network:
     driver: bridge

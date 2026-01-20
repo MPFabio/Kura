@@ -1,4 +1,4 @@
-ModulOps - État du Projet et Roadmap
+Kura - État du Projet et Roadmap
 
 ================================================================================
 CONTEXTE DU PROJET
@@ -6,7 +6,7 @@ CONTEXTE DU PROJET
 
 VISION
 
-ModulOps est une plateforme DevOps unifiée qui centralise la gestion et l'observation de plusieurs outils DevOps couramment utilisés en entreprise : Kubernetes, Terraform, Ansible, pipelines CI/CD, métriques et alertes.
+Kura est une plateforme DevOps unifiée qui centralise la gestion et l'observation de plusieurs outils DevOps couramment utilisés en entreprise : Kubernetes, Terraform, Ansible, pipelines CI/CD, métriques et alertes.
 
 PROBLÉMATIQUE
 
@@ -30,7 +30,7 @@ Backstage (Spotify), Port, Cortex :
 - Légers sur l'opérationnel actif (gestion K8s, exécution Terraform, jobs Ansible)
 - Orientés "catalogue" plutôt que "console d'opération"
 
-ModulOps :
+Kura :
 - Focus sur l'opérationnel actif (exécution Terraform, gestion K8s, jobs Ansible)
 - Architecture microservices native avec bus d'événements Kafka
 - Console d'opération pour équipes Ops/DevOps

@@ -1,4 +1,4 @@
-# K8s Service - Service Kubernetes ModulOps
+# K8s Service - Service Kubernetes Kura
 
 Service microservices en Go exposant des informations Kubernetes via une API REST, avec cache Redis et support de webhooks.
 
@@ -87,6 +87,6 @@ go run main.go
 ## Build Docker
 
 ```bash
-docker build -t modulops-k8s-service .
+docker build -t kura-k8s-service .
 ```
 

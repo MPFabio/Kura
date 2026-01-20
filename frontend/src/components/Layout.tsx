@@ -133,8 +133,27 @@ export default function Layout() {
             sx={{ 
               flexGrow: 1,
               fontFamily: '"Inter", sans-serif',
-              fontWeight: 500,
-              letterSpacing: '0.02em',
+              fontWeight: 700,
+              fontSize: '1.25rem',
+              letterSpacing: '0.15em',
+              background: 'linear-gradient(135deg, #00FFFF, #BF00FF)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: 'none',
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.5), rgba(191, 0, 255, 0.5))',
+                filter: 'blur(10px)',
+                zIndex: -1,
+                borderRadius: '4px',
+              },
             }}
           >
             Plateforme DevOps KURA

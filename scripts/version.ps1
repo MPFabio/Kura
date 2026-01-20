@@ -1,4 +1,4 @@
-# Script PowerShell de gestion des versions pour ModulOps
+# Script PowerShell de gestion des versions pour Kura
 # Usage: .\scripts\version.ps1 [major|minor|patch] ou .\scripts\version.ps1 [version] (ex: 1.2.3)
 
 param(

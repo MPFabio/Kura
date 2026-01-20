@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script de gestion des versions pour ModulOps
+# Script de gestion des versions pour Kura
 # Usage: ./scripts/version.sh [major|minor|patch] ou ./scripts/version.sh [version] (ex: 1.2.3)
 
 set -e

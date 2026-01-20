@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Script de configuration de l'infrastructure locale avec Docker Compose pour ModulOps
+# Script de configuration de l'infrastructure locale avec Docker Compose pour Kura
 
 set -e
 
-echo "Configuration de l'infrastructure ModulOps locale avec Docker Compose"
+echo "Configuration de l'infrastructure Kura locale avec Docker Compose"
 
 # Vérifier si Docker est installé
 if ! command -v docker &> /dev/null; then
@@ -40,7 +40,7 @@ $DOCKER_COMPOSE ps
 echo "Infrastructure locale démarrée avec succès!"
 echo ""
 echo "Services disponibles:"
-echo "  - PostgreSQL: localhost:5432 (user: modulops, password: modulops, db: modulops)"
+echo "  - PostgreSQL: localhost:5432 (user: kura, password: kura, db: kura)"
 echo "  - Redis: localhost:6379"
 echo "  - Kafka: localhost:9092"
 echo "  - Zookeeper: localhost:2181"
