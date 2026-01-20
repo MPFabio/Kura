@@ -1,5 +1,7 @@
 # ModulOps - Plateforme DevOps Microservices
 
+**Version actuelle :** [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](VERSION)
+
 Plateforme DevOps unifiée pour la gestion de clusters Kubernetes, Terraform, Ansible et pipelines CI/CD.
 
 ## Architecture
