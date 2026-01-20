@@ -1,6 +1,9 @@
 # ModulOps - Plateforme DevOps Microservices
 
-**Version actuelle :** [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](VERSION)
+[![GitHub release](https://img.shields.io/github/v/release/MPFabio/ModulOps?label=release)](https://github.com/MPFabio/ModulOps/releases)
+[![GitHub tag](https://img.shields.io/github/v/tag/MPFabio/ModulOps?label=tag)](https://github.com/MPFabio/ModulOps/tags)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Plateforme DevOps unifiée pour la gestion de clusters Kubernetes, Terraform, Ansible et pipelines CI/CD.
 
