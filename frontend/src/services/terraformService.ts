@@ -163,3 +163,135 @@ export const terraformService = {
     }
   },
 }
+
+export interface TerraformSource {
+  id: string
+  state_file_id: string
+  type: 's3' | 'azure' | 'gcp' | 'local' | 'terraform_cloud'
+  config: {
+    // S3
+    s3_bucket?: string
+    s3_key?: string
+    s3_region?: string
+    s3_endpoint?: string
+    aws_access_key_id?: string
+    aws_secret_access_key?: string
+    // Azure
+    azure_account_name?: string
+    azure_account_key?: string
+    azure_connection_string?: string
+    azure_container?: string
+    azure_blob_name?: string
+    // GCP
+    gcp_bucket?: string
+    gcp_object_name?: string
+    gcp_credentials_json?: string
+    // Terraform Cloud
+    terraform_cloud_org?: string
+    terraform_cloud_workspace?: string
+    terraform_cloud_token?: string
+    // Synchronisation
+    sync_interval?: string
+    auto_sync: boolean
+  }
+  enabled: boolean
+  last_sync?: string
+  next_sync?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TerraformSourceResponse {
+  items: TerraformSource[]
+}
+
+export interface TerraformSyncJob {
+  id: string
+  state_file_id: string
+  source_id: string
+  status: 'pending' | 'running' | 'success' | 'failed'
+  started_at?: string
+  completed_at?: string
+  error?: string
+  message?: string
+}
+
+export const terraformSourceService = {
+  getSources: async (): Promise<TerraformSourceResponse> => {
+    try {
+      const response = await apiClient.get<TerraformSourceResponse>('/api/v1/terraform/sources')
+      if (!response.data || !response.data.items) {
+        return { items: [] }
+      }
+      return response.data
+    } catch (error) {
+      console.error('Erreur lors de la récupération des sources:', error)
+      throw error
+    }
+  },
+
+  getSource: async (id: string): Promise<TerraformSource> => {
+    try {
+      const response = await apiClient.get<TerraformSource>(`/api/v1/terraform/sources/${id}`)
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la récupération de la source ${id}:`, error)
+      throw error
+    }
+  },
+
+  addSource: async (source: Partial<TerraformSource>): Promise<TerraformSource> => {
+    try {
+      const response = await apiClient.post<TerraformSource>('/api/v1/terraform/sources', source)
+      return response.data
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de la source:', error)
+      throw error
+    }
+  },
+
+  syncSource: async (sourceId: string): Promise<TerraformSyncJob> => {
+    try {
+      const response = await apiClient.post<TerraformSyncJob>(`/api/v1/terraform/sources/${sourceId}/sync`)
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la synchronisation de la source ${sourceId}:`, error)
+      throw error
+    }
+  },
+
+  updateSource: async (sourceId: string, source: Partial<TerraformSource>): Promise<TerraformSource> => {
+    try {
+      const response = await apiClient.put<TerraformSource>(`/api/v1/terraform/sources/${sourceId}`, source)
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour de la source ${sourceId}:`, error)
+      throw error
+    }
+  },
+
+  deleteSource: async (sourceId: string): Promise<void> => {
+    try {
+      await apiClient.delete(`/api/v1/terraform/sources/${sourceId}`)
+    } catch (error) {
+      console.error(`Erreur lors de la suppression de la source ${sourceId}:`, error)
+      throw error
+    }
+  },
+
+  testS3Connection: async (config: {
+    bucket: string
+    region: string
+    endpoint?: string
+    aws_access_key_id?: string
+    aws_secret_access_key?: string
+  }): Promise<{ message: string }> => {
+    try {
+      const response = await apiClient.post<{ message: string }>('/api/v1/terraform/sources/test-s3', config)
+      return response.data
+    } catch (error) {
+      console.error('Erreur lors du test de connexion S3:', error)
+      throw error
+    }
+  },
+}

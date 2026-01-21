@@ -78,6 +78,12 @@ graph TB
     Terraform --> Postgres
     Ansible --> Postgres
     
+    Terraform --> S3[(AWS S3)]
+    Terraform --> Azure[(Azure Blob)]
+    Terraform --> GCP[(GCP Storage)]
+    
+    Terraform --> GCPAPI[GCP Compute API]
+    
     Metrics --> Prometheus[(Prometheus)]
     Metrics --> Grafana[Grafana]
 ```

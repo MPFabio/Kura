@@ -13,15 +13,17 @@ import (
 
 // TerraformHandler gère les requêtes HTTP liées à Terraform.
 type TerraformHandler struct {
-	svc *service.TerraformService
-	cfg *config.Config
+	svc         *service.TerraformService
+	syncService *service.SyncService
+	cfg         *config.Config
 }
 
 // NewTerraformHandler crée un nouveau handler Terraform.
-func NewTerraformHandler(svc *service.TerraformService, cfg *config.Config) *TerraformHandler {
+func NewTerraformHandler(svc *service.TerraformService, syncService *service.SyncService, cfg *config.Config) *TerraformHandler {
 	return &TerraformHandler{
-		svc: svc,
-		cfg: cfg,
+		svc:         svc,
+		syncService: syncService,
+		cfg:         cfg,
 	}
 }
 
@@ -222,7 +224,31 @@ func (h *TerraformHandler) DetectDrift(c *gin.Context) {
 		return
 	}
 
-	results, err := h.svc.DetectDrift(ctx, id)
+	// Récupérer la source associée à cet état pour obtenir les credentials
+	var credentialsJSON string
+	var providerType string
+	
+	if h.syncService != nil {
+		sources, err := h.syncService.ListSources(ctx)
+		if err == nil {
+			for _, source := range sources {
+				if source.StateFileID == id {
+					providerType = source.Type
+					// Décrypter les credentials si GCP
+					if source.Type == "gcp" && source.Config.GCPCredentialsJSON != "" {
+						// Créer une copie pour décrypter
+						sourceCopy := *source
+						if err := h.syncService.DecryptCredentials(&sourceCopy); err == nil {
+							credentialsJSON = sourceCopy.Config.GCPCredentialsJSON
+						}
+					}
+					break
+				}
+			}
+		}
+	}
+
+	results, err := h.svc.DetectDrift(ctx, id, credentialsJSON, providerType)
 	if err != nil {
 		log.Printf("Erreur DetectDrift pour id %s: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -252,3 +278,5 @@ func (h *TerraformHandler) DeleteStateFile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "fichier d'état supprimé"})
 }
+
+// Les méthodes suivantes seront ajoutées dans un nouveau fichier handler pour les sources

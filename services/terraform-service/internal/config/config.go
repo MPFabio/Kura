@@ -22,6 +22,9 @@ type Config struct {
 	// Kafka (pour futur usage)
 	KafkaBrokers string
 	KafkaGroupID string
+
+	// Chiffrement des credentials
+	EncryptionKey string
 }
 
 func Load() (*Config, error) {
@@ -55,6 +58,9 @@ func Load() (*Config, error) {
 	// Kafka
 	cfg.KafkaBrokers = getEnv("KAFKA_BROKERS", "localhost:9092")
 	cfg.KafkaGroupID = getEnv("KAFKA_GROUP_ID", "terraform-service")
+
+	// Clé de chiffrement (pour les credentials sensibles)
+	cfg.EncryptionKey = getEnv("TERRAFORM_ENCRYPTION_KEY", "")
 
 	return cfg, nil
 }

@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/modulops/terraform-service/internal/config"
+	gcpDrift "github.com/modulops/terraform-service/internal/drift/gcp"
 	"github.com/modulops/terraform-service/internal/models"
 	"github.com/modulops/terraform-service/internal/parser"
 )
@@ -16,6 +18,7 @@ type Cache interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key, value string, ttl time.Duration) error
 	Delete(ctx context.Context, key string) error
+	Keys(ctx context.Context, pattern string) ([]string, error)
 }
 
 // TerraformService contient la logique métier autour de Terraform.
@@ -37,7 +40,14 @@ func NewTerraformService(cache Cache, cfg *config.Config) *TerraformService {
 }
 
 // ParseStateFile parse un fichier tfstate et le stocke.
+// Si stateFileID est fourni et existe, l'état est mis à jour au lieu d'être créé.
 func (s *TerraformService) ParseStateFile(ctx context.Context, name string, stateData []byte) (*models.StateFile, error) {
+	return s.ParseStateFileWithID(ctx, "", name, stateData)
+}
+
+// ParseStateFileWithID parse un fichier tfstate et le stocke avec un ID spécifique.
+// Si l'ID existe déjà, l'état est mis à jour.
+func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID, name string, stateData []byte) (*models.StateFile, error) {
 	// Parser le tfstate
 	state, err := s.parser.ParseStateFromBytes(stateData)
 	if err != nil {
@@ -49,22 +59,52 @@ func (s *TerraformService) ParseStateFile(ctx context.Context, name string, stat
 		return nil, fmt.Errorf("état invalide: %w", err)
 	}
 
+	var stateFile *models.StateFile
+	var isUpdate bool
+
+	// Vérifier si l'état existe déjà
+	if stateFileID != "" {
+		if existing, err := s.GetStateFile(ctx, stateFileID); err == nil {
+			stateFile = existing
+			isUpdate = true
+		}
+	}
+
 	// Créer ou mettre à jour le fichier d'état
-	stateFile := &models.StateFile{
-		ID:         fmt.Sprintf("%s-%d", name, time.Now().Unix()),
-		Name:       name,
-		State:      state,
-		UploadedAt: time.Now(),
+	if !isUpdate {
+		// Nouvel état
+		// Si l'ID commence par "temp-", générer un nouvel ID permanent
+		if strings.HasPrefix(stateFileID, "temp-") {
+			stateFileID = fmt.Sprintf("%s-%d", name, time.Now().Unix())
+		} else if stateFileID == "" {
+			stateFileID = fmt.Sprintf("%s-%d", name, time.Now().Unix())
+		}
+		stateFile = &models.StateFile{
+			ID:         stateFileID,
+			Name:       name,
+			State:      state,
+			UploadedAt: time.Now(),
+		}
+	} else {
+		// Mise à jour
+		stateFile.State = state
+		stateFile.UploadedAt = time.Now()
+		if name != "" {
+			stateFile.Name = name
+		}
 	}
 
 	// Stocker en mémoire (pourrait être remplacé par PostgreSQL)
 	s.states[stateFile.ID] = stateFile
 
-	// Mettre en cache
+	// Mettre en cache avec un TTL très long (30 jours) pour les états Terraform
+	// Les états sont des données importantes qui ne doivent pas expirer rapidement
 	cacheKey := fmt.Sprintf("terraform:state:%s", stateFile.ID)
 	stateJSON, err := json.Marshal(stateFile)
 	if err == nil {
-		_ = s.cache.Set(ctx, cacheKey, string(stateJSON), s.cfg.CacheTTL)
+		// Utiliser un TTL de 30 jours pour les états Terraform (beaucoup plus long que le TTL par défaut)
+		stateTTL := 30 * 24 * time.Hour
+		_ = s.cache.Set(ctx, cacheKey, string(stateJSON), stateTTL)
 	}
 
 	return stateFile, nil
@@ -91,10 +131,40 @@ func (s *TerraformService) GetStateFile(ctx context.Context, id string) (*models
 
 // ListStateFiles retourne la liste de tous les fichiers d'état.
 func (s *TerraformService) ListStateFiles(ctx context.Context) ([]*models.StateFile, error) {
-	result := make([]*models.StateFile, 0, len(s.states))
+	resultMap := make(map[string]*models.StateFile)
+	
+	// Charger depuis la mémoire
 	for _, stateFile := range s.states {
+		resultMap[stateFile.ID] = stateFile
+	}
+	
+	// Charger depuis Redis si l'interface Keys est disponible
+	type KeysCache interface {
+		Keys(ctx context.Context, pattern string) ([]string, error)
+	}
+	if cacheWithKeys, ok := s.cache.(KeysCache); ok {
+		keys, err := cacheWithKeys.Keys(ctx, "terraform:state:*")
+		if err == nil {
+			for _, key := range keys {
+				cached, err := s.cache.Get(ctx, key)
+				if err == nil && cached != "" {
+					var stateFile models.StateFile
+					if err := json.Unmarshal([]byte(cached), &stateFile); err == nil {
+						resultMap[stateFile.ID] = &stateFile
+						// Mettre aussi en mémoire pour éviter de recharger
+						s.states[stateFile.ID] = &stateFile
+					}
+				}
+			}
+		}
+	}
+	
+	// Convertir en slice
+	result := make([]*models.StateFile, 0, len(resultMap))
+	for _, stateFile := range resultMap {
 		result = append(result, stateFile)
 	}
+	
 	return result, nil
 }
 
@@ -120,8 +190,8 @@ func (s *TerraformService) GetStateSummary(ctx context.Context, id string) (*mod
 }
 
 // DetectDrift détecte les dérives entre l'état Terraform et l'état réel.
-// Cette implémentation est basique et peut être étendue avec des providers réels.
-func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string) ([]*models.DriftResult, error) {
+// Cette méthode délègue à un détecteur spécifique selon le provider.
+func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string, credentialsJSON string, providerType string) ([]*models.DriftResult, error) {
 	stateFile, err := s.GetStateFile(ctx, stateFileID)
 	if err != nil {
 		return nil, err
@@ -131,39 +201,80 @@ func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string) 
 		return nil, fmt.Errorf("état vide")
 	}
 
-	results := make([]*models.DriftResult, 0)
+	var results []*models.DriftResult
 
-	// Parcourir toutes les ressources
-	for _, resource := range stateFile.State.Resources {
-		resourceAddr := s.parser.BuildResourceAddress(&resource)
-
-		// Pour l'instant, on simule une détection de drift basique
-		// Dans une implémentation complète, on interrogerait les providers réels
-		// (AWS, GCP, Azure, etc.) pour comparer avec l'état réel
-
-		driftResult := &models.DriftResult{
-			ResourceAddress: resourceAddr,
-			ResourceType:    resource.Type,
-			Status:          "unknown", // "in_sync", "drifted", "missing"
-			DetectedAt:      time.Now(),
-			Message:         "Détection de drift non implémentée pour ce type de ressource",
+	// Utiliser le détecteur approprié selon le provider
+	switch providerType {
+	case "gcp":
+		detector, err := gcpDrift.NewDetector(credentialsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("erreur lors de la création du détecteur GCP: %w", err)
 		}
-
-		// Exemple : si la ressource n'a pas d'instances, elle est considérée comme manquante
-		if len(resource.Instances) == 0 {
-			driftResult.Status = "missing"
-			driftResult.Message = "Aucune instance trouvée pour cette ressource"
-		} else {
-			// Par défaut, on considère qu'il n'y a pas de drift
-			// (ceci nécessiterait une vérification réelle avec les providers)
-			driftResult.Status = "unknown"
+		results, err = detector.DetectDrift(ctx, stateFile)
+		if err != nil {
+			return nil, fmt.Errorf("erreur lors de la détection de drift GCP: %w", err)
 		}
-
-		results = append(results, driftResult)
+	case "aws", "s3":
+		// TODO: Implémenter le détecteur AWS
+		results = make([]*models.DriftResult, 0)
+		for _, resource := range stateFile.State.Resources {
+			resourceAddr := s.parser.BuildResourceAddress(&resource)
+			results = append(results, &models.DriftResult{
+				ResourceAddress: resourceAddr,
+				ResourceType:    resource.Type,
+				Status:          "unknown",
+				DetectedAt:      time.Now(),
+				Message:         "Détection de drift AWS non implémentée",
+			})
+		}
+	case "azure":
+		// TODO: Implémenter le détecteur Azure
+		results = make([]*models.DriftResult, 0)
+		for _, resource := range stateFile.State.Resources {
+			resourceAddr := s.parser.BuildResourceAddress(&resource)
+			results = append(results, &models.DriftResult{
+				ResourceAddress: resourceAddr,
+				ResourceType:    resource.Type,
+				Status:          "unknown",
+				DetectedAt:      time.Now(),
+				Message:         "Détection de drift Azure non implémentée",
+			})
+		}
+	default:
+		// Fallback: détection basique
+		results = make([]*models.DriftResult, 0)
+		for _, resource := range stateFile.State.Resources {
+			resourceAddr := s.parser.BuildResourceAddress(&resource)
+			driftResult := &models.DriftResult{
+				ResourceAddress: resourceAddr,
+				ResourceType:    resource.Type,
+				Status:          "unknown",
+				DetectedAt:      time.Now(),
+				Message:         fmt.Sprintf("Provider %s non supporté pour la détection de drift", providerType),
+			}
+			if len(resource.Instances) == 0 {
+				driftResult.Status = "missing"
+				driftResult.Message = "Aucune instance trouvée pour cette ressource"
+			}
+			results = append(results, driftResult)
+		}
 	}
 
-	// Mettre à jour le timestamp de dernière vérification
+	// Mettre à jour le stateFile avec les résultats
+	stateFile.DriftResults = results
 	stateFile.LastChecked = time.Now()
+
+	// Sauvegarder dans le cache avec un TTL très long (30 jours) pour les états Terraform
+	cacheKey := fmt.Sprintf("terraform:state:%s", stateFile.ID)
+	stateJSON, err := json.Marshal(stateFile)
+	if err == nil {
+		// Utiliser un TTL de 30 jours pour les états Terraform
+		stateTTL := 30 * 24 * time.Hour
+		_ = s.cache.Set(ctx, cacheKey, string(stateJSON), stateTTL)
+	}
+	
+	// Mettre à jour en mémoire
+	s.states[stateFile.ID] = stateFile
 
 	return results, nil
 }

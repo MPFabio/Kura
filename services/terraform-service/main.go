@@ -34,11 +34,17 @@ func main() {
 	// Initialiser le service métier
 	terraformService := service.NewTerraformService(redisClient, cfg)
 
+	// Initialiser le service de synchronisation
+	syncService := service.NewSyncService(terraformService, redisClient, cfg)
+	defer syncService.Stop()
+
 	// Initialiser les handlers HTTP
-	terraformHandler := handler.NewTerraformHandler(terraformService, cfg)
+	terraformHandler := handler.NewTerraformHandler(terraformService, syncService, cfg)
+	sourceHandler := handler.NewSourceHandler(syncService, cfg)
+	webhookHandler := handler.NewWebhookHandler(syncService, cfg)
 
 	// Configurer le routeur HTTP
-	router := setupRouter(terraformHandler, cfg)
+	router := setupRouter(terraformHandler, sourceHandler, webhookHandler, cfg)
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
@@ -72,7 +78,7 @@ func main() {
 	log.Println("Service Terraform arrêté")
 }
 
-func setupRouter(terraformHandler *handler.TerraformHandler, cfg *config.Config) *gin.Engine {
+func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *handler.SourceHandler, webhookHandler *handler.WebhookHandler, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -108,6 +114,19 @@ func setupRouter(terraformHandler *handler.TerraformHandler, cfg *config.Config)
 
 			// Détection de drift
 			terraformGroup.POST("/states/:id/drift", terraformHandler.DetectDrift)
+
+			// Gestion des sources de synchronisation
+			terraformGroup.POST("/sources", sourceHandler.AddSource)
+			terraformGroup.GET("/sources", sourceHandler.ListSources)
+			terraformGroup.GET("/sources/:id", sourceHandler.GetSource)
+			terraformGroup.PUT("/sources/:id", sourceHandler.UpdateSource)
+			terraformGroup.DELETE("/sources/:id", sourceHandler.DeleteSource)
+			terraformGroup.POST("/sources/:id/sync", sourceHandler.SyncSource)
+			terraformGroup.POST("/sources/test-s3", sourceHandler.TestS3Connection)
+
+			// Webhooks pour les mises à jour en temps réel
+			terraformGroup.POST("/webhooks/state-updated", webhookHandler.HandleStateUpdated)
+			terraformGroup.POST("/webhooks/s3-event", webhookHandler.HandleS3Event)
 		}
 	}
 

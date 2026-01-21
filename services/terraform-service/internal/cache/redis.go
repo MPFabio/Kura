@@ -55,6 +55,15 @@ func (r *RedisClient) Delete(ctx context.Context, key string) error {
 	return r.client.Del(ctx, key).Err()
 }
 
+// Keys retourne toutes les clés correspondant au pattern.
+func (r *RedisClient) Keys(ctx context.Context, pattern string) ([]string, error) {
+	keys, err := r.client.Keys(ctx, pattern).Result()
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
 // Close ferme la connexion Redis.
 func (r *RedisClient) Close() error {
 	return r.client.Close()

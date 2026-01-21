@@ -73,10 +73,10 @@ func (s *ClusterService) CreateCluster(ctx context.Context, cluster *models.Clus
 
 	s.clusters[cluster.ID] = cluster
 
-	// Sauvegarder dans le cache
+	// Sauvegarder dans le cache (pas d'expiration pour les configurations critiques)
 	cacheKey := fmt.Sprintf("k8s:cluster:%s", cluster.ID)
 	clusterJSON, _ := json.Marshal(cluster)
-	_ = s.cache.Set(ctx, cacheKey, string(clusterJSON), 24*time.Hour)
+	_ = s.cache.Set(ctx, cacheKey, string(clusterJSON), 0) // 0 = pas d'expiration
 
 	// Sauvegarder la liste des clusters
 	s.saveClustersList(ctx)
@@ -146,10 +146,10 @@ func (s *ClusterService) UpdateCluster(ctx context.Context, id string, cluster *
 		s.activeClusterID = ""
 	}
 
-	// Sauvegarder dans le cache
+	// Sauvegarder dans le cache (pas d'expiration pour les configurations critiques)
 	cacheKey := fmt.Sprintf("k8s:cluster:%s", id)
 	clusterJSON, _ := json.Marshal(existing)
-	_ = s.cache.Set(ctx, cacheKey, string(clusterJSON), 24*time.Hour)
+	_ = s.cache.Set(ctx, cacheKey, string(clusterJSON), 0) // 0 = pas d'expiration
 
 	s.saveClustersList(ctx)
 
@@ -368,6 +368,7 @@ func (s *ClusterService) saveClustersList(ctx context.Context) {
 		ids = append(ids, id)
 	}
 	idsJSON, _ := json.Marshal(ids)
-	_ = s.cache.Set(ctx, "k8s:clusters:list", string(idsJSON), 24*time.Hour)
-	_ = s.cache.Set(ctx, "k8s:clusters:active", s.activeClusterID, 24*time.Hour)
+	// Pas d'expiration pour les configurations critiques
+	_ = s.cache.Set(ctx, "k8s:clusters:list", string(idsJSON), 0) // 0 = pas d'expiration
+	_ = s.cache.Set(ctx, "k8s:clusters:active", s.activeClusterID, 0) // 0 = pas d'expiration
 }
