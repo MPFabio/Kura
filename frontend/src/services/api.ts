@@ -35,7 +35,11 @@ class ApiClient {
           // Token expiré, déconnexion
           localStorage.removeItem('token')
           localStorage.removeItem('refreshToken')
-          window.location.href = '/login'
+          // Ne pas rediriger si on est déjà sur la page de login
+          // pour éviter les boucles de redirection
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+            window.location.href = '/login'
+          }
         }
         return Promise.reject(error)
       }

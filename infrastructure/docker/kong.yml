@@ -16,7 +16,7 @@ services:
     - DELETE
 
 - name: k8s-service
-  url: http://host.docker.internal:8081
+  url: http://k8s-service:8081
   routes:
   - name: k8s-route
     paths:
@@ -32,11 +32,11 @@ services:
     - https
 
 - name: terraform-service
-  url: http://terraform-service:8080
+  url: http://terraform-service:8082
   routes:
   - name: terraform-route
     paths:
-    - /api/terraform
+    - /api/v1/terraform
     strip_path: false
     methods:
     - GET

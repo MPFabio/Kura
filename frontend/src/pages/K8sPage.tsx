@@ -33,6 +33,8 @@ import {
   Snackbar,
   Checkbox,
   AppBar,
+  FormControlLabel,
+  Switch,
 } from '@mui/material'
 import {
   Delete as DeleteIcon,
@@ -42,13 +44,20 @@ import {
 } from '@mui/icons-material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { k8sService } from '../services/k8sService'
+import { clusterService, KubernetesCluster } from '../services/clusterService'
+import { Deployment } from '../services/api'
 import ResourceDetailDialog from '../components/ResourceDetailDialog'
+import {
+  Add as AddIcon,
+  CheckCircle as CheckCircleIcon,
+  CloudUpload as CloudUploadIcon,
+} from '@mui/icons-material'
 
-type ResourceTab = 'pods' | 'deployments' | 'services' | 'configmaps' | 'secrets' | 'nodes'
+type ResourceTab = 'clusters' | 'pods' | 'deployments' | 'services' | 'configmaps' | 'secrets' | 'nodes'
 
 export default function K8sPage() {
   const [selectedNamespace, setSelectedNamespace] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<ResourceTab>('pods')
+  const [activeTab, setActiveTab] = useState<ResourceTab>('clusters')
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [scaleDialog, setScaleDialog] = useState<{
     open: boolean
@@ -62,13 +71,13 @@ export default function K8sPage() {
     currentReplicas: 0,
   })
   const [scaleReplicas, setScaleReplicas] = useState<number>(1)
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'warning' }>({
     open: false,
     message: '',
     severity: 'success',
   })
   const queryClient = useQueryClient()
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [detailDialog, setDetailDialog] = useState<{
     open: boolean
     type: 'pod' | 'deployment' | 'service'
@@ -91,9 +100,35 @@ export default function K8sPage() {
     count: 0,
   })
 
+  // États pour la gestion des clusters
+  const [clusterDialogOpen, setClusterDialogOpen] = useState(false)
+  const [editingCluster, setEditingCluster] = useState<KubernetesCluster | null>(null)
+  const [clusterForm, setClusterForm] = useState({
+    name: '',
+    description: '',
+    endpoint: '',
+    kubeconfig: '',
+    is_active: false,
+  })
+  const [kubeconfigFile, setKubeconfigFile] = useState<File | null>(null)
+
+  // Queries pour les clusters
+  const { data: clusters, isLoading: clustersLoading, error: clustersError } = useQuery({
+    queryKey: ['clusters'],
+    queryFn: () => clusterService.getClusters(),
+  })
+
+  // activeCluster non utilisé pour l'instant mais peut être utile plus tard
+  // const { data: activeCluster } = useQuery({
+  //   queryKey: ['active-cluster'],
+  //   queryFn: () => clusterService.getActiveCluster(),
+  // })
+
   const { data: namespaces, isLoading: namespacesLoading, error: namespacesError } = useQuery({
     queryKey: ['namespaces'],
     queryFn: () => k8sService.getNamespaces(),
+    retry: false,
+    enabled: activeTab !== 'clusters', // Ne charger que si on n'est pas sur l'onglet clusters
   })
 
   const { data: pods, isLoading: podsLoading, error: podsError } = useQuery({
@@ -220,9 +255,10 @@ export default function K8sPage() {
           return
         }
         
-        const result = await queryClient.refetchQueries({ queryKey: ['deployments', selectedNamespace] })
-        const queryResult = result.find((r) => r?.queryKey?.[0] === 'deployments')
-        const data = queryResult?.state?.data as { items: Deployment[] } | undefined
+        await queryClient.refetchQueries({ queryKey: ['deployments', selectedNamespace] })
+        // Récupérer les données depuis le cache
+        const queryData = queryClient.getQueryData<{ items: Deployment[] }>(['deployments', selectedNamespace])
+        const data = queryData
         
         // Arrêter le polling si tous les deployments sont prêts
         if (data?.items) {
@@ -278,6 +314,143 @@ export default function K8sPage() {
     })
   }
 
+  // Mutations pour les clusters
+  const createClusterMutation = useMutation({
+    mutationFn: (cluster: any) => clusterService.createCluster(cluster),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clusters'] })
+      queryClient.invalidateQueries({ queryKey: ['active-cluster'] })
+      queryClient.invalidateQueries({ queryKey: ['namespaces'] })
+      setClusterDialogOpen(false)
+      resetClusterForm()
+      setSnackbar({ open: true, message: 'Cluster créé avec succès', severity: 'success' })
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Erreur lors de la création du cluster',
+        severity: 'error',
+      })
+    },
+  })
+
+  const updateClusterMutation = useMutation({
+    mutationFn: ({ id, cluster }: { id: string; cluster: any }) => clusterService.updateCluster(id, cluster),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clusters'] })
+      queryClient.invalidateQueries({ queryKey: ['active-cluster'] })
+      queryClient.invalidateQueries({ queryKey: ['namespaces'] })
+      setClusterDialogOpen(false)
+      resetClusterForm()
+      setSnackbar({ open: true, message: 'Cluster mis à jour avec succès', severity: 'success' })
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Erreur lors de la mise à jour du cluster',
+        severity: 'error',
+      })
+    },
+  })
+
+  const deleteClusterMutation = useMutation({
+    mutationFn: (id: string) => clusterService.deleteCluster(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clusters'] })
+      queryClient.invalidateQueries({ queryKey: ['active-cluster'] })
+      queryClient.invalidateQueries({ queryKey: ['namespaces'] })
+      setSnackbar({ open: true, message: 'Cluster supprimé avec succès', severity: 'success' })
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Erreur lors de la suppression du cluster',
+        severity: 'error',
+      })
+    },
+  })
+
+  const activateClusterMutation = useMutation({
+    mutationFn: (id: string) => clusterService.setActiveCluster(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clusters'] })
+      queryClient.invalidateQueries({ queryKey: ['active-cluster'] })
+      queryClient.invalidateQueries({ queryKey: ['namespaces'] })
+      setSnackbar({ open: true, message: 'Cluster activé avec succès', severity: 'success' })
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.error || 'Erreur lors de l\'activation du cluster',
+        severity: 'error',
+      })
+    },
+  })
+
+  const resetClusterForm = () => {
+    setClusterForm({
+      name: '',
+      description: '',
+      endpoint: '',
+      kubeconfig: '',
+      is_active: false,
+    })
+    setEditingCluster(null)
+    setKubeconfigFile(null)
+  }
+
+  const handleOpenClusterDialog = (cluster?: KubernetesCluster) => {
+    if (cluster) {
+      setEditingCluster(cluster)
+      setClusterForm({
+        name: cluster.name,
+        description: cluster.description || '',
+        endpoint: cluster.endpoint || '',
+        kubeconfig: '', // Ne pas pré-remplir pour la sécurité
+        is_active: cluster.is_active,
+      })
+    } else {
+      resetClusterForm()
+    }
+    setClusterDialogOpen(true)
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0]
+      setKubeconfigFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const content = e.target?.result as string
+        setClusterForm({ ...clusterForm, kubeconfig: content })
+      }
+      reader.readAsText(file)
+    }
+  }
+
+  const handleClusterSubmit = () => {
+    if (!clusterForm.name || !clusterForm.kubeconfig) {
+      setSnackbar({ open: true, message: 'Le nom et le kubeconfig sont requis', severity: 'error' })
+      return
+    }
+
+    if (editingCluster) {
+      updateClusterMutation.mutate({ id: editingCluster.id, cluster: clusterForm })
+    } else {
+      createClusterMutation.mutate(clusterForm)
+    }
+  }
+
+  const handleDeleteCluster = (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce cluster ?')) {
+      deleteClusterMutation.mutate(id)
+    }
+  }
+
+  const handleActivateCluster = (id: string) => {
+    activateClusterMutation.mutate(id)
+  }
+
   const filterResources = <T extends { name: string }>(items: T[] | undefined): T[] => {
     if (!items) return []
     if (!searchTerm) return items
@@ -329,6 +502,13 @@ export default function K8sPage() {
   }
 
   const renderPodsTable = () => {
+    if (!selectedNamespace) {
+      return (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Veuillez sélectionner un namespace pour afficher les pods.
+        </Alert>
+      )
+    }
     if (podsLoading) {
       return (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -424,6 +604,13 @@ export default function K8sPage() {
   }
 
   const renderDeploymentsTable = () => {
+    if (!selectedNamespace) {
+      return (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Veuillez sélectionner un namespace pour afficher les deployments.
+        </Alert>
+      )
+    }
     if (deploymentsLoading) {
       return (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -552,6 +739,13 @@ export default function K8sPage() {
   }
 
   const renderServicesTable = () => {
+    if (!selectedNamespace) {
+      return (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Veuillez sélectionner un namespace pour afficher les services.
+        </Alert>
+      )
+    }
     if (servicesLoading) {
       return (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -653,6 +847,13 @@ export default function K8sPage() {
   }
 
   const renderConfigMapsTable = () => {
+    if (!selectedNamespace) {
+      return (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Veuillez sélectionner un namespace pour afficher les ConfigMaps.
+        </Alert>
+      )
+    }
     if (configMapsLoading) {
       return (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -703,6 +904,13 @@ export default function K8sPage() {
   }
 
   const renderSecretsTable = () => {
+    if (!selectedNamespace) {
+      return (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Veuillez sélectionner un namespace pour afficher les Secrets.
+        </Alert>
+      )
+    }
     if (secretsLoading) {
       return (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -753,6 +961,131 @@ export default function K8sPage() {
           </TableBody>
         </Table>
       </TableContainer>
+    )
+  }
+
+  const renderClustersTable = () => {
+    if (clustersLoading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
+      )
+    }
+
+    if (clustersError) {
+      return (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Erreur lors du chargement des clusters : {clustersError instanceof Error ? clustersError.message : 'Erreur inconnue'}
+        </Alert>
+      )
+    }
+
+    if (!clusters || clusters.items.length === 0) {
+      return (
+        <Card>
+          <CardContent sx={{ textAlign: 'center', py: 6 }}>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Aucun cluster Kubernetes configuré
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Ajoutez un cluster Kubernetes pour commencer à gérer vos ressources.
+            </Typography>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenClusterDialog()}>
+              Ajouter un cluster
+            </Button>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    return (
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Clusters Kubernetes</Typography>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenClusterDialog()}>
+            Ajouter un cluster
+          </Button>
+        </Box>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Nom</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Endpoint</TableCell>
+                <TableCell>Statut</TableCell>
+                <TableCell>Créé le</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {clusters.items.map((cluster) => (
+                <TableRow key={cluster.id}>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {cluster.name}
+                      </Typography>
+                      {cluster.is_active && (
+                        <Chip
+                          label="Actif"
+                          color="success"
+                          size="small"
+                          icon={<CheckCircleIcon />}
+                        />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell>{cluster.description || '-'}</TableCell>
+                  <TableCell>{cluster.endpoint || '-'}</TableCell>
+                  <TableCell>
+                    {cluster.is_active ? (
+                      <Chip label="Actif" color="success" size="small" />
+                    ) : (
+                      <Chip label="Inactif" color="default" size="small" />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(cluster.created_at).toLocaleDateString('fr-FR')}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      {!cluster.is_active && (
+                        <Tooltip title="Activer ce cluster">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleActivateCluster(cluster.id)}
+                            disabled={activateClusterMutation.isPending}
+                          >
+                            <CheckCircleIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Modifier">
+                        <IconButton size="small" onClick={() => handleOpenClusterDialog(cluster)}>
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Supprimer">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteCluster(cluster.id)}
+                          disabled={cluster.is_active}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
     )
   }
 
@@ -828,8 +1161,28 @@ export default function K8sPage() {
                   <CircularProgress />
                 </Box>
               ) : namespacesError ? (
-                <Alert severity="error">
-                  Erreur: {(namespacesError as any)?.response?.data?.error || (namespacesError as any)?.message || 'Erreur inconnue'}
+                <Alert 
+                  severity="error"
+                  action={
+                    <Button 
+                      color="inherit" 
+                      size="small" 
+                      onClick={() => setActiveTab('clusters')}
+                    >
+                      Configurer un cluster
+                    </Button>
+                  }
+                >
+                  {(namespacesError as any)?.response?.status === 503 || 
+                   (namespacesError as any)?.response?.data?.error?.includes('Aucun cluster') ? (
+                    <>
+                      Aucun cluster Kubernetes configuré. Veuillez ajouter un cluster pour commencer.
+                    </>
+                  ) : (
+                    <>
+                      Erreur: {(namespacesError as any)?.response?.data?.error || (namespacesError as any)?.message || 'Erreur inconnue'}
+                    </>
+                  )}
                 </Alert>
               ) : namespaces?.items && namespaces.items.length > 0 ? (
                 <Box>
@@ -877,24 +1230,38 @@ export default function K8sPage() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider', flexGrow: 1 }}>
               <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
-                <Tab label="Pods" value="pods" disabled={!selectedNamespace} />
-                <Tab label="Deployments" value="deployments" disabled={!selectedNamespace} />
-                <Tab label="Services" value="services" disabled={!selectedNamespace} />
-                <Tab label="ConfigMaps" value="configmaps" disabled={!selectedNamespace} />
-                <Tab label="Secrets" value="secrets" disabled={!selectedNamespace} />
+                <Tab label="Clusters" value="clusters" />
+                <Tab label="Pods" value="pods" />
+                <Tab label="Deployments" value="deployments" />
+                <Tab label="Services" value="services" />
+                <Tab label="ConfigMaps" value="configmaps" />
+                <Tab label="Secrets" value="secrets" />
                 <Tab label="Nodes" value="nodes" />
               </Tabs>
             </Box>
-            <TextField
-              placeholder="Rechercher..."
-              size="small"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-              }}
-              sx={{ ml: 2, minWidth: 250 }}
-            />
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              {activeTab === 'clusters' && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => handleOpenClusterDialog()}
+                  sx={{ ml: 2 }}
+                >
+                  Ajouter un cluster
+                </Button>
+              )}
+              <TextField
+                placeholder="Rechercher..."
+                size="small"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                }}
+                sx={{ minWidth: 250 }}
+                disabled={activeTab === 'clusters'}
+              />
+            </Box>
           </Box>
 
           {activeTab === 'pods' && renderPodsTable()}
@@ -902,6 +1269,7 @@ export default function K8sPage() {
           {activeTab === 'services' && renderServicesTable()}
           {activeTab === 'configmaps' && renderConfigMapsTable()}
           {activeTab === 'secrets' && renderSecretsTable()}
+          {activeTab === 'clusters' && renderClustersTable()}
           {activeTab === 'nodes' && renderNodesTable()}
         </CardContent>
       </Card>
@@ -1121,7 +1489,7 @@ export default function K8sPage() {
                     setSnackbar({
                       open: true,
                       message: `${successCount} ressource${successCount > 1 ? 's' : ''} réussie${successCount > 1 ? 's' : ''}, ${failedCount} échec${failedCount > 1 ? 's' : ''}`,
-                      severity: 'warning',
+                      severity: 'error',
                     })
                   } else {
                     setSnackbar({
@@ -1147,6 +1515,88 @@ export default function K8sPage() {
             }}
           >
             Confirmer
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog d'ajout/modification de cluster */}
+      <Dialog open={clusterDialogOpen} onClose={() => setClusterDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingCluster ? 'Modifier le cluster' : 'Ajouter un cluster Kubernetes'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Nom du cluster"
+            value={clusterForm.name}
+            onChange={(e) => setClusterForm({ ...clusterForm, name: e.target.value })}
+            margin="normal"
+            required
+            placeholder="Ex: Production, Staging, Minikube"
+          />
+          <TextField
+            fullWidth
+            label="Description (optionnel)"
+            value={clusterForm.description}
+            onChange={(e) => setClusterForm({ ...clusterForm, description: e.target.value })}
+            margin="normal"
+            multiline
+            rows={2}
+          />
+          <TextField
+            fullWidth
+            label="Endpoint API (optionnel)"
+            value={clusterForm.endpoint}
+            onChange={(e) => setClusterForm({ ...clusterForm, endpoint: e.target.value })}
+            margin="normal"
+            placeholder="https://kubernetes.example.com:6443"
+          />
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="outlined"
+              component="label"
+              fullWidth
+              startIcon={<CloudUploadIcon />}
+            >
+              {kubeconfigFile ? kubeconfigFile.name : 'Sélectionner un fichier kubeconfig'}
+              <input type="file" hidden accept=".yaml,.yml" onChange={handleFileChange} />
+            </Button>
+            {kubeconfigFile && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Fichier sélectionné : {kubeconfigFile.name} ({(kubeconfigFile.size / 1024).toFixed(2)} KB)
+              </Typography>
+            )}
+          </Box>
+          <TextField
+            fullWidth
+            label="Ou coller le contenu du kubeconfig"
+            value={clusterForm.kubeconfig}
+            onChange={(e) => setClusterForm({ ...clusterForm, kubeconfig: e.target.value })}
+            margin="normal"
+            multiline
+            rows={8}
+            placeholder="apiVersion: v1&#10;clusters:&#10;..."
+            sx={{ mt: 2 }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={clusterForm.is_active}
+                onChange={(e) => setClusterForm({ ...clusterForm, is_active: e.target.checked })}
+              />
+            }
+            label="Activer ce cluster immédiatement"
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClusterDialogOpen(false)}>Annuler</Button>
+          <Button
+            onClick={handleClusterSubmit}
+            variant="contained"
+            disabled={!clusterForm.name || !clusterForm.kubeconfig || createClusterMutation.isPending || updateClusterMutation.isPending}
+          >
+            {editingCluster ? 'Modifier' : 'Créer'}
           </Button>
         </DialogActions>
       </Dialog>

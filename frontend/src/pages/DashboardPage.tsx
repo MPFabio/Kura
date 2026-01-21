@@ -10,11 +10,8 @@ import {
 } from '@mui/material'
 import {
   Cloud as CloudIcon,
-  Storage as StorageIcon,
-  PlayArrow as PlayArrowIcon,
   Timeline as TimelineIcon,
   Notifications as NotificationsIcon,
-  BarChart as BarChartIcon,
 } from '@mui/icons-material'
 import { k8sService } from '../services/k8sService'
 import { useSocket } from '../contexts/SocketContext'

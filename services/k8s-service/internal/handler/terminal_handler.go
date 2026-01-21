@@ -11,6 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/modulops/k8s-service/internal/config"
+	"github.com/modulops/k8s-service/internal/k8s"
 	"github.com/modulops/k8s-service/internal/service"
 	"k8s.io/client-go/tools/remotecommand"
 )
@@ -25,12 +27,21 @@ var upgrader = websocket.Upgrader{
 
 // TerminalHandler gère les connexions WebSocket pour le terminal.
 type TerminalHandler struct {
-	svc *service.K8sService
+	svc            *service.K8sService
+	clusterService *service.ClusterService
+	redisClient    service.Cache
+	cfg            *config.Config
+	mu             sync.RWMutex
 }
 
 // NewTerminalHandler crée un nouveau handler de terminal.
-func NewTerminalHandler(svc *service.K8sService) *TerminalHandler {
-	return &TerminalHandler{svc: svc}
+func NewTerminalHandler(svc *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *TerminalHandler {
+	return &TerminalHandler{
+		svc:            svc,
+		clusterService: clusterService,
+		redisClient:    redisClient,
+		cfg:            cfg,
+	}
 }
 
 // TerminalMessage représente un message du terminal.
@@ -42,6 +53,63 @@ type TerminalMessage struct {
 	Container string `json:"container"` // Container (optionnel)
 	Width     int    `json:"width"`     // Largeur du terminal
 	Height    int    `json:"height"`    // Hauteur du terminal
+}
+
+// getService obtient le service K8s, en le créant dynamiquement si nécessaire.
+func (h *TerminalHandler) getService(ctx context.Context) (*service.K8sService, error) {
+	h.mu.RLock()
+	svc := h.svc
+	h.mu.RUnlock()
+
+	// Si le service existe déjà, on l'utilise
+	if svc != nil {
+		return svc, nil
+	}
+
+	// Sinon, essayer de créer le service à partir du cluster actif
+	if h.clusterService == nil {
+		return nil, fmt.Errorf("aucun cluster Kubernetes configuré")
+	}
+
+	activeCluster, err := h.clusterService.GetActiveCluster(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("aucun cluster Kubernetes actif: %w", err)
+	}
+
+	// Créer un client Kubernetes temporaire à partir du cluster actif
+	kubeconfigPath, err := h.clusterService.SaveKubeconfigToFile(ctx, activeCluster.ID)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors de la préparation du kubeconfig: %w", err)
+	}
+
+	// Créer une config temporaire avec le kubeconfig
+	tempCfg := &config.Config{
+		KubeconfigPath: kubeconfigPath,
+		InCluster:      false,
+		RedisAddr:      h.cfg.RedisAddr,
+		RedisPassword:  h.cfg.RedisPassword,
+		RedisDB:        h.cfg.RedisDB,
+		CacheTTL:       h.cfg.CacheTTL,
+		ServerPort:     h.cfg.ServerPort,
+		Environment:    h.cfg.Environment,
+		LogLevel:       h.cfg.LogLevel,
+	}
+
+	k8sClient, err := k8s.NewClient(tempCfg)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors de la connexion au cluster: %w", err)
+	}
+
+	// Créer le service avec le nouveau client
+	var k8sClientInterface service.K8sClient = k8sClient
+	newSvc := service.NewK8sService(k8sClientInterface, h.redisClient, h.cfg)
+
+	// Mettre à jour le service de manière thread-safe
+	h.mu.Lock()
+	h.svc = newSvc
+	h.mu.Unlock()
+
+	return newSvc, nil
 }
 
 // HandleTerminal gère la connexion WebSocket pour le terminal.
@@ -57,6 +125,17 @@ func (h *TerminalHandler) HandleTerminal(c *gin.Context) {
 	}
 
 	log.Printf("Connexion terminal demandée pour pod %s/%s", namespace, pod)
+
+	// Obtenir le service (créé dynamiquement si nécessaire)
+	ctx := c.Request.Context()
+	svc, err := h.getService(ctx)
+	if err != nil {
+		log.Printf("Erreur lors de l'obtention du service: %v", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -162,7 +241,7 @@ func (h *TerminalHandler) HandleTerminal(c *gin.Context) {
 
 		if container == "" {
 			// Essayer de trouver le premier container
-			podInfo, err := h.svc.GetPod(ctx, namespace, pod)
+			podInfo, err := svc.GetPod(ctx, namespace, pod)
 			if err == nil && len(podInfo.Spec.Containers) > 0 {
 				container = podInfo.Spec.Containers[0].Name
 			}
@@ -172,7 +251,7 @@ func (h *TerminalHandler) HandleTerminal(c *gin.Context) {
 		command := []string{"/bin/sh"}
 		log.Printf("Exécution de /bin/sh dans le pod %s/%s", namespace, pod)
 		
-		err := h.svc.ExecPod(ctx, namespace, pod, container, command, stdinReader, stdoutWriter, stderrWriter, true, sizeQueue)
+		err := svc.ExecPod(ctx, namespace, pod, container, command, stdinReader, stdoutWriter, stderrWriter, true, sizeQueue)
 		if err != nil {
 			log.Printf("Erreur lors de l'exécution de /bin/sh dans le pod %s/%s: %v", namespace, pod, err)
 			

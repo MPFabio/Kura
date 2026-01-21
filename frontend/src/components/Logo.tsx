@@ -1,6 +1,30 @@
 import { Box, Typography, SxProps, Theme } from '@mui/material'
 import jellyfishLogo from '../assets/jellyfish_logo.png'
 
+export const kuraWordmarkSx = {
+  fontFamily: '"Inter", sans-serif',
+  fontWeight: 700,
+  letterSpacing: '0.15em',
+  background: 'linear-gradient(135deg, #00FFFF, #BF00FF)',
+  backgroundClip: 'text',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  textShadow: 'none',
+  position: 'relative' as const,
+  '&::before': {
+    content: '""',
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.5), rgba(191, 0, 255, 0.5))',
+    filter: 'blur(10px)',
+    zIndex: -1,
+    borderRadius: '4px',
+  },
+}
+
 interface LogoProps {
   variant?: 'full' | 'icon'
   size?: 'small' | 'medium' | 'large'
@@ -119,28 +143,8 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
           <Typography
             variant="h4"
             sx={{
-              fontFamily: '"Inter", sans-serif',
-              fontWeight: 700,
+              ...kuraWordmarkSx,
               fontSize: currentSize.text,
-              letterSpacing: '0.15em',
-              background: 'linear-gradient(135deg, #00FFFF, #BF00FF)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: 'none',
-              position: 'relative',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.5), rgba(191, 0, 255, 0.5))',
-                filter: 'blur(10px)',
-                zIndex: -1,
-                borderRadius: '4px',
-              },
             }}
           >
             KURA

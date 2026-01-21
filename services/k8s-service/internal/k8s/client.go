@@ -42,7 +42,46 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		if cfg.KubeconfigPath == "" {
 			return nil, fmt.Errorf("KUBECONFIG_PATH doit être défini lorsque K8S_INCLUSTER=false")
 		}
-		restConfig, err = clientcmd.BuildConfigFromFlags("", cfg.KubeconfigPath)
+		
+		// Charger la configuration avec possibilité de désactiver TLS pour les clusters locaux
+		configLoadingRules := &clientcmd.ClientConfigLoadingRules{
+			ExplicitPath: cfg.KubeconfigPath,
+		}
+		configOverrides := &clientcmd.ConfigOverrides{}
+		
+		// Vérifier si le serveur utilise host.docker.internal ou 127.0.0.1
+		rawConfig, err := configLoadingRules.Load()
+		if err != nil {
+			return nil, fmt.Errorf("échec du chargement du kubeconfig: %w", err)
+		}
+		
+		// Déterminer le contexte à utiliser
+		contextToUse := rawConfig.CurrentContext
+		if contextToUse == "" && len(rawConfig.Contexts) > 0 {
+			// Si aucun contexte actuel, utiliser le premier contexte disponible
+			for name := range rawConfig.Contexts {
+				contextToUse = name
+				break
+			}
+		}
+		
+		if contextToUse != "" {
+			currentContext := rawConfig.Contexts[contextToUse]
+			if currentContext != nil {
+				clusterName := currentContext.Cluster
+				cluster := rawConfig.Clusters[clusterName]
+				if cluster != nil && (strings.Contains(cluster.Server, "host.docker.internal") || strings.Contains(cluster.Server, "127.0.0.1")) {
+					// Forcer InsecureSkipTLSVerify pour les clusters locaux
+					configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
+					configOverrides.ClusterInfo.CertificateAuthorityData = nil
+				}
+				// S'assurer que le contexte est correctement défini
+				configOverrides.CurrentContext = contextToUse
+			}
+		}
+		
+		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(configLoadingRules, configOverrides)
+		restConfig, err = clientConfig.ClientConfig()
 		if err != nil {
 			return nil, fmt.Errorf("échec du chargement du kubeconfig: %w", err)
 		}

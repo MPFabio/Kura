@@ -7,7 +7,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/modulops/k8s-service/internal/cache"
 	"github.com/modulops/k8s-service/internal/config"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -55,7 +54,7 @@ type K8sService struct {
 }
 
 // NewK8sService crée un nouveau service Kubernetes.
-func NewK8sService(k8sClient K8sClient, redisClient *cache.RedisClient, cfg *config.Config) *K8sService {
+func NewK8sService(k8sClient K8sClient, redisClient Cache, cfg *config.Config) *K8sService {
 	return &K8sService{
 		k8sClient: k8sClient,
 		cache:     redisClient,

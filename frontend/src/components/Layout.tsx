@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import React from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -19,32 +20,32 @@ import {
 } from '@mui/material'
 import {
   Menu as MenuIcon,
-  Dashboard as DashboardIcon,
-  Cloud as CloudIcon,
-  Settings as SettingsIcon,
   AccountCircle,
   Logout,
-  Storage as StorageIcon,
-  PlayArrow as PlayArrowIcon,
-  Timeline as TimelineIcon,
-  Notifications as NotificationsIcon,
-  BarChart as BarChartIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 import { useSocket } from '../contexts/SocketContext'
 import Logo from './Logo'
+import TerraformIcon from './icons/TerraformIcon'
+import KubernetesIcon from './icons/KubernetesIcon'
+import AnsibleIcon from './icons/AnsibleIcon'
+import ModulesIcon from './icons/ModulesIcon'
+import MonitoringIcon from './icons/MonitoringIcon'
+import PipelinesIcon from './icons/PipelinesIcon'
+import AlertsIcon from './icons/AlertsIcon'
+import SettingsIcon from './icons/SettingsIcon'
 
 const drawerWidth = 240
 
 const menuItems = [
-  { text: 'Modules', icon: <DashboardIcon />, path: '/modules' },
-  { text: 'Terraform', icon: <StorageIcon />, path: '/terraform' },
-  { text: 'Kubernetes', icon: <CloudIcon />, path: '/k8s' },
-  { text: 'Ansible', icon: <PlayArrowIcon />, path: '/ansible' },
-  { text: 'Monitoring', icon: <BarChartIcon />, path: '/metrics' },
-  { text: 'Pipelines', icon: <TimelineIcon />, path: '/pipelines' },
-  { text: 'Alertes', icon: <NotificationsIcon />, path: '/alerts' },
-  { text: 'Paramètres', icon: <SettingsIcon />, path: '/settings' },
+  { text: 'Modules', icon: <ModulesIcon />, path: '/modules', useCustomIcon: true },
+  { text: 'Terraform', icon: <TerraformIcon />, path: '/terraform', useCustomIcon: true },
+  { text: 'Kubernetes', icon: <KubernetesIcon />, path: '/k8s', useCustomIcon: true },
+  { text: 'Ansible', icon: <AnsibleIcon />, path: '/ansible', useCustomIcon: true },
+  { text: 'Monitoring', icon: <MonitoringIcon />, path: '/metrics', useCustomIcon: true },
+  { text: 'Pipelines', icon: <PipelinesIcon />, path: '/pipelines', useCustomIcon: true },
+  { text: 'Alertes', icon: <AlertsIcon />, path: '/alerts', useCustomIcon: true },
+  { text: 'Paramètres', icon: <SettingsIcon />, path: '/settings', useCustomIcon: true },
 ]
 
 export default function Layout() {
@@ -89,20 +90,30 @@ export default function Layout() {
       </Toolbar>
       <Divider sx={{ borderColor: 'rgba(160, 160, 160, 0.1)', mb: 1 }} />
       <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => {
-                navigate(item.path)
-                setMobileOpen(false)
-              }}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+        {menuItems.map((item) => {
+          const isSelected = location.pathname === item.path || 
+            (item.path === '/k8s' && location.pathname.startsWith('/k8s'))
+          return (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton
+                selected={isSelected}
+                onClick={() => {
+                  navigate(item.path)
+                  setMobileOpen(false)
+                }}
+              >
+                <ListItemIcon>
+                  {item.useCustomIcon ? (
+                    React.cloneElement(item.icon as React.ReactElement, { active: isSelected })
+                  ) : (
+                    item.icon
+                  )}
+                </ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItemButton>
+            </ListItem>
+          )
+        })}
       </List>
     </div>
   )
@@ -134,7 +145,7 @@ export default function Layout() {
               flexGrow: 1,
               fontFamily: '"Inter", sans-serif',
               fontWeight: 700,
-              fontSize: '1.25rem',
+              fontSize: '1rem',
               letterSpacing: '0.15em',
               background: 'linear-gradient(135deg, #00FFFF, #BF00FF)',
               backgroundClip: 'text',
@@ -142,18 +153,6 @@ export default function Layout() {
               WebkitTextFillColor: 'transparent',
               textShadow: 'none',
               position: 'relative',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.5), rgba(191, 0, 255, 0.5))',
-                filter: 'blur(10px)',
-                zIndex: -1,
-                borderRadius: '4px',
-              },
             }}
           >
             Plateforme DevOps KURA

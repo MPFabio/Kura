@@ -6,26 +6,104 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/modulops/k8s-service/internal/config"
+	"github.com/modulops/k8s-service/internal/k8s"
 	"github.com/modulops/k8s-service/internal/service"
 )
 
 // K8sHandler gère les requêtes HTTP liées à Kubernetes.
 type K8sHandler struct {
-	svc *service.K8sService
-	cfg *config.Config
+	svc            *service.K8sService
+	clusterService *service.ClusterService
+	cfg            *config.Config
+	redisClient    service.Cache
+	mu             sync.RWMutex // Pour la sécurité des threads lors de la mise à jour de svc
 }
 
 // NewK8sHandler crée un nouveau handler Kubernetes.
-func NewK8sHandler(svc *service.K8sService, cfg *config.Config) *K8sHandler {
+func NewK8sHandler(svc *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *K8sHandler {
 	return &K8sHandler{
-		svc: svc,
-		cfg: cfg,
+		svc:            svc,
+		clusterService: clusterService,
+		cfg:            cfg,
+		redisClient:    redisClient,
 	}
+}
+
+// checkService vérifie si le service est disponible et le crée dynamiquement si nécessaire.
+func (h *K8sHandler) checkService(c *gin.Context) bool {
+	h.mu.RLock()
+	svc := h.svc
+	h.mu.RUnlock()
+
+	// Si le service existe déjà, on l'utilise
+	if svc != nil {
+		return true
+	}
+
+	// Sinon, essayer de créer le service à partir du cluster actif
+	if h.clusterService == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Aucun cluster Kubernetes configuré. Veuillez ajouter un cluster d'abord.",
+		})
+		return false
+	}
+
+	ctx := c.Request.Context()
+	activeCluster, err := h.clusterService.GetActiveCluster(ctx)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Aucun cluster Kubernetes actif. Veuillez activer un cluster d'abord.",
+		})
+		return false
+	}
+
+	// Créer un client Kubernetes temporaire à partir du cluster actif
+	kubeconfigPath, err := h.clusterService.SaveKubeconfigToFile(ctx, activeCluster.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Erreur lors de la préparation du kubeconfig: %v", err),
+		})
+		return false
+	}
+
+	// Créer une config temporaire avec le kubeconfig
+	tempCfg := &config.Config{
+		KubeconfigPath: kubeconfigPath,
+		InCluster:      false,
+		RedisAddr:      h.cfg.RedisAddr,
+		RedisPassword:  h.cfg.RedisPassword,
+		RedisDB:        h.cfg.RedisDB,
+		CacheTTL:       h.cfg.CacheTTL,
+		ServerPort:     h.cfg.ServerPort,
+		Environment:    h.cfg.Environment,
+		LogLevel:       h.cfg.LogLevel,
+	}
+
+	k8sClient, err := k8s.NewClient(tempCfg)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Erreur lors de la connexion au cluster: %v", err),
+		})
+		return false
+	}
+
+	// Créer le service avec le nouveau client
+	var k8sClientInterface service.K8sClient = k8sClient
+	// h.redisClient est de type service.Cache, qui est compatible avec NewK8sService
+	newSvc := service.NewK8sService(k8sClientInterface, h.redisClient, h.cfg)
+
+	// Mettre à jour le service de manière thread-safe
+	h.mu.Lock()
+	h.svc = newSvc
+	h.mu.Unlock()
+
+	return true
 }
 
 // NamespaceResponse est le format de réponse attendu par le frontend.
@@ -37,6 +115,10 @@ type NamespaceResponse struct {
 
 // GetNamespaces retourne la liste des namespaces.
 func (h *K8sHandler) GetNamespaces(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	namespaces, err := h.svc.ListNamespaces(ctx)
@@ -72,6 +154,9 @@ type PodResponse struct {
 
 // GetPods retourne la liste des pods pour un namespace donné.
 func (h *K8sHandler) GetPods(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 
@@ -133,6 +218,9 @@ func (h *K8sHandler) ReceiveEventWebhook(c *gin.Context) {
 
 // GetDeployments retourne la liste des deployments pour un namespace donné.
 func (h *K8sHandler) GetDeployments(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 
@@ -155,6 +243,9 @@ func (h *K8sHandler) GetDeployments(c *gin.Context) {
 
 // GetServices retourne la liste des services pour un namespace donné.
 func (h *K8sHandler) GetServices(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 
@@ -199,6 +290,9 @@ func (h *K8sHandler) GetConfigMaps(c *gin.Context) {
 
 // GetSecrets retourne la liste des secrets pour un namespace donné.
 func (h *K8sHandler) GetSecrets(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 
@@ -221,6 +315,9 @@ func (h *K8sHandler) GetSecrets(c *gin.Context) {
 
 // GetNodes retourne la liste de tous les nodes du cluster.
 func (h *K8sHandler) GetNodes(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 
 	nodes, err := h.svc.ListNodes(ctx)
@@ -269,6 +366,9 @@ func (h *K8sHandler) GetPodLogs(c *gin.Context) {
 
 // GetPodYAML retourne le YAML d'un pod.
 func (h *K8sHandler) GetPodYAML(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -311,6 +411,9 @@ func (h *K8sHandler) GetDeploymentYAML(c *gin.Context) {
 
 // GetServiceYAML retourne le YAML d'un service.
 func (h *K8sHandler) GetServiceYAML(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -332,6 +435,9 @@ func (h *K8sHandler) GetServiceYAML(c *gin.Context) {
 
 // ScaleDeployment modifie le nombre de replicas d'un deployment.
 func (h *K8sHandler) ScaleDeployment(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -399,6 +505,9 @@ func (h *K8sHandler) DeletePod(c *gin.Context) {
 
 // DeleteDeployment supprime un deployment.
 func (h *K8sHandler) DeleteDeployment(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	name := c.Param("name")
@@ -441,6 +550,9 @@ type BulkDeleteResponse struct {
 
 // BulkDeletePods supprime plusieurs pods en une seule requête.
 func (h *K8sHandler) BulkDeletePods(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	namespace := c.Param("namespace")
 	ctx := c.Request.Context()
 
@@ -517,6 +629,9 @@ func (h *K8sHandler) BulkDeleteDeployments(c *gin.Context) {
 
 // BulkDeleteServices supprime plusieurs services en une seule requête.
 func (h *K8sHandler) BulkDeleteServices(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	namespace := c.Param("namespace")
 	ctx := c.Request.Context()
 
@@ -607,6 +722,9 @@ type BulkScaleResponse struct {
 
 // BulkScaleDeployments scale plusieurs deployments en une seule requête.
 func (h *K8sHandler) BulkScaleDeployments(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	namespace := c.Param("namespace")
 	ctx := c.Request.Context()
 
@@ -645,6 +763,9 @@ func (h *K8sHandler) BulkScaleDeployments(c *gin.Context) {
 
 // GetEvents retourne la liste des événements pour un namespace donné.
 func (h *K8sHandler) GetEvents(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

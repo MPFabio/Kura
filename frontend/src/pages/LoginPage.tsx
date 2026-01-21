@@ -11,6 +11,7 @@ import {
   CircularProgress,
 } from '@mui/material'
 import { useAuth } from '../contexts/AuthContext'
+import Logo from '../components/Logo'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -37,7 +38,14 @@ export default function LoginPage() {
         errorMessage = err.response.data?.error || err.response.data?.message || errorMessage
       } else if (err.request) {
         // Pas de réponse du serveur (service non démarré, problème réseau)
-        errorMessage = 'Impossible de contacter le serveur. Vérifiez que le service auth-service est démarré.'
+        // Vérifier si c'est un problème de connexion réseau
+        if (err.code === 'ECONNREFUSED' || err.code === 'ERR_NETWORK') {
+          errorMessage = 'Impossible de se connecter au serveur. Vérifiez que tous les services sont démarrés (docker-compose up -d).'
+        } else if (err.code === 'ETIMEDOUT') {
+          errorMessage = 'Le serveur met trop de temps à répondre. Vérifiez que Kong et auth-service sont démarrés.'
+        } else {
+          errorMessage = `Erreur réseau: ${err.message || 'Impossible de contacter le serveur'}. Vérifiez que les services sont démarrés.`
+        }
       } else {
         // Erreur lors de la configuration de la requête
         errorMessage = err.message || errorMessage

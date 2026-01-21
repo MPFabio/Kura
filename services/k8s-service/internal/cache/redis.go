@@ -51,6 +51,11 @@ func (r *RedisClient) Set(ctx context.Context, key, value string, ttl time.Durat
 	return r.client.Set(ctx, key, value, ttl).Err()
 }
 
+// Delete supprime une clé du cache.
+func (r *RedisClient) Delete(ctx context.Context, key string) error {
+	return r.client.Del(ctx, key).Err()
+}
+
 // Close ferme la connexion Redis.
 func (r *RedisClient) Close() error {
 	return r.client.Close()
