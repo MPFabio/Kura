@@ -106,4 +106,5 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
 - Documentation d'architecture
 - Guide d'accès aux services
 
+[1.1.0]: https://github.com/MPFabio/ModulOps/releases/tag/v1.1.0
 [1.0.0]: https://github.com/MPFabio/ModulOps/releases/tag/v1.0.0
