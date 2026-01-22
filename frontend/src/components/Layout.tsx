@@ -88,7 +88,7 @@ export default function Layout() {
       >
         <Logo variant="full" size="small" />
       </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(160, 160, 160, 0.1)', mb: 1 }} />
+      <Divider sx={{ borderColor: 'rgba(176, 190, 197, 0.1)', mb: 1 }} />
       <List>
         {menuItems.map((item) => {
           const isSelected = location.pathname === item.path || 
@@ -144,15 +144,13 @@ export default function Layout() {
             sx={{ 
               flexGrow: 1,
               fontFamily: '"Inter", sans-serif',
-              fontWeight: 700,
-              fontSize: '1rem',
-              letterSpacing: '0.15em',
-              background: 'linear-gradient(135deg, #00FFFF, #BF00FF)',
+              fontWeight: 500,
+              fontSize: '0.9375rem',
+              letterSpacing: '0.05em',
+              background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              textShadow: 'none',
-              position: 'relative',
             }}
           >
             Plateforme DevOps KURA
@@ -236,9 +234,13 @@ export default function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: 4,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: 8,
+          backgroundColor: 'transparent',
+          minHeight: 'calc(100vh - 64px)',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <Outlet />

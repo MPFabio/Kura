@@ -1,12 +1,14 @@
 import { useNavigate } from 'react-router-dom'
-import { Grid, Typography, Box } from '@mui/material'
+import { Grid, Typography, Box, Chip } from '@mui/material'
 import {
-  Cloud as CloudIcon,
-  Storage as StorageIcon,
-  PlayArrow as PlayArrowIcon,
-  BarChart as BarChartIcon,
+  CheckCircle as CheckCircleIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material'
 import ModuleCard from '../components/ModuleCard'
+import TerraformIcon from '../components/icons/TerraformIcon'
+import KubernetesIcon from '../components/icons/KubernetesIcon'
+import AnsibleIcon from '../components/icons/AnsibleIcon'
+import MonitoringIcon from '../components/icons/MonitoringIcon'
 
 interface Module {
   id: string
@@ -19,6 +21,12 @@ interface Module {
   subtitle?: string
   statusText?: string
   description?: string
+  stats?: {
+    label: string
+    value: string | number
+  }[]
+  features?: string[]
+  status?: 'active' | 'inactive' | 'deploying' | 'available'
 }
 
 export default function ModulesPage() {
@@ -28,59 +36,112 @@ export default function ModulesPage() {
     {
       id: 'terraform',
       name: 'Terraform',
-      icon: <StorageIcon sx={{ fontSize: 80 }} />,
+      icon: <TerraformIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/terraform',
       active: true,
-      deploying: true,
-      statusText: 'Deployment in Progress',
-      description: 'Terraform will deploy the given plan in your infrastructure...',
+      deploying: false,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'Gestion complète de vos états Terraform avec synchronisation cloud et détection de drift en temps réel.',
+      stats: [
+        { label: 'États', value: '2' },
+        { label: 'Sources', value: '2' },
+        { label: 'Drifts', value: '0' },
+      ],
+      features: [
+        'Synchronisation S3, Azure, GCP',
+        'Détection de drift automatique',
+        'Visualisation des ressources',
+      ],
     },
     {
       id: 'kubernetes',
       name: 'Kubernetes',
-      icon: <CloudIcon sx={{ fontSize: 80 }} />,
+      icon: <KubernetesIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/k8s',
-      active: false,
-      inactive: true,
-      subtitle: 'Kubernetes',
+      active: true,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'Gestion complète de vos clusters Kubernetes avec terminal interactif et actions en masse.',
+      stats: [
+        { label: 'Clusters', value: '1' },
+        { label: 'Pods', value: '12' },
+        { label: 'Services', value: '5' },
+      ],
+      features: [
+        'Gestion multi-clusters',
+        'Terminal interactif',
+        'Actions en masse',
+      ],
     },
     {
       id: 'ansible',
       name: 'Ansible',
-      icon: <PlayArrowIcon sx={{ fontSize: 80 }} />,
+      icon: <AnsibleIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={false} />,
       path: '/ansible',
       active: false,
       inactive: true,
-      subtitle: 'Kubernetes',
+      status: 'available',
+      subtitle: 'Bientôt disponible',
+      description: 'Automatisation de vos déploiements avec Ansible Tower. Configuration et exécution de playbooks.',
+      features: [
+        'Intégration Ansible Tower',
+        'Gestion des inventaires',
+        'Exécution de playbooks',
+      ],
     },
     {
       id: 'monitoring',
       name: 'Monitoring',
-      icon: <BarChartIcon sx={{ fontSize: 80 }} />,
+      icon: <MonitoringIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={false} />,
       path: '/metrics',
       active: false,
       inactive: true,
-      subtitle: 'Kubernetes',
+      status: 'available',
+      subtitle: 'Bientôt disponible',
+      description: 'Surveillance complète de votre infrastructure avec métriques, alertes et dashboards personnalisables.',
+      features: [
+        'Métriques en temps réel',
+        'Alertes configurables',
+        'Dashboards Grafana',
+      ],
     },
   ]
 
   return (
     <Box>
-      <Typography
-        variant="h4"
-        sx={{
-          mb: 4,
-          fontWeight: 600,
-          color: '#FFFFFF',
-          fontFamily: '"Inter", sans-serif',
-          letterSpacing: '0.02em',
-        }}
-      >
-        Modules
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
+        <Typography
+          variant="h3"
+          component="h1"
+          sx={{
+            fontWeight: 600,
+            background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontFamily: '"Inter", sans-serif',
+            letterSpacing: '0.02em',
+          }}
+        >
+          Modules
+        </Typography>
+        <Chip
+          label={`${modules.filter(m => m.active).length} actif${modules.filter(m => m.active).length > 1 ? 's' : ''} sur ${modules.length}`}
+          sx={{
+            backgroundColor: 'rgba(0, 229, 255, 0.1)',
+            color: '#00E5FF',
+            border: '1px solid rgba(0, 229, 255, 0.3)',
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            boxShadow: '0 0 8px rgba(0, 229, 255, 0.2)',
+          }}
+        />
+      </Box>
 
       <Grid container spacing={4}>
-        {modules.map((module) => (
+        {modules.map((module, idx) => (
           <Grid item xs={12} sm={6} key={module.id}>
             <ModuleCard
               active={module.active}
@@ -88,99 +149,95 @@ export default function ModulesPage() {
               deploying={module.deploying}
               onClick={() => navigate(module.path)}
               sx={{
-                minHeight: '400px',
+                minHeight: '520px',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                textAlign: 'center',
-                py: 4,
-                px: 3,
+                height: '100%',
+                '--card-delay': `${idx * 0.3}s`,
               }}
             >
               {module.active ? (
-                <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: '350px' }}>
-                  {/* Icône centrale avec filaments lumineux */}
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      mb: 4,
-                    }}
-                  >
-                    {/* Filaments animés autour de l'icône */}
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        width: 200,
-                        height: 200,
-                        border: '1px solid transparent',
-                        borderTop: '2px solid rgba(0, 255, 255, 0.4)',
-                        borderRight: '2px solid rgba(0, 255, 255, 0.3)',
-                        borderRadius: '50%',
-                        animation: 'constructAnimation 8s linear infinite',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        width: 180,
-                        height: 180,
-                        border: '1px solid transparent',
-                        borderBottom: '1px solid rgba(0, 255, 255, 0.2)',
-                        borderLeft: '1px solid rgba(0, 255, 255, 0.2)',
-                        borderRadius: '50%',
-                        animation: 'constructAnimation 6s linear infinite reverse',
-                      }}
-                    />
-                    {/* Lignes de circuit */}
-                    {[...Array(6)].map((_, i) => (
-                      <Box
-                        key={i}
-                        sx={{
-                          position: 'absolute',
-                          width: 2,
-                          height: 60,
-                          background: `linear-gradient(180deg, transparent, rgba(0, 255, 255, ${0.3 - i * 0.05}))`,
-                          transform: `rotate(${i * 60}deg)`,
-                          transformOrigin: '0 100px',
-                          top: '50%',
-                          left: '50%',
-                          marginTop: '-100px',
-                          marginLeft: '-1px',
-                          borderRadius: 1,
-                        }}
-                      />
-                    ))}
-                    {/* Icône principale */}
+                <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  {/* Header avec icône et statut */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 3 }}>
                     <Box
                       sx={{
                         position: 'relative',
-                        zIndex: 1,
-                        color: '#00FFFF',
-                        filter: 'drop-shadow(0 0 20px rgba(0, 255, 255, 0.9)) drop-shadow(0 0 40px rgba(0, 255, 255, 0.6))',
-                        animation: 'breathingGlow 3s ease-in-out infinite',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 100,
+                        height: 100,
                       }}
                     >
-                      {module.icon}
+                      {/* Cercles orbitaux */}
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          width: 100,
+                          height: 100,
+                          border: '1px solid rgba(0, 229, 255, 0.3)',
+                          borderRadius: '50%',
+                          animation: 'constructAnimation 8s linear infinite',
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          width: 120,
+                          height: 120,
+                          border: '1px solid transparent',
+                          borderTop: '1px solid rgba(0, 229, 255, 0.5)',
+                          borderRight: '1px solid rgba(179, 136, 255, 0.5)',
+                          borderBottom: '1px solid rgba(179, 136, 255, 0.3)',
+                          borderLeft: '1px solid rgba(0, 229, 255, 0.3)',
+                          borderRadius: '50%',
+                          animation: 'constructAnimation 6s linear infinite reverse',
+                        }}
+                      />
+                      {/* Icône principale */}
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          zIndex: 1,
+                          color: '#00E5FF',
+                          filter: 'drop-shadow(0 0 20px rgba(0, 229, 255, 0.8)) drop-shadow(0 0 40px rgba(179, 136, 255, 0.5))',
+                          animation: 'breathingGlow 3s ease-in-out infinite',
+                        }}
+                      >
+                        {module.icon}
+                      </Box>
                     </Box>
+                    <Chip
+                      icon={<CheckCircleIcon />}
+                      label={module.statusText}
+                      color="success"
+                      size="small"
+                      sx={{
+                        backgroundColor: 'rgba(102, 187, 106, 0.2)',
+                        color: '#66BB6A',
+                        border: '1px solid rgba(102, 187, 106, 0.4)',
+                        fontWeight: 500,
+                      }}
+                    />
                   </Box>
 
-                  {/* Texte d'état */}
+                  {/* Nom du module */}
                   <Typography
-                    variant="h6"
+                    variant="h4"
                     sx={{
-                      fontFamily: '"JetBrains Mono", monospace',
-                      color: '#FFFFFF',
-                      mb: 1,
-                      textShadow: '0 0 10px rgba(0, 255, 255, 0.6)',
-                      letterSpacing: '0.05em',
-                      fontWeight: 500,
+                      fontFamily: '"Inter", sans-serif',
+                      color: 'rgba(255, 255, 255, 0.98)',
+                      mb: 2.5,
+                      fontWeight: 600,
+                      letterSpacing: '0.02em',
+                      background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
                     }}
                   >
-                    {module.statusText}
+                    {module.name}
                   </Typography>
 
                   {/* Description */}
@@ -188,11 +245,10 @@ export default function ModulesPage() {
                     <Typography
                       variant="body2"
                       sx={{
-                        fontFamily: '"JetBrains Mono", monospace',
-                        color: '#A0A0A0',
-                        fontSize: '0.875rem',
-                        maxWidth: '400px',
-                        mx: 'auto',
+                        fontFamily: '"Inter", sans-serif',
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        fontSize: '0.9375rem',
+                        mb: 3,
                         lineHeight: 1.6,
                       }}
                     >
@@ -200,121 +256,285 @@ export default function ModulesPage() {
                     </Typography>
                   )}
 
-                  {/* Éléments secondaires en bas */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: 16,
-                      left: 16,
-                      right: 16,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      zIndex: 2,
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          background: 'rgba(0, 255, 255, 0.1)',
-                          border: '1px solid rgba(0, 255, 255, 0.4)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#00FFFF',
-                          fontFamily: '"JetBrains Mono", monospace',
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                          boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)',
-                        }}
-                      >
-                        D
-                      </Box>
+                  {/* Statistiques */}
+                  {module.stats && (
+                    <Box sx={{ display: 'flex', gap: 3, mb: 4 }}>
+                      {module.stats.map((stat, idx) => (
+                        <Box
+                          key={idx}
+                          sx={{
+                            flex: 1,
+                            textAlign: 'center',
+                            p: 2.5,
+                            borderRadius: 3,
+                            background: idx === 0 
+                              ? 'linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(0, 229, 255, 0.05))'
+                              : idx === 1
+                              ? 'linear-gradient(135deg, rgba(179, 136, 255, 0.12), rgba(179, 136, 255, 0.05))'
+                              : 'linear-gradient(135deg, rgba(0, 229, 255, 0.1), rgba(179, 136, 255, 0.05))',
+                            backdropFilter: 'blur(10px)',
+                            border: 'none',
+                            boxShadow: idx === 0
+                              ? '0 4px 16px rgba(0, 229, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                              : idx === 1
+                              ? '0 4px 16px rgba(179, 136, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                              : '0 4px 14px rgba(0, 229, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: idx === 0
+                                ? '0 6px 20px rgba(0, 229, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12)'
+                                : idx === 1
+                                ? '0 6px 20px rgba(179, 136, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12)'
+                                : '0 6px 18px rgba(0, 229, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
+                            },
+                          }}
+                        >
+                          <Typography
+                            variant="h4"
+                            sx={{
+                              fontFamily: '"JetBrains Mono", monospace',
+                              color: idx === 0 ? '#00E5FF' : idx === 1 ? '#B388FF' : '#00E5FF',
+                              fontWeight: 700,
+                              mb: 0.75,
+                              textShadow: idx === 0
+                                ? '0 0 10px rgba(0, 229, 255, 0.5)'
+                                : idx === 1
+                                ? '0 0 10px rgba(179, 136, 255, 0.5)'
+                                : '0 0 8px rgba(0, 229, 255, 0.4)',
+                            }}
+                          >
+                            {stat.value}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: 'rgba(255, 255, 255, 0.7)',
+                              fontSize: '0.8125rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {stat.label}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+
+                  {/* Features */}
+                  {module.features && (
+                    <Box sx={{ mt: 'auto', pt: 4 }}>
                       <Typography
-                        variant="body2"
+                        variant="caption"
                         sx={{
-                          fontFamily: '"JetBrains Mono", monospace',
-                          color: '#FFFFFF',
-                          fontSize: '0.875rem',
-                          textShadow: '0 0 5px rgba(0, 255, 255, 0.4)',
+                          color: 'rgba(255, 255, 255, 0.6)',
+                          fontSize: '0.8125rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.12em',
+                          mb: 2.5,
+                          display: 'block',
+                          fontWeight: 600,
                         }}
                       >
-                        Dobernaton
+                        Fonctionnalités
                       </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {module.features.map((feature, idx) => (
+                          <Box
+                            key={idx}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                              p: 1.5,
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1))',
+                              backdropFilter: 'blur(10px)',
+                              border: 'none',
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(179, 136, 255, 0.05))',
+                                boxShadow: '0 2px 8px rgba(0, 229, 255, 0.08)',
+                              },
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                backgroundColor: idx % 2 === 0 ? '#00E5FF' : '#B388FF',
+                                boxShadow: idx % 2 === 0 
+                                  ? '0 0 10px rgba(0, 229, 255, 0.7)' 
+                                  : '0 0 10px rgba(179, 136, 255, 0.7)',
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: 'rgba(255, 255, 255, 0.85)',
+                                fontSize: '0.9375rem',
+                                fontWeight: 400,
+                              }}
+                            >
+                              {feature}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
                     </Box>
-
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        background: 'rgba(0, 255, 255, 0.1)',
-                        border: '1px solid rgba(0, 255, 255, 0.4)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#00FFFF',
-                        boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)',
-                      }}
-                    >
-                      ↓
-                    </Box>
-                  </Box>
-
-                  {/* Flèche en haut à droite */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 16,
-                      right: 16,
-                      color: '#00FFFF',
-                      fontSize: '1.2rem',
-                      filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.8))',
-                      zIndex: 2,
-                    }}
-                  >
-                    ↓
-                  </Box>
+                  )}
                 </Box>
               ) : (
-                <>
-                  {/* Module inactif - très discret */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center', textAlign: 'center', p: 4 }}>
+                  {/* Icône avec effet subtil amélioré */}
                   <Box
                     sx={{
-                      color: 'rgba(160, 160, 160, 0.2)',
-                      mb: 2,
-                      filter: 'none',
+                      mb: 4,
+                      position: 'relative',
+                      width: 100,
+                      height: 100,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(179, 136, 255, 0.15) 0%, transparent 70%)',
+                        zIndex: 0,
+                        animation: 'breathingGlow 4s ease-in-out infinite',
+                      },
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        width: '120%',
+                        height: '120%',
+                        borderRadius: '50%',
+                        border: '1px solid rgba(179, 136, 255, 0.3)',
+                        zIndex: 0,
+                        animation: 'constructAnimation 10s linear infinite',
+                      },
                     }}
                   >
-                    {module.icon}
+                    <Box
+                      sx={{
+                        position: 'relative',
+                        zIndex: 1,
+                        color: 'rgba(179, 136, 255, 0.6)',
+                        filter: 'drop-shadow(0 0 12px rgba(179, 136, 255, 0.5))',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          color: 'rgba(179, 136, 255, 0.8)',
+                          filter: 'drop-shadow(0 0 18px rgba(179, 136, 255, 0.7))',
+                        },
+                      }}
+                    >
+                      {module.icon}
+                    </Box>
                   </Box>
+
+                  {/* Nom du module */}
                   <Typography
-                    variant="h6"
+                    variant="h5"
                     sx={{
                       fontFamily: '"Inter", sans-serif',
-                      color: 'rgba(160, 160, 160, 0.4)',
+                      color: 'rgba(255, 255, 255, 0.7)',
                       mb: 1,
                       fontWeight: 500,
                     }}
                   >
                     {module.name}
                   </Typography>
+
+                  {/* Subtitle */}
                   {module.subtitle && (
+                    <Chip
+                      label={module.subtitle}
+                      size="small"
+                      icon={<ScheduleIcon />}
+                      sx={{
+                        mb: 2,
+                        backgroundColor: 'rgba(179, 136, 255, 0.1)',
+                        color: '#B388FF',
+                        border: '1px solid rgba(179, 136, 255, 0.3)',
+                        fontSize: '0.75rem',
+                      }}
+                    />
+                  )}
+
+                  {/* Description */}
+                  {module.description && (
                     <Typography
                       variant="body2"
                       sx={{
-                        fontFamily: '"JetBrains Mono", monospace',
-                        color: 'rgba(96, 96, 96, 0.5)',
-                        fontSize: '0.75rem',
+                        fontFamily: '"Inter", sans-serif',
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        fontSize: '0.9375rem',
+                        mb: 4,
+                        lineHeight: 1.7,
+                        maxWidth: '320px',
+                        mx: 'auto',
                       }}
                     >
-                      {module.subtitle}
+                      {module.description}
                     </Typography>
                   )}
-                </>
+
+                  {/* Features */}
+                  {module.features && (
+                    <Box sx={{ width: '100%', mt: 'auto' }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'rgba(255, 255, 255, 0.4)',
+                          fontSize: '0.75rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                          mb: 1.5,
+                          display: 'block',
+                        }}
+                      >
+                        Fonctionnalités prévues
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {module.features.map((feature, idx) => (
+                          <Box
+                            key={idx}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                width: 4,
+                                height: 4,
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(179, 136, 255, 0.4)',
+                              }}
+                            />
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                fontSize: '0.8125rem',
+                              }}
+                            >
+                              {feature}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
               )}
             </ModuleCard>
           </Grid>

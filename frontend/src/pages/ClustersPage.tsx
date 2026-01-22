@@ -208,10 +208,22 @@ export default function ClustersPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Clusters Kubernetes
+    <Box sx={{ p: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
+        <Typography 
+          variant="h3" 
+          component="h1"
+          sx={{
+            fontWeight: 600,
+            background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontFamily: '"Inter", sans-serif',
+            letterSpacing: '0.02em',
+          }}
+        >
+          Kubernetes
         </Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
           Ajouter un cluster
@@ -223,7 +235,7 @@ export default function ClustersPage() {
           <CircularProgress />
         </Box>
       ) : !clusters || clusters.items.length === 0 ? (
-        <Card>
+        <Card sx={{ animation: 'jellyfishFloat 12s ease-in-out infinite' }}>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <Typography variant="h6" color="text.secondary" gutterBottom>
               Aucun cluster Kubernetes configuré
@@ -237,7 +249,12 @@ export default function ClustersPage() {
           </CardContent>
         </Card>
       ) : (
-        <TableContainer component={Paper}>
+        <TableContainer 
+          component={Paper}
+          sx={{
+            animation: 'jellyfishFloat 15s ease-in-out infinite',
+          }}
+        >
           <Table>
             <TableHead>
               <TableRow>

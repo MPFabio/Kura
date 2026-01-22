@@ -3,9 +3,9 @@ import jellyfishLogo from '../assets/jellyfish_logo.png'
 
 export const kuraWordmarkSx = {
   fontFamily: '"Inter", sans-serif',
-  fontWeight: 700,
+  fontWeight: 600,
   letterSpacing: '0.15em',
-  background: 'linear-gradient(135deg, #00FFFF, #BF00FF)',
+  background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
   backgroundClip: 'text',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
@@ -18,8 +18,8 @@ export const kuraWordmarkSx = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.5), rgba(191, 0, 255, 0.5))',
-    filter: 'blur(10px)',
+    background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.4), rgba(179, 136, 255, 0.4))',
+    filter: 'blur(12px)',
     zIndex: -1,
     borderRadius: '4px',
   },
@@ -54,7 +54,7 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
       {/* Particules en arrière-plan */}
       {variant === 'full' && (
         <>
-          {[...Array(15)].map((_, i) => (
+          {[...Array(12)].map((_, i) => (
             <Box
               key={i}
               sx={{
@@ -62,12 +62,12 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
                 width: 2,
                 height: 2,
                 borderRadius: '50%',
-                background: i % 2 === 0 ? 'rgba(0, 255, 255, 0.6)' : 'rgba(191, 0, 255, 0.6)',
+                background: i % 2 === 0 ? 'rgba(0, 229, 255, 0.7)' : 'rgba(179, 136, 255, 0.7)',
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 60}%`,
                 animation: 'particleFloat 8s ease-in-out infinite',
                 animationDelay: `${i * 0.4}s`,
-                boxShadow: `0 0 6px ${i % 2 === 0 ? 'rgba(0, 255, 255, 0.8)' : 'rgba(191, 0, 255, 0.8)'}`,
+                boxShadow: `0 0 8px ${i % 2 === 0 ? 'rgba(0, 229, 255, 0.9)' : 'rgba(179, 136, 255, 0.9)'}`,
               }}
             />
           ))}
@@ -92,7 +92,7 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
                 position: 'absolute',
                 width: currentSize.jellyfish + 30,
                 height: currentSize.jellyfish + 30,
-                border: '1px solid rgba(0, 255, 255, 0.3)',
+                border: '1px solid rgba(0, 229, 255, 0.4)',
                 borderRadius: '50%',
                 animation: 'constructAnimation 10s linear infinite',
               }}
@@ -103,8 +103,8 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
                 width: currentSize.jellyfish + 40,
                 height: currentSize.jellyfish + 40,
                 border: '1px solid transparent',
-                borderTop: '1px solid rgba(0, 255, 255, 0.4)',
-                borderRight: '1px solid rgba(191, 0, 255, 0.3)',
+                borderTop: '1px solid rgba(0, 229, 255, 0.5)',
+                borderRight: '1px solid rgba(179, 136, 255, 0.4)',
                 borderRadius: '50%',
                 animation: 'constructAnimation 8s linear infinite reverse',
               }}
@@ -112,7 +112,7 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
           </>
         )}
 
-        {/* Logo méduse PNG avec effets de lueur */}
+        {/* Logo méduse PNG avec effets de lueur et flottement naturel */}
         <Box
           component="img"
           src={jellyfishLogo}
@@ -122,8 +122,8 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
             height: 'auto',
             maxHeight: currentSize.jellyfish * 1.25,
             objectFit: 'contain',
-            filter: 'drop-shadow(0 0 20px rgba(0, 255, 255, 0.8)) drop-shadow(0 0 40px rgba(191, 0, 255, 0.5))',
-            animation: 'breathingGlow 3s ease-in-out infinite',
+            filter: 'drop-shadow(0 0 20px rgba(0, 229, 255, 0.9)) drop-shadow(0 0 40px rgba(179, 136, 255, 0.6))',
+            animation: 'jellyfishFloat 8s ease-in-out infinite, breathingGlow 4s ease-in-out infinite',
             position: 'relative',
             zIndex: 1,
           }}

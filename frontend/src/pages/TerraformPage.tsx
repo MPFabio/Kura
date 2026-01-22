@@ -416,10 +416,22 @@ export default function TerraformPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          États Terraform
+    <Box sx={{ p: 0 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
+        <Typography 
+          variant="h3" 
+          component="h1"
+          sx={{
+            fontWeight: 600,
+            background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontFamily: '"Inter", sans-serif',
+            letterSpacing: '0.02em',
+          }}
+        >
+          Terraform
         </Typography>
         <Box>
           <Button
@@ -446,7 +458,7 @@ export default function TerraformPage() {
         </Box>
       </Box>
 
-      <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
+      <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} sx={{ mb: 4 }}>
         <Tab label="États" />
         <Tab label="Sources de synchronisation" />
       </Tabs>
@@ -459,7 +471,7 @@ export default function TerraformPage() {
           <CircularProgress />
         </Box>
       ) : !states || states.items.length === 0 ? (
-        <Card>
+        <Card sx={{ animation: 'jellyfishFloat 12s ease-in-out infinite' }}>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <Typography variant="h6" color="text.secondary" gutterBottom>
               Aucun état Terraform
@@ -474,12 +486,27 @@ export default function TerraformPage() {
         </Card>
       ) : (
         <Grid container spacing={3}>
-          {states.items.map((state) => (
+          {states.items.map((state, idx) => (
             <Grid item xs={12} md={6} lg={4} key={state.id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
-                    <Typography variant="h6" component="div">
+              <Card 
+                sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  '--card-delay': `${idx * 0.3}s`,
+                }}
+              >
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2.5 }}>
+                    <Typography 
+                      variant="h6" 
+                      component="div" 
+                      sx={{ 
+                        fontWeight: 500, 
+                        color: 'rgba(255, 255, 255, 0.95)',
+                        fontFamily: '"Inter", sans-serif',
+                      }}
+                    >
                       {state.name}
                     </Typography>
                     <IconButton
@@ -491,21 +518,23 @@ export default function TerraformPage() {
                       <DeleteIcon />
                     </IconButton>
                   </Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Version: {state.state?.version || 'N/A'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Ressources: {(state as any)._resourceCount !== undefined 
-                      ? (state as any)._resourceCount 
-                      : (state.state?.resources?.length || 0)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Sorties: {Object.keys(state.state?.outputs || {}).length}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                    Uploadé le : {new Date(state.uploaded_at).toLocaleString('fr-FR')}
-                  </Typography>
-                  <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                      Version: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{state.state?.version || 'N/A'}</span>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                      Ressources: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{(state as any)._resourceCount !== undefined 
+                        ? (state as any)._resourceCount 
+                        : (state.state?.resources?.length || 0)}</span>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                      Sorties: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{Object.keys(state.state?.outputs || {}).length}</span>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5, fontSize: '0.75rem' }}>
+                      {new Date(state.uploaded_at).toLocaleString('fr-FR')}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, pt: 2.5 }}>
                     <Button
                       size="small"
                       variant="outlined"
@@ -1352,7 +1381,7 @@ ${moduleLine}${instanceBlocks}
               <CircularProgress />
             </Box>
           ) : !sources || sources.items.length === 0 ? (
-            <Card>
+            <Card sx={{ animation: 'jellyfishFloat 12s ease-in-out infinite' }}>
               <CardContent sx={{ textAlign: 'center', py: 6 }}>
                 <Typography variant="h6" color="text.secondary" gutterBottom>
                   Aucune source de synchronisation
@@ -1367,12 +1396,28 @@ ${moduleLine}${instanceBlocks}
             </Card>
           ) : (
             <Grid container spacing={3}>
-              {sources.items.map((source) => (
+              {sources.items.map((source, idx) => (
                 <Grid item xs={12} md={6} lg={4} key={source.id}>
-                  <Card>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
-                        <Typography variant="h6" component="div">
+                  <Card 
+                    sx={{ 
+                      height: '100%', 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      '--card-delay': `${idx * 0.3}s`,
+                    }}
+                  >
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2.5 }}>
+                        <Typography 
+                          variant="h6" 
+                          component="div" 
+                          sx={{ 
+                            fontWeight: 500, 
+                            color: 'rgba(255, 255, 255, 0.95)', 
+                            fontSize: '1rem',
+                            fontFamily: '"JetBrains Mono", monospace',
+                          }}
+                        >
                           {source.type === 'gcp' && `${source.config.gcp_bucket} /${source.config.gcp_object_name}`}
                           {source.type === 's3' && `${source.config.s3_bucket}/${source.config.s3_key}`}
                           {source.type === 'azure' && `${source.config.azure_account_name}/${source.config.azure_container}/${source.config.azure_blob_name}`}
@@ -1381,25 +1426,28 @@ ${moduleLine}${instanceBlocks}
                           label={source.enabled ? 'Actif' : 'Inactif'}
                           size="small"
                           color={source.enabled ? 'success' : 'default'}
+                          sx={{ fontSize: '0.75rem', height: 24 }}
                         />
                       </Box>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Type: {source.type.toUpperCase()}
-                      </Typography>
-                      {source.last_sync && (
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Dernière sync: {new Date(source.last_sync).toLocaleString('fr-FR')}
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                          Type: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{source.type.toUpperCase()}</span>
                         </Typography>
-                      )}
-                      {source.next_sync && (
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Prochaine sync: {new Date(source.next_sync).toLocaleString('fr-FR')}
+                        {source.last_sync && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                            Dernière sync: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{new Date(source.last_sync).toLocaleString('fr-FR')}</span>
+                          </Typography>
+                        )}
+                        {source.next_sync && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                            Prochaine sync: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{new Date(source.next_sync).toLocaleString('fr-FR')}</span>
+                          </Typography>
+                        )}
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                          Intervalle: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{source.config.sync_interval || '15m'}</span>
                         </Typography>
-                      )}
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Intervalle: {source.config.sync_interval || '15m'}
-                      </Typography>
-                      <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                      </Box>
+                      <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, pt: 2.5 }}>
                         <Button
                           size="small"
                           variant="outlined"

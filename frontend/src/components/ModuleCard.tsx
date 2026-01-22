@@ -31,23 +31,43 @@ export default function ModuleCard({
         flexDirection: 'column',
         transition: 'all 0.4s ease',
         ...(inactive && {
-          background: 'rgba(10, 10, 14, 0.8)',
-          border: '1px solid rgba(191, 0, 255, 0.1)',
-          boxShadow: 'none',
+          background: 'linear-gradient(135deg, rgba(10, 14, 20, 0.6), rgba(5, 8, 12, 0.7))',
+          backdropFilter: 'blur(30px) saturate(180%)',
+          border: 'none',
+          boxShadow: `
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05)
+          `,
+          animation: 'jellyfishFloat 10s ease-in-out infinite',
+          transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           '&:hover': {
-            borderColor: 'rgba(191, 0, 255, 0.2)',
-            boxShadow: '0 0 10px rgba(191, 0, 255, 0.1)',
+            boxShadow: `
+              0 12px 48px rgba(179, 136, 255, 0.15),
+              0 4px 16px rgba(179, 136, 255, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08)
+            `,
           },
         }),
         ...(active && {
-          background: 'linear-gradient(135deg, rgba(10, 10, 14, 0.95), rgba(5, 5, 8, 0.98))',
-          border: '2px solid rgba(0, 255, 255, 0.6)',
+          background: 'linear-gradient(135deg, rgba(10, 14, 20, 0.75), rgba(5, 8, 12, 0.8))',
+          backdropFilter: 'blur(30px) saturate(180%)',
+          border: 'none',
           boxShadow: `
-            0 0 40px rgba(0, 255, 255, 0.5),
-            inset 0 1px 0 rgba(0, 255, 255, 0.6),
-            0 0 80px rgba(0, 255, 255, 0.2)
+            0 16px 64px rgba(0, 229, 255, 0.25),
+            0 8px 24px rgba(179, 136, 255, 0.2),
+            0 4px 12px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1)
           `,
-          animation: 'glowPulse 2s ease-in-out infinite',
+          animation: 'jellyfishFloat 8s ease-in-out infinite',
+          transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          '&:hover': {
+            boxShadow: `
+              0 16px 64px rgba(0, 229, 255, 0.25),
+              0 8px 24px rgba(179, 136, 255, 0.2),
+              0 4px 12px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.12)
+            `,
+          },
         }),
         ...(deploying && {
           animation: 'glowPulse 2s ease-in-out infinite',
@@ -75,7 +95,7 @@ export default function ModuleCard({
             right: 0,
             bottom: 0,
             background: `
-              radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.15) 0%, transparent 70%)
+              radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.15) 0%, transparent 70%)
             `,
             animation: 'breathingGlow 3s ease-in-out infinite',
             pointerEvents: 'none',
@@ -84,6 +104,37 @@ export default function ModuleCard({
         />
       )}
       {active && !deploying && (
+        <>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `
+                radial-gradient(circle at 30% 30%, rgba(0, 229, 255, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(179, 136, 255, 0.1) 0%, transparent 50%)
+              `,
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, transparent, rgba(5, 8, 12, 0.3))',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+        </>
+      )}
+      {inactive && (
         <Box
           sx={{
             position: 'absolute',
@@ -92,7 +143,7 @@ export default function ModuleCard({
             right: 0,
             bottom: 0,
             background: `
-              radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.08) 0%, transparent 70%)
+              radial-gradient(circle at 50% 50%, rgba(179, 136, 255, 0.05) 0%, transparent 70%)
             `,
             pointerEvents: 'none',
             zIndex: 0,
