@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: redis-config
-  namespace: modulops
+  namespace: kura
 data:
   redis.conf: |
     maxmemory 256mb
