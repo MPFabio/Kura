@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
@@ -59,8 +59,11 @@ export default function TerraformPage() {
   const [driftResults, setDriftResults] = useState<any[]>([])
   const [driftDialogOpen, setDriftDialogOpen] = useState(false)
   const [detectingDrift, setDetectingDrift] = useState(false)
+  const [selectedResource, setSelectedResource] = useState<any>(null)
+  const [resourceDialogOpen, setResourceDialogOpen] = useState(false)
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
   const [editingSource, setEditingSource] = useState<any>(null)
+  const [pendingEditSource, setPendingEditSource] = useState<any>(null)
   const [sourceType, setSourceType] = useState<'s3' | 'azure' | 'gcp'>('gcp')
   const [gcpConfig, setGcpConfig] = useState({
     bucket: '',
@@ -100,7 +103,33 @@ export default function TerraformPage() {
 
   const { data: states, isLoading, error, refetch } = useQuery({
     queryKey: ['terraform-states'],
-    queryFn: () => terraformService.getStates(),
+    queryFn: async () => {
+      const statesData = await terraformService.getStates()
+      // Pour chaque état, charger le résumé si les ressources ne sont pas disponibles
+      const statesWithCounts = await Promise.all(
+        statesData.items.map(async (state) => {
+          // Si les ressources ne sont pas chargées, utiliser le résumé pour obtenir le nombre
+          if (!state.state?.resources || state.state.resources.length === 0) {
+            try {
+              const summary = await terraformService.getStateSummary(state.id)
+              // Retourner l'état avec le nombre de ressources depuis le résumé
+              return {
+                ...state,
+                _resourceCount: summary.resource_count, // Stocker le nombre pour l'affichage
+              }
+            } catch (err) {
+              // Si le résumé n'est pas disponible, utiliser 0
+              return {
+                ...state,
+                _resourceCount: 0,
+              }
+            }
+          }
+          return state
+        })
+      )
+      return { items: statesWithCounts }
+    },
   })
 
   const { data: sources, isLoading: sourcesLoading, refetch: refetchSources } = useQuery({
@@ -176,42 +205,91 @@ export default function TerraformPage() {
   }
 
   const handleEditSource = (source: any) => {
-    setEditingSource(source)
-    setSourceType(source.type)
-    if (source.type === 'gcp') {
-      setGcpConfig({
-        bucket: source.config.gcp_bucket || '',
-        object_name: source.config.gcp_object_name || '',
-        credentials_json: '', // Ne pas pré-remplir pour sécurité
-        sync_interval: source.config.sync_interval || '15m',
-        auto_sync: source.config.auto_sync !== false,
-      })
-    } else if (source.type === 's3') {
-      setS3Config({
-        bucket: source.config.s3_bucket || '',
-        key: source.config.s3_key || '',
-        region: source.config.s3_region || 'us-east-1',
-        endpoint: source.config.s3_endpoint || '',
-        aws_access_key_id: '', // Ne pas pré-remplir
-        aws_secret_access_key: '', // Ne pas pré-remplir
-        sync_interval: source.config.sync_interval || '15m',
-        auto_sync: source.config.auto_sync !== false,
-      })
-    } else if (source.type === 'azure') {
-      setAzureConfig({
-        account_name: source.config.azure_account_name || '',
-        container: source.config.azure_container || '',
-        blob_name: source.config.azure_blob_name || '',
-        account_key: '', // Ne pas pré-remplir
-        connection_string: '', // Ne pas pré-remplir
-        sync_interval: source.config.sync_interval || '15m',
-        auto_sync: source.config.auto_sync !== false,
-      })
-    }
-    setCreateStateFromSource(false)
-    setSelectedStateForSource(source.state_file_id || '')
-    setSourceDialogOpen(true)
+    // Stocker la source à éditer pour que useEffect la traite
+    setPendingEditSource(source)
   }
+
+  // Fonction pour fermer le dialog et réinitialiser tous les états
+  const handleCloseDialog = () => {
+    setSourceDialogOpen(false)
+    setEditingSource(null)
+    setPendingEditSource(null)
+    // Réinitialiser les configurations
+    setGcpConfig({
+      bucket: '',
+      object_name: '',
+      credentials_json: '',
+      sync_interval: '15m',
+      auto_sync: true,
+    })
+    setS3Config({
+      bucket: '',
+      key: '',
+      region: 'us-east-1',
+      endpoint: '',
+      aws_access_key_id: '',
+      aws_secret_access_key: '',
+      sync_interval: '15m',
+      auto_sync: true,
+    })
+    setAzureConfig({
+      account_name: '',
+      container: '',
+      blob_name: '',
+      account_key: '',
+      connection_string: '',
+      sync_interval: '15m',
+      auto_sync: true,
+    })
+    setCreateStateFromSource(false)
+    setSelectedStateForSource('')
+    setNewStateName('')
+    setSourceType('gcp')
+  }
+
+  // useEffect pour gérer l'ouverture du dialog après la mise à jour des états
+  useEffect(() => {
+    if (pendingEditSource) {
+      const source = pendingEditSource
+      // Configurer les états selon le type de source
+      if (source.type === 'gcp') {
+        setGcpConfig({
+          bucket: source.config.gcp_bucket || '',
+          object_name: source.config.gcp_object_name || '',
+          credentials_json: '', // Ne pas pré-remplir pour sécurité
+          sync_interval: source.config.sync_interval || '15m',
+          auto_sync: source.config.auto_sync !== false,
+        })
+      } else if (source.type === 's3') {
+        setS3Config({
+          bucket: source.config.s3_bucket || '',
+          key: source.config.s3_key || '',
+          region: source.config.s3_region || 'us-east-1',
+          endpoint: source.config.s3_endpoint || '',
+          aws_access_key_id: '', // Ne pas pré-remplir
+          aws_secret_access_key: '', // Ne pas pré-remplir
+          sync_interval: source.config.sync_interval || '15m',
+          auto_sync: source.config.auto_sync !== false,
+        })
+      } else if (source.type === 'azure') {
+        setAzureConfig({
+          account_name: source.config.azure_account_name || '',
+          container: source.config.azure_container || '',
+          blob_name: source.config.azure_blob_name || '',
+          account_key: '', // Ne pas pré-remplir
+          connection_string: '', // Ne pas pré-remplir
+          sync_interval: source.config.sync_interval || '15m',
+          auto_sync: source.config.auto_sync !== false,
+        })
+      }
+      setCreateStateFromSource(false)
+      setSelectedStateForSource(source.state_file_id || '')
+      setSourceType(source.type)
+      setEditingSource(source)
+      setSourceDialogOpen(true)
+      setPendingEditSource(null) // Réinitialiser
+    }
+  }, [pendingEditSource])
 
   const addSourceMutation = useMutation({
     mutationFn: async () => {
@@ -417,7 +495,9 @@ export default function TerraformPage() {
                     Version: {state.state?.version || 'N/A'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Ressources: {state.state?.resources?.length || 0}
+                    Ressources: {(state as any)._resourceCount !== undefined 
+                      ? (state as any)._resourceCount 
+                      : (state.state?.resources?.length || 0)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Sorties: {Object.keys(state.state?.outputs || {}).length}
@@ -549,17 +629,52 @@ export default function TerraformPage() {
                         <TableCell>Nom</TableCell>
                         <TableCell>Provider</TableCell>
                         <TableCell>Mode</TableCell>
+                        <TableCell>Module</TableCell>
+                        <TableCell>Instances</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {selectedState.state.resources.map((resource, idx) => (
-                        <TableRow key={idx}>
+                        <TableRow 
+                          key={idx}
+                          hover
+                          sx={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            setSelectedResource(resource)
+                            setResourceDialogOpen(true)
+                          }}
+                        >
                           <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>{idx + 1}</TableCell>
-                          <TableCell>{resource.type}</TableCell>
-                          <TableCell>{resource.name}</TableCell>
-                          <TableCell>{resource.provider}</TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
+                              {resource.type}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontFamily="monospace">
+                              {resource.name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="caption" color="text.secondary">
+                              {resource.provider}
+                            </Typography>
+                          </TableCell>
                           <TableCell>
                             <Chip label={resource.mode} size="small" color={resource.mode === 'managed' ? 'primary' : 'secondary'} />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="caption" color="text.secondary">
+                              {resource.module || '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={resource.instances?.length || 0} 
+                              size="small" 
+                              variant="outlined"
+                              color="default"
+                            />
                           </TableCell>
                         </TableRow>
                       ))}
@@ -659,8 +774,211 @@ export default function TerraformPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog d'ajout/modification de source cloud */}
-      <Dialog open={sourceDialogOpen} onClose={() => { setSourceDialogOpen(false); setEditingSource(null) }} maxWidth="md" fullWidth>
+      {/* Dialog de détails d'une ressource Terraform */}
+      <Dialog 
+        open={resourceDialogOpen} 
+        onClose={() => { setResourceDialogOpen(false); setSelectedResource(null) }} 
+        maxWidth="lg" 
+        fullWidth
+      >
+        <DialogTitle>
+          Détails de la ressource : {selectedResource?.type}.{selectedResource?.name}
+        </DialogTitle>
+        <DialogContent>
+          {selectedResource && (
+            <Box>
+              <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                Informations de base
+              </Typography>
+              <List>
+                <ListItem>
+                  <ListItemText 
+                    primary="Type de ressource" 
+                    secondary={
+                      <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
+                        {selectedResource.type}
+                      </Typography>
+                    } 
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Nom" 
+                    secondary={
+                      <Typography variant="body2" fontFamily="monospace">
+                        {selectedResource.name}
+                      </Typography>
+                    } 
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Provider" 
+                    secondary={selectedResource.provider} 
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Mode" 
+                    secondary={
+                      <Chip 
+                        label={selectedResource.mode} 
+                        size="small" 
+                        color={selectedResource.mode === 'managed' ? 'primary' : 'secondary'} 
+                      />
+                    } 
+                  />
+                </ListItem>
+                {selectedResource.module && (
+                  <ListItem>
+                    <ListItemText 
+                      primary="Module" 
+                      secondary={
+                        <Typography variant="body2" fontFamily="monospace">
+                          {selectedResource.module}
+                        </Typography>
+                      } 
+                    />
+                  </ListItem>
+                )}
+                <ListItem>
+                  <ListItemText 
+                    primary="Nombre d'instances" 
+                    secondary={selectedResource.instances?.length || 0} 
+                  />
+                </ListItem>
+              </List>
+
+              {selectedResource.instances && selectedResource.instances.length > 0 && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="subtitle1" gutterBottom>
+                    Instances ({selectedResource.instances.length})
+                  </Typography>
+                  {selectedResource.instances.map((instance: any, instanceIdx: number) => (
+                    <Box key={instanceIdx} sx={{ mb: 3 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                        Instance {instanceIdx + 1}
+                        {instance.schema_version && (
+                          <Chip 
+                            label={`Schema v${instance.schema_version}`} 
+                            size="small" 
+                            variant="outlined"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                      </Typography>
+                      
+                      {instance.attributes && Object.keys(instance.attributes).length > 0 && (
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Attributs ({Object.keys(instance.attributes).length})
+                          </Typography>
+                          <TableContainer component={Paper} sx={{ maxHeight: 300, mt: 1 }}>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Attribut</TableCell>
+                                  <TableCell>Valeur</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {Object.entries(instance.attributes).slice(0, 20).map(([key, value]) => (
+                                  <TableRow key={key}>
+                                    <TableCell>
+                                      <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
+                                        {key}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="body2" fontFamily="monospace">
+                                        {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                                      </Typography>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                                {Object.keys(instance.attributes).length > 20 && (
+                                  <TableRow>
+                                    <TableCell colSpan={2} align="center">
+                                      <Typography variant="caption" color="text.secondary">
+                                        ... et {Object.keys(instance.attributes).length - 20} autres attributs
+                                      </Typography>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </Box>
+                      )}
+
+                      {instance.dependencies && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Dépendances
+                          </Typography>
+                          <Typography variant="body2" fontFamily="monospace" sx={{ bgcolor: 'background.paper', p: 1, borderRadius: 1 }}>
+                            {typeof instance.dependencies === 'string' 
+                              ? instance.dependencies 
+                              : JSON.stringify(instance.dependencies, null, 2)}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  ))}
+                </>
+              )}
+
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle1" gutterBottom>
+                Bloc Terraform
+              </Typography>
+              <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="body2" fontFamily="monospace" component="pre" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {(() => {
+                    const instances = selectedResource.instances || []
+                    const instanceBlocks = instances.map((instance: any, idx: number) => {
+                      if (!instance.attributes) return ''
+                      const attrs = Object.entries(instance.attributes)
+                        .filter(([key]) => !key.startsWith('_'))
+                        .map(([key, value]) => {
+                          if (typeof value === 'object' && value !== null) {
+                            return `  ${key} = ${JSON.stringify(value, null, 2).split('\n').map((line: string, i: number) => i === 0 ? line : '  ' + line).join('\n')}`
+                          }
+                          if (typeof value === 'string' && value.includes('\n')) {
+                            return `  ${key} = <<-EOT\n${value}\nEOT`
+                          }
+                          return `  ${key} = ${JSON.stringify(value)}`
+                        })
+                        .join('\n')
+                      return attrs ? (instances.length > 1 ? `  # Instance ${idx + 1}\n${attrs}` : attrs) : ''
+                    }).filter(Boolean).join('\n\n')
+                    
+                    const moduleLine = selectedResource.module ? `  module = "${selectedResource.module}"\n` : ''
+                    return `resource "${selectedResource.type}" "${selectedResource.name}" {
+${moduleLine}${instanceBlocks}
+}`
+                  })()}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setResourceDialogOpen(false); setSelectedResource(null) }}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+      </>
+      )}
+
+      {/* Dialog d'ajout/modification de source cloud - Déplacé en dehors des onglets pour être toujours disponible */}
+      <Dialog 
+        key={editingSource?.id || 'new'} 
+        open={sourceDialogOpen} 
+        onClose={handleCloseDialog}
+        maxWidth="md" 
+        fullWidth
+      >
         <DialogTitle>{editingSource ? 'Modifier une source cloud' : 'Lier une source cloud (S3, Azure, GCP)'}</DialogTitle>
         <DialogContent>
           <FormControl fullWidth margin="normal">
@@ -749,14 +1067,41 @@ export default function TerraformPage() {
               <TextField
                 fullWidth
                 label={editingSource ? 'Credentials JSON (laisser vide pour conserver)' : 'Credentials JSON (Service Account) *'}
-                value={gcpConfig.credentials_json}
-                onChange={(e) => setGcpConfig({ ...gcpConfig, credentials_json: e.target.value })}
+                value={editingSource && !gcpConfig.credentials_json ? '••••••••••••••••••••••••••••••••' : gcpConfig.credentials_json}
+                onChange={(e) => {
+                  // Si on est en mode édition et qu'on commence à taper, remplacer le masquage
+                  const newValue = e.target.value === '••••••••••••••••••••••••••••••••' ? '' : e.target.value
+                  setGcpConfig({ ...gcpConfig, credentials_json: newValue })
+                }}
+                onFocus={(e) => {
+                  // Si on focus et que c'est le masquage, vider le champ
+                  const target = e.target as HTMLInputElement | HTMLTextAreaElement
+                  if (target.value === '••••••••••••••••••••••••••••••••') {
+                    setGcpConfig({ ...gcpConfig, credentials_json: '' })
+                  }
+                }}
+                onCopy={(e) => {
+                  // Empêcher la copie si c'est le masquage
+                  const target = e.target as HTMLInputElement | HTMLTextAreaElement
+                  if (target.value === '••••••••••••••••••••••••••••••••') {
+                    e.preventDefault()
+                  }
+                }}
                 margin="normal"
                 required={!editingSource}
                 multiline
                 rows={4}
-                placeholder='{"type": "service_account", "project_id": "...", ...}'
-                helperText={editingSource ? 'Laisser vide pour conserver les credentials existants' : 'JSON complet de la clé de service GCP'}
+                placeholder={editingSource ? 'Credentials existants (masqués)' : '{"type": "service_account", "project_id": "...", ...}'}
+                helperText={editingSource ? 'Credentials existants masqués. Laisser vide pour conserver, ou saisir de nouveaux credentials pour les remplacer.' : 'JSON complet de la clé de service GCP'}
+                InputProps={{
+                  sx: editingSource && !gcpConfig.credentials_json ? {
+                    '& input': {
+                      color: 'text.secondary',
+                      fontFamily: 'monospace',
+                      letterSpacing: '0.1em',
+                    }
+                  } : {}
+                }}
               />
               <TextField
                 fullWidth
@@ -819,18 +1164,52 @@ export default function TerraformPage() {
               <TextField
                 fullWidth
                 label="AWS Access Key ID"
-                value={s3Config.aws_access_key_id}
-                onChange={(e) => setS3Config({ ...s3Config, aws_access_key_id: e.target.value })}
+                value={editingSource && !s3Config.aws_access_key_id ? '••••••••••••••••' : s3Config.aws_access_key_id}
+                onChange={(e) => {
+                  const newValue = e.target.value === '••••••••••••••••' ? '' : e.target.value
+                  setS3Config({ ...s3Config, aws_access_key_id: newValue })
+                }}
+                onFocus={(e) => {
+                  const target = e.target as HTMLInputElement
+                  if (target.value === '••••••••••••••••') {
+                    setS3Config({ ...s3Config, aws_access_key_id: '' })
+                  }
+                }}
+                onCopy={(e) => {
+                  const target = e.target as HTMLInputElement
+                  if (target.value === '••••••••••••••••') {
+                    e.preventDefault()
+                  }
+                }}
                 margin="normal"
                 type="password"
+                placeholder={editingSource ? 'Access Key existant (masqué)' : ''}
+                helperText={editingSource ? 'Laisser vide pour conserver, ou saisir une nouvelle clé pour la remplacer' : ''}
               />
               <TextField
                 fullWidth
                 label="AWS Secret Access Key"
-                value={s3Config.aws_secret_access_key}
-                onChange={(e) => setS3Config({ ...s3Config, aws_secret_access_key: e.target.value })}
+                value={editingSource && !s3Config.aws_secret_access_key ? '••••••••••••••••••••••••••••••••' : s3Config.aws_secret_access_key}
+                onChange={(e) => {
+                  const newValue = e.target.value === '••••••••••••••••••••••••••••••••' ? '' : e.target.value
+                  setS3Config({ ...s3Config, aws_secret_access_key: newValue })
+                }}
+                onFocus={(e) => {
+                  const target = e.target as HTMLInputElement
+                  if (target.value === '••••••••••••••••••••••••••••••••') {
+                    setS3Config({ ...s3Config, aws_secret_access_key: '' })
+                  }
+                }}
+                onCopy={(e) => {
+                  const target = e.target as HTMLInputElement
+                  if (target.value === '••••••••••••••••••••••••••••••••') {
+                    e.preventDefault()
+                  }
+                }}
                 margin="normal"
                 type="password"
+                placeholder={editingSource ? 'Secret Key existant (masqué)' : ''}
+                helperText={editingSource ? 'Laisser vide pour conserver, ou saisir une nouvelle clé pour la remplacer' : ''}
               />
               <TextField
                 fullWidth
@@ -885,22 +1264,53 @@ export default function TerraformPage() {
               <TextField
                 fullWidth
                 label={`Account Key ${!editingSource ? '*' : ''}`}
-                value={azureConfig.account_key}
-                onChange={(e) => setAzureConfig({ ...azureConfig, account_key: e.target.value })}
+                value={editingSource && !azureConfig.account_key ? '••••••••••••••••••••••••••••••••' : azureConfig.account_key}
+                onChange={(e) => {
+                  const newValue = e.target.value === '••••••••••••••••••••••••••••••••' ? '' : e.target.value
+                  setAzureConfig({ ...azureConfig, account_key: newValue })
+                }}
+                onFocus={(e) => {
+                  const target = e.target as HTMLInputElement
+                  if (target.value === '••••••••••••••••••••••••••••••••') {
+                    setAzureConfig({ ...azureConfig, account_key: '' })
+                  }
+                }}
+                onCopy={(e) => {
+                  const target = e.target as HTMLInputElement
+                  if (target.value === '••••••••••••••••••••••••••••••••') {
+                    e.preventDefault()
+                  }
+                }}
                 margin="normal"
                 type="password"
                 required={!editingSource}
-                placeholder={editingSource ? 'Laisser vide pour conserver la clé existante' : ''}
-                helperText={editingSource ? 'Laisser vide pour conserver la clé existante, ou remplacer par une nouvelle clé' : 'OBLIGATOIRE : Clé d\'accès du compte de stockage Azure (trouvable dans Azure Portal / Storage Account / Access Keys)'}
+                placeholder={editingSource ? 'Account Key existant (masqué)' : ''}
+                helperText={editingSource ? 'Account Key existant masqué. Laisser vide pour conserver, ou saisir une nouvelle clé pour la remplacer.' : 'OBLIGATOIRE : Clé d\'accès du compte de stockage Azure (trouvable dans Azure Portal / Storage Account / Access Keys)'}
               />
               <TextField
                 fullWidth
                 label="Connection String (optionnel, prioritaire sur Account Key)"
-                value={azureConfig.connection_string}
-                onChange={(e) => setAzureConfig({ ...azureConfig, connection_string: e.target.value })}
+                value={editingSource && !azureConfig.connection_string ? '••••••••••••••••••••••••••••••••' : azureConfig.connection_string}
+                onChange={(e) => {
+                  const newValue = e.target.value === '••••••••••••••••••••••••••••••••' ? '' : e.target.value
+                  setAzureConfig({ ...azureConfig, connection_string: newValue })
+                }}
+                onFocus={(e) => {
+                  const target = e.target as HTMLInputElement
+                  if (target.value === '••••••••••••••••••••••••••••••••') {
+                    setAzureConfig({ ...azureConfig, connection_string: '' })
+                  }
+                }}
+                onCopy={(e) => {
+                  const target = e.target as HTMLInputElement
+                  if (target.value === '••••••••••••••••••••••••••••••••') {
+                    e.preventDefault()
+                  }
+                }}
                 margin="normal"
                 type="password"
-                helperText="Alternative : Connection String complète (remplace Account Key si fournie)"
+                placeholder={editingSource ? 'Connection String existant (masqué)' : ''}
+                helperText={editingSource ? 'Connection String existant masqué. Laisser vide pour conserver, ou saisir une nouvelle chaîne pour la remplacer.' : 'Alternative : Connection String complète (remplace Account Key si fournie)'}
               />
               <TextField
                 fullWidth
@@ -924,7 +1334,7 @@ export default function TerraformPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setSourceDialogOpen(false); setEditingSource(null) }}>Annuler</Button>
+          <Button onClick={handleCloseDialog}>Annuler</Button>
           <Button
             onClick={() => addSourceMutation.mutate()}
             variant="contained"
@@ -934,8 +1344,6 @@ export default function TerraformPage() {
           </Button>
         </DialogActions>
       </Dialog>
-      </>
-      )}
 
       {activeTab === 1 && (
         <>

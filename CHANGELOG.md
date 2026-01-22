@@ -5,6 +5,26 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.1.1] - 2026-01-22
+
+### Corrigé
+- **Frontend Terraform** :
+  - Correction du bouton "Annuler" dans le dialog de modification de source cloud qui ne fermait pas correctement le dialog
+  - Suppression du Dialog dupliqué qui causait des conflits
+  - Amélioration de la fonction `handleCloseDialog` pour réinitialiser correctement tous les états
+
+### Amélioré
+- **Sécurité des credentials** :
+  - Masquage des credentials existants en mode modification (affichage de `••••••••` au lieu de champs vides)
+  - Empêchement de la copie des credentials masqués (événement `onCopy` bloqué)
+  - Vidage automatique du masquage au focus pour permettre la saisie de nouvelles valeurs
+  - Messages d'aide améliorés pour indiquer que les credentials existants sont masqués
+  - Support du masquage pour tous les types de credentials : GCP JSON, AWS Access Key/Secret, Azure Account Key/Connection String
+
+### Technique
+- Réorganisation du code pour éviter les Dialogs dupliqués
+- Amélioration de la gestion des états React pour la fermeture des dialogs
+
 ## [1.1.0] - 2026-01-20
 
 ### Ajouté
