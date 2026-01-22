@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kong
-  namespace: modulops
+  namespace: kura
   labels:
     app: kong
 spec:
@@ -62,7 +62,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kong
-  namespace: modulops
+  namespace: kura
   labels:
     app: kong
 spec:

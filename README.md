@@ -1,6 +1,9 @@
-# ModulOps - Plateforme DevOps Microservices
+# Kura - Plateforme DevOps Microservices
 
-**Version actuelle :** [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](VERSION)
+[![GitHub release](https://img.shields.io/github/v/release/MPFabio/ModulOps?label=release)](https://github.com/MPFabio/Kura/releases)
+[![GitHub tag](https://img.shields.io/github/v/tag/MPFabio/ModulOps?label=tag)](https://github.com/MPFabio/Kura/tags)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Plateforme DevOps unifiée pour la gestion de clusters Kubernetes, Terraform, Ansible et pipelines CI/CD.
 
@@ -69,28 +72,28 @@ Pour accéder aux services, utilisez port-forward :
 
 ```bash
 # PostgreSQL
-kubectl port-forward svc/postgres 5432:5432 -n modulops
+kubectl port-forward svc/postgres 5432:5432 -n kura
 
 # Redis
-kubectl port-forward svc/redis 6379:6379 -n modulops
+kubectl port-forward svc/redis 6379:6379 -n kura
 
 # Kafka
-kubectl port-forward svc/kafka 9092:9092 -n modulops
+kubectl port-forward svc/kafka 9092:9092 -n kura
 
 # Kong Gateway
-kubectl port-forward svc/kong 8000:8000 -n modulops
+kubectl port-forward svc/kong 8000:8000 -n kura
 
 # Prometheus
-kubectl port-forward svc/prometheus 9090:9090 -n modulops
+kubectl port-forward svc/prometheus 9090:9090 -n kura
 
 # Grafana
-kubectl port-forward svc/grafana 3000:3000 -n modulops
+kubectl port-forward svc/grafana 3000:3000 -n kura
 ```
 
 ## Structure du projet
 
 ```
-ModulOps/
+Kura/
 ├── services/              # Services microservices
 │   ├── api-gateway/       # Kong configuration
 │   ├── auth-service/      # Service d'authentification (Go)
@@ -117,11 +120,21 @@ ModulOps/
 ### Infrastructure de base
 
 - **PostgreSQL 15** : Base de données principale
-- **Redis 7** : Cache distribué
+- **Redis 7** : Cache distribué avec persistance (AOF + RDB)
 - **Kafka + Zookeeper** : Message broker pour les événements
 - **Kong 3.4** : API Gateway avec routage et authentification
 - **Prometheus** : Collecte de métriques
 - **Grafana** : Visualisation des métriques et dashboards
+
+### Services applicatifs
+
+- **Auth Service** : Authentification centralisée avec JWT et refresh tokens
+- **K8s Service** : Gestion des clusters Kubernetes avec terminal interactif
+- **Terraform Service** : Gestion des états Terraform avec synchronisation cloud et détection de drift
+  - Synchronisation automatique depuis S3, Azure Blob Storage, GCP Cloud Storage
+  - Détection de drift en temps réel via APIs cloud (GCP, AWS, Azure)
+  - Parsing et visualisation des états Terraform
+  - Gestion des sources de synchronisation avec modification et suppression
 
 ## Développement
 
@@ -140,15 +153,39 @@ docker-compose logs -f [service-name]
 ### Vérifier le statut sur Kubernetes
 
 ```bash
-kubectl get all -n modulops
+kubectl get all -n kura
 ```
 
-## Prochaines étapes
+## Fonctionnalités principales
 
-1. Implémenter les services backend (auth, k8s, terraform, etc.)
-2. Développer le frontend React
-3. Configurer l'authentification JWT
-4. Implémenter les webhooks et événements temps réel
+### Module Terraform (v1.1.0)
+
+- **Gestion des états Terraform** : Upload, visualisation et suppression d'états
+- **Synchronisation cloud** : 
+  - Support S3, Azure Blob Storage, GCP Cloud Storage
+  - Synchronisation automatique configurable
+  - Modification et suppression des sources de synchronisation
+- **Détection de drift** :
+  - Comparaison en temps réel avec l'infrastructure réelle via APIs cloud
+  - Support GCP Compute Engine (instances, réseaux, firewalls, adresses IP)
+  - Affichage détaillé des différences détectées
+- **Interface utilisateur** :
+  - Onglets "États" et "Sources de synchronisation"
+  - Visualisation des ressources avec numérotation
+  - Dialog de résultats de drift avec détails
+
+### Module Kubernetes
+
+- Gestion complète des clusters (namespaces, pods, deployments, services, etc.)
+- Terminal interactif via WebSocket
+- Actions en masse (bulk actions)
+- Recherche et filtrage avancés
+
+### Authentification
+
+- Inscription et connexion utilisateurs
+- JWT avec refresh tokens
+- Gestion des rôles (admin, user)
 
 ## Documentation
 

@@ -1,9 +1,62 @@
-# Changelog
+# Changelog - Kura
 
 Tous les changements notables de ce projet seront documentés dans ce fichier.
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
+
+## [1.1.0] - 2026-01-20
+
+### Ajouté
+- **Module Terraform** : Service Terraform complet avec gestion des états
+  - Upload et parsing de fichiers tfstate
+  - Visualisation des ressources, outputs et métadonnées
+  - Suppression d'états Terraform
+  - Interface utilisateur avec onglets "États" et "Sources de synchronisation"
+  
+- **Synchronisation cloud** : Intégration avec les providers cloud
+  - Support AWS S3 pour la synchronisation des états Terraform
+  - Support Azure Blob Storage avec credentials (Account Key ou Connection String)
+  - Support GCP Cloud Storage avec Service Account JSON
+  - Synchronisation automatique configurable (intervalle personnalisable)
+  - Création d'états depuis les sources cloud
+  - Modification et suppression des sources de synchronisation
+  - Interface de gestion complète des sources (ajout, modification, suppression, synchronisation manuelle)
+
+- **Détection de drift** : Comparaison en temps réel avec l'infrastructure réelle
+  - Détection automatique lors de la synchronisation depuis GCP
+  - Support GCP Compute Engine :
+    - Instances Compute Engine (status, machine type, zone, etc.)
+    - Réseaux VPC (description, mode auto, etc.)
+    - Firewalls (règles, ports, sources, cibles)
+    - Adresses IP statiques (status, type, région)
+  - Affichage détaillé des différences détectées (attributs, valeurs attendues vs réelles)
+  - Dialog de résultats avec statuts (in_sync, drifted, missing, unknown)
+  - Interface utilisateur pour déclencher la détection manuellement
+
+- **Cache Redis amélioré** : Persistance des états Terraform
+  - TTL de 30 jours pour les états Terraform (au lieu de 5 minutes)
+  - Persistance des états entre redémarrages
+  - Méthode `Keys` pour lister les états par pattern
+
+### Modifié
+- **Frontend Terraform** :
+  - Ajout d'une colonne "#" pour la numérotation des ressources
+  - Correction du bouton "Modifier" pour les sources de synchronisation
+  - Amélioration de l'affichage des résultats de drift
+  - Correction des erreurs de syntaxe JSX (caractères spéciaux dans les helperText)
+
+- **Service Terraform** :
+  - Intégration de la détection de drift dans le processus de synchronisation
+  - Support des types complexes pour les outputs Terraform (interface{} au lieu de string)
+  - Support des dépendances flexibles pour les ressources (interface{} au lieu de struct)
+  - Génération automatique d'IDs uniques pour les états créés depuis les sources
+
+### Technique
+- Architecture de détection de drift extensible avec interfaces
+- Intégration GCP Compute API (`cloud.google.com/go/compute`)
+- Gestion sécurisée des credentials (chiffrement AES-GCM)
+- Background jobs pour la synchronisation automatique
 
 ## [1.0.0] - 2026-01-20
 
@@ -53,4 +106,5 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
 - Documentation d'architecture
 - Guide d'accès aux services
 
-[1.0.0]: https://github.com/modulops/modulops/releases/tag/v1.0.0
+[1.1.0]: https://github.com/MPFabio/ModulOps/releases/tag/v1.1.0
+[1.0.0]: https://github.com/MPFabio/ModulOps/releases/tag/v1.0.0

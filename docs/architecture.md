@@ -1,6 +1,6 @@
 ## Contexte et objectifs du projet
 
-ModulOps est une plateforme DevOps unifiée qui vise à donner **une vue centrale** sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, Terraform, Ansible, pipelines CI/CD, métriques et alertes.
+Kura est une plateforme DevOps unifiée qui vise à donner **une vue centrale** sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, Terraform, Ansible, pipelines CI/CD, métriques et alertes.
 
 ### Ce qui existe déjà sur le marché
 
@@ -20,14 +20,14 @@ ModulOps est une plateforme DevOps unifiée qui vise à donner **une vue central
   - Les outils spécialisés isolés : les équipes jonglent entre **plusieurs interfaces**, difficile d’avoir une **vision transversale** (ex. : « ce pipeline déploie quels clusters / quelles ressources Terraform ? »), l’authentification et les rôles sont souvent **dupliqués** dans chaque outil.
   - Les Developer Portals (Backstage, Port, Cortex) : excellents pour la **découverte** et la **documentation**, mais souvent **légers sur l’opérationnel** (gestion active des clusters K8s, exécution Terraform, jobs Ansible, alertes temps réel). Ils sont plutôt orientés « catalogue » que « console d’opération ».
 
-### La valeur ajoutée de ModulOps
+### La valeur ajoutée de Kura
 
 - **Point d’entrée unique** pour les équipes Ops / DevOps : un seul portail, une seule API Gateway.
 - **Agrégation** des infos clés (clusters, états Terraform, jobs Ansible, pipelines, métriques) au même endroit.
 - **Modèle d’authentification centralisé** (auth-service) et rôles homogènes sur tous les modules.
 - **Événements corrélés** via Kafka (ex. : un déploiement Terraform qui déclenche des métriques et des alertes associées).
 - **Différenciation vs Backstage/Port** :
-  - ModulOps se concentre sur l’**opérationnel actif** (exécution Terraform, gestion K8s, jobs Ansible) plutôt que sur le catalogue/documentation.
+  - Kura se concentre sur l’**opérationnel actif** (exécution Terraform, gestion K8s, jobs Ansible) plutôt que sur le catalogue/documentation.
   - Architecture **microservices native** avec bus d’événements Kafka pour corréler les actions entre systèmes.
   - **Focus Ops/DevOps** : console d’opération plutôt que portail développeur (même si les deux peuvent coexister).
 
@@ -47,9 +47,9 @@ ModulOps est une plateforme DevOps unifiée qui vise à donner **une vue central
 
 ---
 
-## Architecture globale ModulOps
+## Architecture globale Kura
 
-Ce document décrit l’architecture haut niveau de la plateforme ModulOps ainsi que le détail du service d’authentification (`auth-service`).
+Ce document décrit l’architecture haut niveau de la plateforme Kura ainsi que le détail du service d’authentification (`auth-service`).
 
 ### Vue globale
 
@@ -77,6 +77,12 @@ graph TB
     K8s --> Postgres[(PostgreSQL)]
     Terraform --> Postgres
     Ansible --> Postgres
+    
+    Terraform --> S3[(AWS S3)]
+    Terraform --> Azure[(Azure Blob)]
+    Terraform --> GCP[(GCP Storage)]
+    
+    Terraform --> GCPAPI[GCP Compute API]
     
     Metrics --> Prometheus[(Prometheus)]
     Metrics --> Grafana[Grafana]
