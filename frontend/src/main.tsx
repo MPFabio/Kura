@@ -7,6 +7,7 @@ import App from './App'
 import { theme } from './theme'
 import { AuthProvider } from './contexts/AuthContext'
 import { SocketProvider } from './contexts/SocketContext'
+import { ProjectProvider } from './contexts/ProjectContext'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -27,7 +28,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <CssBaseline />
           <AuthProvider>
             <SocketProvider>
-              <App />
+              <ProjectProvider>
+                <App />
+              </ProjectProvider>
             </SocketProvider>
           </AuthProvider>
         </ThemeProvider>

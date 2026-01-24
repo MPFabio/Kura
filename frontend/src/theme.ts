@@ -50,8 +50,8 @@ export const theme = createTheme({
       paper: jellyfishColors.oceanDark,
     },
     text: {
-      primary: 'rgba(255, 255, 255, 0.95)',
-      secondary: jellyfishColors.grayLight,
+      primary: 'rgba(255, 255, 255, 0.98)',
+      secondary: 'rgba(255, 255, 255, 0.85)',
     },
     error: {
       main: jellyfishColors.errorSoft,
@@ -103,12 +103,12 @@ export const theme = createTheme({
     body1: {
       fontSize: '0.9375rem',
       lineHeight: 1.6,
-      color: 'rgba(255, 255, 255, 0.85)',
+      color: 'rgba(255, 255, 255, 0.95)',
     },
     body2: {
       fontSize: '0.875rem',
       lineHeight: 1.5,
-      color: 'rgba(255, 255, 255, 0.75)',
+      color: 'rgba(255, 255, 255, 0.9)',
     },
   },
   shape: {
@@ -127,13 +127,16 @@ export const theme = createTheme({
           boxShadow: 'none',
         },
         outlined: {
-          border: `1px solid ${jellyfishColors.cyanSoft}40`,
+          border: `2px solid ${jellyfishColors.cyanSoft}60`,
           color: jellyfishColors.cyanSoft,
           background: 'transparent',
+          borderRadius: 12,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: `0 0 8px ${jellyfishColors.cyanSoft}30`,
           '&:hover': {
-            borderColor: `${jellyfishColors.cyanSoft}80`,
-            background: jellyfishColors.cyanSubtle,
-            boxShadow: `0 2px 8px ${jellyfishColors.cyanSoft}20`,
+            border: `2px solid ${jellyfishColors.cyanSoft}80`,
+            background: `${jellyfishColors.cyanSoft}15`,
+            boxShadow: `0 0 16px ${jellyfishColors.cyanSoft}50`,
           },
         },
         contained: {
@@ -158,14 +161,14 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
+          background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}E6, ${jellyfishColors.deepOcean}E6)`,
           backdropFilter: 'blur(30px) saturate(180%)',
           border: 'none',
-          borderRadius: 24,
+          borderRadius: 32,
           boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.3),
-            0 2px 8px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08)
+            0 8px 32px rgba(0, 0, 0, 0.5),
+            0 2px 8px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12)
           `,
           transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           position: 'relative',
@@ -175,37 +178,36 @@ export const theme = createTheme({
           '&::before': {
             content: '""',
             position: 'absolute',
-            top: '-50%',
-            left: '-50%',
-            width: '200%',
-            height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}15 0%, transparent 70%)`,
-            animation: 'etherealGlow 6s ease-in-out infinite',
-            pointerEvents: 'none',
-            zIndex: 0,
+            top: -2,
+            left: -2,
+            right: -2,
+            bottom: -2,
+            borderRadius: 32,
+            background: `linear-gradient(135deg, ${jellyfishColors.violetSoft}50, ${jellyfishColors.cyanSoft}50)`,
+            zIndex: -1,
+            opacity: 0.6,
           },
           '&::after': {
             content: '""',
             position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '2px',
-            background: `linear-gradient(90deg, transparent, ${jellyfishColors.cyanSoft}50, ${jellyfishColors.violetSoft}50, transparent)`,
-            opacity: 0,
-            transition: 'opacity 0.6s ease',
+            top: '-50%',
+            left: '-50%',
+            width: '200%',
+            height: '200%',
+            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}08 0%, transparent 70%)`,
+            animation: 'etherealGlow 6s ease-in-out infinite',
             pointerEvents: 'none',
-            zIndex: 1,
+            zIndex: 0,
           },
           '&:hover': {
             boxShadow: `
-              0 12px 48px rgba(0, 229, 255, 0.2),
-              0 4px 16px rgba(179, 136, 255, 0.15),
+              0 12px 48px rgba(0, 229, 255, 0.3),
+              0 4px 16px rgba(179, 136, 255, 0.25),
               0 2px 8px rgba(0, 0, 0, 0.3),
-              inset 0 1px 0 rgba(255, 255, 255, 0.1)
+              inset 0 1px 0 rgba(255, 255, 255, 0.15)
             `,
-            '&::after': {
-              opacity: 1,
+            '&::before': {
+              opacity: 0.8,
             },
           },
         },
@@ -216,50 +218,71 @@ export const theme = createTheme({
         root: {
           backgroundImage: 'none',
           background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
-          backdropFilter: 'blur(30px) saturate(180%)',
+          backdropFilter: 'blur(35px) saturate(200%)',
           border: 'none',
-          borderRadius: 24,
+          borderRadius: 28,
           boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08)
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1)
           `,
           transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           animation: 'depthPulse 10s ease-in-out infinite',
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: '-50%',
+            left: '-50%',
+            width: '200%',
+            height: '200%',
+            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}12 0%, ${jellyfishColors.violetSoft}08 50%, transparent 70%)`,
+            animation: 'etherealGlow 10s ease-in-out infinite',
+            pointerEvents: 'none',
+            zIndex: 0,
+          },
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: `linear-gradient(180deg, ${jellyfishColors.deepOcean}CC, ${jellyfishColors.oceanDark}CC)`,
+          background: `linear-gradient(180deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
           backdropFilter: 'blur(30px) saturate(180%)',
           borderRight: 'none',
+          borderRadius: '0 32px 32px 0',
           boxShadow: `
-            4px 0 24px rgba(0, 0, 0, 0.4),
-            inset -1px 0 0 rgba(255, 255, 255, 0.05)
+            0 8px 32px rgba(0, 0, 0, 0.5),
+            inset -2px 0 0 rgba(179, 136, 255, 0.3),
+            inset 0 -2px 0 rgba(0, 229, 255, 0.3)
           `,
-          position: 'relative',
+          position: 'fixed',
+          height: '100vh',
+          overflowY: 'hidden',
+          overflowX: 'hidden',
           transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          zIndex: 1200,
           '&::before': {
             content: '""',
             position: 'absolute',
             top: 0,
+            left: 0,
             right: 0,
-            width: '2px',
-            height: '100%',
-            background: `linear-gradient(180deg, transparent, ${jellyfishColors.cyanSoft}30, ${jellyfishColors.violetSoft}30, transparent)`,
+            bottom: 0,
+            background: `linear-gradient(180deg, ${jellyfishColors.violetSoft}40 0%, transparent 20%, transparent 80%, ${jellyfishColors.cyanSoft}40 100%)`,
             pointerEvents: 'none',
-            opacity: 0.6,
+            opacity: 0.8,
+            zIndex: 0,
           },
           '&::after': {
             content: '""',
             position: 'absolute',
-            top: '-50%',
-            right: '-50%',
-            width: '200%',
-            height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}08 0%, ${jellyfishColors.violetSoft}06 50%, transparent 100%)`,
-            animation: 'etherealGlow 12s ease-in-out infinite',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `linear-gradient(180deg, ${jellyfishColors.violetSoft}20 0%, transparent 30%, transparent 70%, ${jellyfishColors.cyanSoft}20 100%)`,
+            animation: 'etherealGlow 8s ease-in-out infinite',
             pointerEvents: 'none',
             zIndex: 0,
           },
@@ -269,10 +292,43 @@ export const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: `${jellyfishColors.oceanDark}E6`,
-          backdropFilter: 'blur(20px)',
-          borderBottom: `1px solid ${jellyfishColors.graySubtle}`,
-          boxShadow: '0 1px 4px rgba(0, 0, 0, 0.1)',
+          background: `linear-gradient(180deg, ${jellyfishColors.oceanDark}E6, ${jellyfishColors.deepOcean}E6)`,
+          backdropFilter: 'blur(30px) saturate(180%)',
+          borderBottom: 'none',
+          borderLeft: 'none',
+          borderRadius: '16px',
+          boxShadow: `
+            0 4px 16px rgba(0, 0, 0, 0.3),
+            0 2px 8px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            0 0 0 1px rgba(0, 229, 255, 0.1)
+          `,
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `linear-gradient(180deg, ${jellyfishColors.violetSoft}15 0%, transparent 30%, transparent 70%, ${jellyfishColors.cyanSoft}15 100%)`,
+            animation: 'etherealGlow 8s ease-in-out infinite',
+            pointerEvents: 'none',
+            zIndex: 0,
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: '16px',
+            background: `linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, transparent 50%, rgba(179, 136, 255, 0.1) 100%)`,
+            pointerEvents: 'none',
+            zIndex: 0,
+          },
         },
       },
     },
@@ -286,12 +342,12 @@ export const theme = createTheme({
             background: `linear-gradient(90deg, ${jellyfishColors.cyanSubtle}, ${jellyfishColors.violetSubtle})`,
           },
           '&.Mui-selected': {
-            background: `linear-gradient(90deg, ${jellyfishColors.cyanSubtle}, ${jellyfishColors.violetSubtle})`,
-            borderLeft: `3px solid ${jellyfishColors.cyanSoft}`,
+            background: `${jellyfishColors.cyanSoft}40`,
+            borderRadius: 12,
             boxShadow: `
+              0 0 16px ${jellyfishColors.cyanSoft}50,
               0 0 8px ${jellyfishColors.cyanSoft}30,
-              0 0 6px ${jellyfishColors.violetSoft}20,
-              inset 3px 0 0 ${jellyfishColors.violetSoft}40
+              inset 0 0 20px ${jellyfishColors.cyanSoft}20
             `,
             position: 'relative',
             '&::before': {
@@ -301,11 +357,12 @@ export const theme = createTheme({
               top: 0,
               bottom: 0,
               width: '3px',
-              background: `linear-gradient(180deg, ${jellyfishColors.cyanSoft}, ${jellyfishColors.violetSoft})`,
+              background: `linear-gradient(180deg, ${jellyfishColors.violetSoft}, ${jellyfishColors.cyanSoft})`,
+              borderRadius: '12px 0 0 12px',
               zIndex: 1,
             },
             '&:hover': {
-              background: `linear-gradient(90deg, ${jellyfishColors.cyanSoft}30, ${jellyfishColors.violetSoft}25)`,
+              background: `${jellyfishColors.cyanSoft}50`,
             },
           },
         },
@@ -327,12 +384,12 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
-          backdropFilter: 'blur(30px) saturate(180%)',
+          backdropFilter: 'blur(35px) saturate(200%)',
           border: 'none',
-          borderRadius: 20,
+          borderRadius: 24,
           boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08)
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1)
           `,
           padding: '24px 28px',
           transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
@@ -346,7 +403,7 @@ export const theme = createTheme({
             left: '-50%',
             width: '200%',
             height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}10 0%, transparent 70%)`,
+            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}15 0%, ${jellyfishColors.violetSoft}10 50%, transparent 70%)`,
             animation: 'etherealGlow 8s ease-in-out infinite',
             pointerEvents: 'none',
             zIndex: 0,
@@ -505,7 +562,11 @@ export const theme = createTheme({
           background: `linear-gradient(90deg, ${jellyfishColors.cyanSoft}, ${jellyfishColors.violetSoft})`,
           height: 3,
           borderRadius: '3px 3px 0 0',
-          boxShadow: `0 0 8px ${jellyfishColors.cyanSoft}50`,
+          boxShadow: `
+            0 0 12px ${jellyfishColors.cyanSoft}70,
+            0 0 8px ${jellyfishColors.violetSoft}60,
+            0 0 4px ${jellyfishColors.cyanSoft}40
+          `,
         },
       },
     },
@@ -521,8 +582,13 @@ export const theme = createTheme({
             color: jellyfishColors.cyanSoft,
           },
           '&.Mui-selected': {
-            color: jellyfishColors.cyanSoft,
-            textShadow: `0 0 8px ${jellyfishColors.cyanSoft}50`,
+            background: `linear-gradient(135deg, ${jellyfishColors.cyanSoft}20, ${jellyfishColors.violetSoft}15)`,
+            color: '#FFFFFF',
+            textShadow: `
+              0 0 12px ${jellyfishColors.cyanSoft}80,
+              0 0 8px ${jellyfishColors.violetSoft}60
+            `,
+            borderRadius: '8px 8px 0 0',
           },
         },
       },
@@ -530,13 +596,13 @@ export const theme = createTheme({
     MuiTableContainer: {
       styleOverrides: {
         root: {
-          borderRadius: 24,
+          borderRadius: 28,
           border: 'none',
           background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
-          backdropFilter: 'blur(30px) saturate(180%)',
+          backdropFilter: 'blur(35px) saturate(200%)',
           boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08)
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1)
           `,
           overflow: 'hidden',
           transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
@@ -549,7 +615,7 @@ export const theme = createTheme({
             left: '-50%',
             width: '200%',
             height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}08 0%, transparent 70%)`,
+            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}12 0%, ${jellyfishColors.violetSoft}08 50%, transparent 70%)`,
             animation: 'etherealGlow 10s ease-in-out infinite',
             pointerEvents: 'none',
             zIndex: 0,

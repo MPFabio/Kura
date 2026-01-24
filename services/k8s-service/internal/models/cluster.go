@@ -9,6 +9,7 @@ type Cluster struct {
 	Description string    `json:"description,omitempty"`
 	Endpoint    string    `json:"endpoint"` // URL du serveur API Kubernetes
 	Kubeconfig  string    `json:"kubeconfig"` // Contenu du kubeconfig (base64 ou texte)
+	ProjectID   string    `json:"project_id"` // ID du projet auquel appartient le cluster
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

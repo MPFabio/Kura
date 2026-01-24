@@ -141,14 +141,27 @@ export default function ModulesPage() {
       </Box>
 
       <Grid container spacing={4}>
-        {modules.map((module, idx) => (
-          <Grid item xs={12} sm={6} key={module.id}>
-            <ModuleCard
-              active={module.active}
-              inactive={module.inactive}
-              deploying={module.deploying}
-              onClick={() => navigate(module.path)}
-              sx={{
+        {modules.map((module, idx) => {
+          // #region agent log
+          if (typeof window !== 'undefined') {
+            setTimeout(() => {
+              const gridItems = document.querySelectorAll('.MuiGrid-item')
+              const cardEl = gridItems[idx]?.querySelector('.MuiCard-root') as HTMLElement
+              if (cardEl) {
+                const computed = window.getComputedStyle(cardEl)
+                fetch('http://127.0.0.1:7243/ingest/0f545d4a-2194-41e7-8131-580ff06d52fc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ModulesPage.tsx:144',message:'ModuleCard computed styles',data:{moduleId:module.id,active:module.active,borderRadius:computed.borderRadius,background:computed.background.substring(0,100),boxShadow:computed.boxShadow.substring(0,100),width:computed.width,height:computed.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{})
+              }
+            }, 500)
+          }
+          // #endregion
+          return (
+            <Grid item xs={12} sm={6} key={module.id}>
+              <ModuleCard
+                active={module.active}
+                inactive={module.inactive}
+                deploying={module.deploying}
+                onClick={() => navigate(module.path)}
+                sx={{
                 minHeight: '520px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -538,7 +551,8 @@ export default function ModulesPage() {
               )}
             </ModuleCard>
           </Grid>
-        ))}
+          )
+        })}
       </Grid>
     </Box>
   )

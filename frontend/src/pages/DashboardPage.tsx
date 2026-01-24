@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   Grid,
-  Typography,
   Box,
   CircularProgress,
   Alert,
@@ -18,6 +17,8 @@ import { useSocket } from '../contexts/SocketContext'
 import { format } from 'date-fns'
 import fr from 'date-fns/locale/fr'
 import ModuleCard from '../components/ModuleCard'
+import ModuleTitle from '../components/ModuleTitle'
+import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
 export default function DashboardPage() {
   const { data: namespaces, isLoading } = useQuery({
@@ -53,21 +54,7 @@ export default function DashboardPage() {
 
   return (
     <Box>
-      <Typography 
-        variant="h4" 
-        sx={{ 
-          mb: 4, 
-          fontWeight: 600,
-          background: 'linear-gradient(135deg, #00FFFF, #BF00FF)',
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          textShadow: 'none',
-          letterSpacing: '0.02em',
-        }}
-      >
-        Dashboard
-      </Typography>
+      <ModuleTitle>Dashboard</ModuleTitle>
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {stats.map((stat, index) => (
@@ -76,12 +63,12 @@ export default function DashboardPage() {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Box>
-                    <Typography color="textSecondary" gutterBottom variant="body2">
+                    <ModuleSecondaryText sx={{ mb: 1 }}>
                       {stat.title}
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: stat.color }}>
+                    </ModuleSecondaryText>
+                    <ModuleSubtitle sx={{ color: stat.color, fontSize: '2rem', fontWeight: 700 }}>
                       {stat.value}
-                    </Typography>
+                    </ModuleSubtitle>
                   </Box>
                   <Box sx={{ color: stat.color }}>{stat.icon}</Box>
                 </Box>
@@ -94,18 +81,9 @@ export default function DashboardPage() {
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
           <ModuleCard sx={{ p: 3 }}>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                mb: 2,
-                color: '#00FFFF',
-                fontFamily: '"Inter", sans-serif',
-                fontWeight: 600,
-                textShadow: '0 0 10px rgba(0, 255, 255, 0.3)',
-              }}
-            >
+            <ModuleSubtitle sx={{ mb: 2 }}>
               Namespaces Kubernetes
-            </Typography>
+            </ModuleSubtitle>
               {isLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                   <CircularProgress />
@@ -129,28 +107,13 @@ export default function DashboardPage() {
                         },
                       }}
                     >
-                      <Typography 
-                        variant="body1" 
-                        sx={{ 
-                          fontWeight: 500,
-                          fontFamily: '"JetBrains Mono", monospace',
-                          color: '#FFFFFF',
-                        }}
-                      >
+                      <ModuleBodyText>
                         {ns.name}
-                      </Typography>
+                      </ModuleBodyText>
                       {ns.status && (
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: '#A0A0A0',
-                            fontFamily: '"JetBrains Mono", monospace',
-                            fontSize: '0.75rem',
-                            mt: 0.5,
-                          }}
-                        >
+                        <ModuleSecondaryText sx={{ mt: 0.5, fontSize: '0.875rem' }}>
                           Statut: {ns.status}
-                        </Typography>
+                        </ModuleSecondaryText>
                       )}
                     </Box>
                   ))}
@@ -163,18 +126,9 @@ export default function DashboardPage() {
 
         <Grid item xs={12} md={6}>
           <ModuleCard sx={{ p: 3 }}>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                mb: 2,
-                color: '#BF00FF',
-                fontFamily: '"Inter", sans-serif',
-                fontWeight: 600,
-                textShadow: '0 0 10px rgba(191, 0, 255, 0.3)',
-              }}
-            >
+            <ModuleSubtitle sx={{ mb: 2 }}>
               Événements récents
-            </Typography>
+            </ModuleSubtitle>
               {events.length > 0 ? (
                 <Box>
                   {events.slice(-5).reverse().map((event, index) => (
@@ -194,28 +148,12 @@ export default function DashboardPage() {
                         },
                       }}
                     >
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 500,
-                          fontFamily: '"JetBrains Mono", monospace',
-                          color: '#FFFFFF',
-                        }}
-                      >
+                      <ModuleBodyText>
                         {event.type}
-                      </Typography>
-                      <Typography 
-                        variant="caption" 
-                        sx={{
-                          color: '#A0A0A0',
-                          fontFamily: '"JetBrains Mono", monospace',
-                          fontSize: '0.7rem',
-                          mt: 0.5,
-                          display: 'block',
-                        }}
-                      >
+                      </ModuleBodyText>
+                      <ModuleCaption sx={{ mt: 0.5, display: 'block' }}>
                         {format(new Date(event.timestamp), 'PPpp', { locale: fr })}
-                      </Typography>
+                      </ModuleCaption>
                     </Box>
                   ))}
                 </Box>

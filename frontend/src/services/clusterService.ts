@@ -25,9 +25,9 @@ export interface ClusterResponse {
 }
 
 export const clusterService = {
-  getClusters: async (): Promise<ClusterResponse> => {
+  getClusters: async (projectId: string): Promise<ClusterResponse> => {
     try {
-      const response = await apiClient.get<ClusterResponse>('/api/v1/k8s/clusters')
+      const response = await apiClient.get<ClusterResponse>(`/api/v1/k8s/clusters?project_id=${projectId}`)
       if (!response.data || !response.data.items) {
         return { items: [] }
       }
@@ -66,6 +66,7 @@ export const clusterService = {
     description?: string
     endpoint?: string
     kubeconfig: string
+    project_id: string
     is_active?: boolean
   }): Promise<KubernetesCluster> => {
     try {

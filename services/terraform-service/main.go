@@ -14,6 +14,7 @@ import (
 	"github.com/modulops/terraform-service/internal/cache"
 	"github.com/modulops/terraform-service/internal/config"
 	"github.com/modulops/terraform-service/internal/handler"
+	"github.com/modulops/terraform-service/internal/migration"
 	"github.com/modulops/terraform-service/internal/service"
 )
 
@@ -30,6 +31,9 @@ func main() {
 		log.Fatalf("Erreur lors de l'initialisation de Redis: %v", err)
 	}
 	defer redisClient.Close()
+
+	// Note: La migration des terraform states existants vers un projet par défaut
+	// doit être effectuée manuellement ou via l'API, pas automatiquement au démarrage
 
 	// Initialiser le service métier
 	terraformService := service.NewTerraformService(redisClient, cfg)
@@ -77,6 +81,7 @@ func main() {
 
 	log.Println("Service Terraform arrêté")
 }
+
 
 func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *handler.SourceHandler, webhookHandler *handler.WebhookHandler, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {

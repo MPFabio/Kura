@@ -1,8 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
+import { useProject } from './contexts/ProjectContext'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import ProjectsPage from './pages/ProjectsPage'
 import DashboardPage from './pages/DashboardPage'
 import ModulesPage from './pages/ModulesPage'
 import K8sPage from './pages/K8sPage'
@@ -27,16 +29,40 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function ProjectRoute({ children }: { children: React.ReactNode }) {
+  const { currentProject, loading } = useProject()
+
+  if (loading) {
+    return <div>Chargement...</div>
+  }
+
+  if (!currentProject) {
+    return <Navigate to="/projects" replace />
+  }
+
+  return <>{children}</>
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route
+        path="/projects"
+        element={
+          <PrivateRoute>
+            <ProjectsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
         path="/"
         element={
           <PrivateRoute>
-            <Layout />
+            <ProjectRoute>
+              <Layout />
+            </ProjectRoute>
           </PrivateRoute>
         }
       >

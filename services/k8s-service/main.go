@@ -72,6 +72,9 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	// Note: La migration des clusters existants vers un projet par défaut
+	// doit être effectuée manuellement ou via l'API, pas automatiquement au démarrage
+
 	// Initialiser le service de gestion de clusters
 	clusterService := service.NewClusterService(redisClient, cfg)
 
@@ -204,6 +207,7 @@ func main() {
 
 	log.Println("Service Kubernetes arrêté")
 }
+
 
 func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.ClusterHandler, k8sService *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {

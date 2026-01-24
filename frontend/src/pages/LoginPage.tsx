@@ -12,6 +12,7 @@ import {
 } from '@mui/material'
 import { useAuth } from '../contexts/AuthContext'
 import Logo from '../components/Logo'
+import AnimatedBackground from '../components/AnimatedBackground'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -28,7 +29,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password)
-      navigate('/')
+      navigate('/projects')
     } catch (err: any) {
       console.error('Erreur de connexion:', err)
       let errorMessage = 'Erreur lors de la connexion'
@@ -58,15 +59,17 @@ export default function LoginPage() {
   }
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
+    <Box sx={{ minHeight: '100vh', position: 'relative' }}>
+      <AnimatedBackground />
+      <Container component="main" maxWidth="xs" sx={{ position: 'relative', zIndex: 1 }}>
+        <Box
+          sx={{
+            marginTop: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
         <Logo variant="full" size="medium" sx={{ mb: 2 }} />
         <Typography component="h2" variant="h6" sx={{ mb: 4, color: 'text.secondary' }}>
           Connexion
@@ -120,7 +123,8 @@ export default function LoginPage() {
             </Box>
           </Box>
         </Paper>
-      </Box>
-    </Container>
+        </Box>
+      </Container>
+    </Box>
   )
 }

@@ -83,6 +83,7 @@ func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID
 			ID:         stateFileID,
 			Name:       name,
 			State:      state,
+			ProjectID:  "", // Sera défini par le handler
 			UploadedAt: time.Now(),
 		}
 	} else {
@@ -99,7 +100,13 @@ func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID
 
 	// Mettre en cache avec un TTL très long (30 jours) pour les états Terraform
 	// Les états sont des données importantes qui ne doivent pas expirer rapidement
-	cacheKey := fmt.Sprintf("terraform:state:%s", stateFile.ID)
+	// Utiliser project_id dans la clé si disponible
+	var cacheKey string
+	if stateFile.ProjectID != "" {
+		cacheKey = fmt.Sprintf("terraform:state:%s:%s", stateFile.ProjectID, stateFile.ID)
+	} else {
+		cacheKey = fmt.Sprintf("terraform:state:%s", stateFile.ID)
+	}
 	stateJSON, err := json.Marshal(stateFile)
 	if err == nil {
 		// Utiliser un TTL de 30 jours pour les états Terraform (beaucoup plus long que le TTL par défaut)

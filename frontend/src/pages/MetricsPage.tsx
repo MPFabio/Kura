@@ -1,4 +1,4 @@
-import { Box, Typography, Grid, Alert } from '@mui/material'
+import { Box, Grid, Alert } from '@mui/material'
 import {
   LineChart,
   Line,
@@ -12,6 +12,8 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import ModuleCard from '../components/ModuleCard'
+import ModuleTitle from '../components/ModuleTitle'
+import { ModuleSubtitle } from '../components/ModuleText'
 
 // Données d'exemple pour les métriques
 const sampleData = [
@@ -37,35 +39,14 @@ const colors = {
 export default function MetricsPage() {
   return (
     <Box>
-      <Typography
-        variant="h4"
-        sx={{
-          mb: 4,
-          fontWeight: 600,
-          color: '#FFFFFF',
-          fontFamily: '"Inter", sans-serif',
-          letterSpacing: '0.02em',
-        }}
-      >
-        Métriques
-      </Typography>
+      <ModuleTitle>Métriques</ModuleTitle>
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <ModuleCard sx={{ p: 3 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                mb: 3,
-                color: colors.turquoise,
-                fontFamily: '"Inter", sans-serif',
-                fontWeight: 600,
-                textShadow: `0 0 10px ${colors.turquoise}40`,
-                letterSpacing: '0.02em',
-              }}
-            >
+            <ModuleSubtitle sx={{ mb: 3 }}>
               Utilisation CPU et Mémoire (7 derniers jours)
-            </Typography>
+            </ModuleSubtitle>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={sampleData}>
                 <defs>
@@ -169,19 +150,9 @@ export default function MetricsPage() {
 
         <Grid item xs={12}>
           <ModuleCard sx={{ p: 3 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                mb: 3,
-                color: colors.turquoise,
-                fontFamily: '"Inter", sans-serif',
-                fontWeight: 600,
-                textShadow: `0 0 10px ${colors.turquoise}40`,
-                letterSpacing: '0.02em',
-              }}
-            >
+            <ModuleSubtitle sx={{ mb: 3 }}>
               Requêtes par jour
-            </Typography>
+            </ModuleSubtitle>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={sampleData}>
                 <defs>

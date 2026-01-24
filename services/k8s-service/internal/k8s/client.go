@@ -65,15 +65,30 @@ func NewClient(cfg *config.Config) (*Client, error) {
 			}
 		}
 		
+		// Validation en production : rejeter les endpoints locaux
+		isProduction := cfg.Environment == "production"
+		
 		if contextToUse != "" {
 			currentContext := rawConfig.Contexts[contextToUse]
 			if currentContext != nil {
 				clusterName := currentContext.Cluster
 				cluster := rawConfig.Clusters[clusterName]
-				if cluster != nil && (strings.Contains(cluster.Server, "host.docker.internal") || strings.Contains(cluster.Server, "127.0.0.1")) {
-					// Forcer InsecureSkipTLSVerify pour les clusters locaux
-					configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
-					configOverrides.ClusterInfo.CertificateAuthorityData = nil
+				if cluster != nil {
+					// En production, interdire les endpoints locaux
+					if isProduction && (strings.Contains(cluster.Server, "host.docker.internal") || 
+						strings.Contains(cluster.Server, "127.0.0.1") || 
+						strings.Contains(cluster.Server, "localhost")) {
+						return nil, fmt.Errorf("endpoints locaux (127.0.0.1, localhost, host.docker.internal) interdits en production pour des raisons de sécurité")
+					}
+					
+					// Forcer InsecureSkipTLSVerify uniquement pour les clusters locaux en développement
+					if !isProduction && (strings.Contains(cluster.Server, "host.docker.internal") || strings.Contains(cluster.Server, "127.0.0.1")) {
+						configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
+						configOverrides.ClusterInfo.CertificateAuthorityData = nil
+					} else if isProduction {
+						// En production, toujours valider TLS
+						configOverrides.ClusterInfo.InsecureSkipTLSVerify = false
+					}
 				}
 				// S'assurer que le contexte est correctement défini
 				configOverrides.CurrentContext = contextToUse
@@ -84,6 +99,11 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		restConfig, err = clientConfig.ClientConfig()
 		if err != nil {
 			return nil, fmt.Errorf("échec du chargement du kubeconfig: %w", err)
+		}
+		
+		// Configurer les timeouts pour les connexions réseau
+		if cfg.K8sAPITimeout > 0 {
+			restConfig.Timeout = cfg.K8sAPITimeout
 		}
 	}
 

@@ -16,6 +16,8 @@ type Config struct {
 	// Kubernetes
 	KubeconfigPath string
 	InCluster      bool
+	K8sAPITimeout  time.Duration
+	K8sMaxRetries  int
 
 	// Redis
 	RedisAddr     string
@@ -60,6 +62,22 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("K8S_CACHE_TTL invalide: %v", err)
 	}
 	cfg.CacheTTL = cacheTTL
+
+	// Timeout API Kubernetes (défaut: 30s, plus long en prod pour les connexions distantes)
+	apiTimeoutStr := getEnv("K8S_API_TIMEOUT", "30s")
+	apiTimeout, err := time.ParseDuration(apiTimeoutStr)
+	if err != nil {
+		return nil, fmt.Errorf("K8S_API_TIMEOUT invalide: %v", err)
+	}
+	cfg.K8sAPITimeout = apiTimeout
+
+	// Nombre de tentatives pour les requêtes Kubernetes
+	maxRetriesStr := getEnv("K8S_MAX_RETRIES", "3")
+	maxRetries, err := strconv.Atoi(maxRetriesStr)
+	if err != nil {
+		return nil, fmt.Errorf("K8S_MAX_RETRIES invalide: %v", err)
+	}
+	cfg.K8sMaxRetries = maxRetries
 
 	return cfg, nil
 }

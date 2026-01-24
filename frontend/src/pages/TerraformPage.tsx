@@ -2,9 +2,6 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
-  Typography,
-  Card,
-  CardContent,
   Grid,
   Button,
   CircularProgress,
@@ -48,6 +45,10 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material'
 import { terraformService, TerraformState, terraformSourceService, TerraformDriftResult } from '../services/terraformService'
+import ModuleTitle from '../components/ModuleTitle'
+import ModuleButton from '../components/ModuleButton'
+import ModuleCard from '../components/ModuleCard'
+import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
 export default function TerraformPage() {
   const [activeTab, setActiveTab] = useState(0)
@@ -403,7 +404,7 @@ export default function TerraformPage() {
   })
 
   if (error) {
-    return (
+  return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" sx={{ mb: 2 }}>
           Erreur lors du chargement des états Terraform : {error instanceof Error ? error.message : 'Erreur inconnue'}
@@ -418,35 +419,28 @@ export default function TerraformPage() {
   return (
     <Box sx={{ p: 0 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
-        <Typography 
-          variant="h3" 
-          component="h1"
-          sx={{
-            fontWeight: 600,
-            background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            fontFamily: '"Inter", sans-serif',
-            letterSpacing: '0.02em',
-          }}
-        >
-          Terraform
-        </Typography>
+        <ModuleTitle sx={{ mb: 0 }}>Terraform</ModuleTitle>
         <Box>
-          <Button
-            variant="contained"
+          <ModuleButton
             startIcon={<CloudUploadIcon />}
             onClick={() => setUploadDialogOpen(true)}
             sx={{ mr: 1 }}
           >
             Uploader un état
-          </Button>
+          </ModuleButton>
           <Button
             variant="outlined"
             startIcon={<CloudQueueIcon />}
             onClick={handleAddSource}
-            sx={{ mr: 1 }}
+            sx={{ 
+              mr: 1,
+              borderColor: 'rgba(0, 229, 255, 0.5)',
+              color: '#00E5FF',
+              '&:hover': {
+                borderColor: 'rgba(0, 229, 255, 0.8)',
+                background: 'rgba(0, 229, 255, 0.1)',
+              },
+            }}
           >
             Lier une source cloud
           </Button>
@@ -471,44 +465,32 @@ export default function TerraformPage() {
           <CircularProgress />
         </Box>
       ) : !states || states.items.length === 0 ? (
-        <Card sx={{ animation: 'jellyfishFloat 12s ease-in-out infinite' }}>
-          <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
+        <ModuleCard sx={{ textAlign: 'center', py: 6 }}>
+            <ModuleSubtitle sx={{ mb: 2 }}>
               Aucun état Terraform
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            </ModuleSubtitle>
+            <ModuleSecondaryText sx={{ mb: 3 }}>
               Commencez par uploader un fichier tfstate pour voir vos ressources Terraform.
-            </Typography>
-            <Button variant="contained" startIcon={<CloudUploadIcon />} onClick={() => setUploadDialogOpen(true)}>
-              Uploader un état Terraform
-            </Button>
-          </CardContent>
-        </Card>
+            </ModuleSecondaryText>
+                <ModuleButton startIcon={<CloudUploadIcon />} onClick={() => setUploadDialogOpen(true)}>
+                  Uploader un état Terraform
+                </ModuleButton>
+        </ModuleCard>
       ) : (
         <Grid container spacing={3}>
           {states.items.map((state, idx) => (
             <Grid item xs={12} md={6} lg={4} key={state.id}>
-              <Card 
+              <ModuleCard
+                active={true}
                 sx={{ 
                   height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
                   '--card-delay': `${idx * 0.3}s`,
                 }}
               >
-                <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2.5 }}>
-                    <Typography 
-                      variant="h6" 
-                      component="div" 
-                      sx={{ 
-                        fontWeight: 500, 
-                        color: 'rgba(255, 255, 255, 0.95)',
-                        fontFamily: '"Inter", sans-serif',
-                      }}
-                    >
+                    <ModuleSubtitle component="div">
                       {state.name}
-                    </Typography>
+                    </ModuleSubtitle>
                     <IconButton
                       size="small"
                       color="error"
@@ -519,20 +501,20 @@ export default function TerraformPage() {
                     </IconButton>
                   </Box>
                   <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
-                      Version: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{state.state?.version || 'N/A'}</span>
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
-                      Ressources: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{(state as any)._resourceCount !== undefined 
+                    <ModuleBodyText sx={{ mb: 1 }}>
+                      Version: <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 400 }}>{state.state?.version || 'N/A'}</span>
+                    </ModuleBodyText>
+                    <ModuleBodyText sx={{ mb: 1 }}>
+                      Ressources: <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 400 }}>{(state as any)._resourceCount !== undefined 
                         ? (state as any)._resourceCount 
                         : (state.state?.resources?.length || 0)}</span>
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
-                      Sorties: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{Object.keys(state.state?.outputs || {}).length}</span>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5, fontSize: '0.75rem' }}>
+                    </ModuleBodyText>
+                    <ModuleBodyText sx={{ mb: 1 }}>
+                      Sorties: <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 400 }}>{Object.keys(state.state?.outputs || {}).length}</span>
+                    </ModuleBodyText>
+                    <ModuleCaption sx={{ mt: 1.5, display: 'block' }}>
                       {new Date(state.uploaded_at).toLocaleString('fr-FR')}
-                    </Typography>
+                    </ModuleCaption>
                   </Box>
                   <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, pt: 2.5 }}>
                     <Button
@@ -565,8 +547,7 @@ export default function TerraformPage() {
                       {detectingDrift ? 'Vérification...' : 'Drift'}
                     </Button>
                   </Box>
-                </CardContent>
-              </Card>
+              </ModuleCard>
             </Grid>
           ))}
         </Grid>
@@ -595,9 +576,9 @@ export default function TerraformPage() {
             <input type="file" hidden accept=".tfstate,application/json" onChange={handleFileChange} />
           </Button>
           {selectedFile && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            <ModuleCaption sx={{ mt: 1, display: 'block' }}>
               Fichier sélectionné : {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
-            </Typography>
+            </ModuleCaption>
           )}
         </DialogContent>
         <DialogActions>
@@ -624,9 +605,9 @@ export default function TerraformPage() {
         <DialogContent>
           {selectedState && (
             <Box>
-              <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+              <ModuleSubtitle sx={{ mt: 2, mb: 1 }}>
                 Informations générales
-              </Typography>
+              </ModuleSubtitle>
               <List>
                 <ListItem>
                   <ListItemText primary="Version" secondary={selectedState.state?.version} />
@@ -645,9 +626,9 @@ export default function TerraformPage() {
                 </ListItem>
               </List>
               <Divider sx={{ my: 2 }} />
-              <Typography variant="subtitle1" gutterBottom>
+              <ModuleSubtitle sx={{ mb: 2 }}>
                 Ressources ({selectedState.state?.resources?.length || 0})
-              </Typography>
+              </ModuleSubtitle>
               {selectedState.state?.resources && selectedState.state.resources.length > 0 ? (
                 <TableContainer component={Paper} sx={{ maxHeight: 400, mt: 1 }}>
                   <Table size="small" stickyHeader>
@@ -675,27 +656,27 @@ export default function TerraformPage() {
                         >
                           <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>{idx + 1}</TableCell>
                           <TableCell>
-                            <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
+                            <ModuleBodyText sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
                               {resource.type}
-                            </Typography>
+                            </ModuleBodyText>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" fontFamily="monospace">
+                            <ModuleBodyText sx={{ fontFamily: 'monospace' }}>
                               {resource.name}
-                            </Typography>
+                            </ModuleBodyText>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="caption" color="text.secondary">
+                            <ModuleCaption>
                               {resource.provider}
-                            </Typography>
+                            </ModuleCaption>
                           </TableCell>
                           <TableCell>
                             <Chip label={resource.mode} size="small" color={resource.mode === 'managed' ? 'primary' : 'secondary'} />
                           </TableCell>
                           <TableCell>
-                            <Typography variant="caption" color="text.secondary">
+                            <ModuleCaption>
                               {resource.module || '-'}
-                            </Typography>
+                            </ModuleCaption>
                           </TableCell>
                           <TableCell>
                             <Chip 
@@ -711,11 +692,11 @@ export default function TerraformPage() {
                   </Table>
                 </TableContainer>
               ) : (
-                <Typography variant="body2" color="text.secondary">
+                <ModuleSecondaryText>
                   Aucune ressource
-                </Typography>
+                </ModuleSecondaryText>
               )}
-            </Box>
+      </Box>
           )}
         </DialogContent>
         <DialogActions>
@@ -735,9 +716,9 @@ export default function TerraformPage() {
             </Alert>
           ) : (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
+              <ModuleSecondaryText sx={{ mb: 2 }}>
                 {driftResults.length} ressource(s) analysée(s)
-              </Typography>
+              </ModuleSecondaryText>
               <TableContainer component={Paper} sx={{ maxHeight: 500, mt: 2 }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
@@ -752,9 +733,9 @@ export default function TerraformPage() {
                     {driftResults.map((result: TerraformDriftResult, idx: number) => (
                       <TableRow key={idx}>
                         <TableCell>
-                          <Typography variant="body2" fontFamily="monospace">
+                          <ModuleBodyText sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                             {result.resource_address}
-                          </Typography>
+                          </ModuleBodyText>
                         </TableCell>
                         <TableCell>{result.resource_type}</TableCell>
                         <TableCell>
@@ -771,18 +752,18 @@ export default function TerraformPage() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" color="text.secondary">
+                          <ModuleSecondaryText>
                             {result.message || 'Aucun message'}
-                          </Typography>
+                          </ModuleSecondaryText>
                           {result.differences && result.differences.length > 0 && (
                             <Box sx={{ mt: 1 }}>
-                              <Typography variant="caption" color="error" fontWeight="bold">
+                              <ModuleCaption sx={{ color: 'error.main', fontWeight: 'bold' }}>
                                 {result.differences.length} différence(s) détectée(s)
-                              </Typography>
+                              </ModuleCaption>
                               {result.differences.slice(0, 3).map((diff, diffIdx) => (
-                                <Typography key={diffIdx} variant="caption" display="block" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                                <ModuleCaption key={diffIdx} sx={{ display: 'block', fontFamily: '"JetBrains Mono", monospace', fontSize: '0.7rem' }}>
                                   • {diff.attribute}: attendu {JSON.stringify(diff.expected)}, actuel {JSON.stringify(diff.actual)}
-                                </Typography>
+                                </ModuleCaption>
                               ))}
                             </Box>
                           )}
@@ -816,17 +797,17 @@ export default function TerraformPage() {
         <DialogContent>
           {selectedResource && (
             <Box>
-              <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+              <ModuleSubtitle sx={{ mt: 2, mb: 2 }}>
                 Informations de base
-              </Typography>
+              </ModuleSubtitle>
               <List>
                 <ListItem>
                   <ListItemText 
                     primary="Type de ressource" 
                     secondary={
-                      <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
+                      <ModuleBodyText sx={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 'bold' }}>
                         {selectedResource.type}
-                      </Typography>
+                      </ModuleBodyText>
                     } 
                   />
                 </ListItem>
@@ -834,9 +815,9 @@ export default function TerraformPage() {
                   <ListItemText 
                     primary="Nom" 
                     secondary={
-                      <Typography variant="body2" fontFamily="monospace">
+                      <ModuleBodyText sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                         {selectedResource.name}
-                      </Typography>
+                      </ModuleBodyText>
                     } 
                   />
                 </ListItem>
@@ -863,9 +844,9 @@ export default function TerraformPage() {
                     <ListItemText 
                       primary="Module" 
                       secondary={
-                        <Typography variant="body2" fontFamily="monospace">
+                        <ModuleBodyText sx={{ fontFamily: 'monospace' }}>
                           {selectedResource.module}
-                        </Typography>
+                        </ModuleBodyText>
                       } 
                     />
                   </ListItem>
@@ -881,12 +862,12 @@ export default function TerraformPage() {
               {selectedResource.instances && selectedResource.instances.length > 0 && (
                 <>
                   <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle1" gutterBottom>
+                  <ModuleSubtitle sx={{ mb: 2 }}>
                     Instances ({selectedResource.instances.length})
-                  </Typography>
+                  </ModuleSubtitle>
                   {selectedResource.instances.map((instance: any, instanceIdx: number) => (
                     <Box key={instanceIdx} sx={{ mb: 3 }}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                      <ModuleSubtitle sx={{ mt: 2, mb: 2, fontSize: '1rem' }}>
                         Instance {instanceIdx + 1}
                         {instance.schema_version && (
                           <Chip 
@@ -896,13 +877,13 @@ export default function TerraformPage() {
                             sx={{ ml: 1 }}
                           />
                         )}
-                      </Typography>
+                      </ModuleSubtitle>
                       
                       {instance.attributes && Object.keys(instance.attributes).length > 0 && (
                         <Box>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                          <ModuleSecondaryText sx={{ mb: 2 }}>
                             Attributs ({Object.keys(instance.attributes).length})
-                          </Typography>
+                          </ModuleSecondaryText>
                           <TableContainer component={Paper} sx={{ maxHeight: 300, mt: 1 }}>
                             <Table size="small">
                               <TableHead>
@@ -915,23 +896,23 @@ export default function TerraformPage() {
                                 {Object.entries(instance.attributes).slice(0, 20).map(([key, value]) => (
                                   <TableRow key={key}>
                                     <TableCell>
-                                      <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
+                                      <ModuleBodyText sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
                                         {key}
-                                      </Typography>
+                                      </ModuleBodyText>
                                     </TableCell>
                                     <TableCell>
-                                      <Typography variant="body2" fontFamily="monospace">
+                                      <ModuleBodyText sx={{ fontFamily: 'monospace' }}>
                                         {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                                      </Typography>
+                                      </ModuleBodyText>
                                     </TableCell>
                                   </TableRow>
                                 ))}
                                 {Object.keys(instance.attributes).length > 20 && (
                                   <TableRow>
                                     <TableCell colSpan={2} align="center">
-                                      <Typography variant="caption" color="text.secondary">
+                                      <ModuleCaption>
                                         ... et {Object.keys(instance.attributes).length - 20} autres attributs
-                                      </Typography>
+                                      </ModuleCaption>
                                     </TableCell>
                                   </TableRow>
                                 )}
@@ -943,14 +924,14 @@ export default function TerraformPage() {
 
                       {instance.dependencies && (
                         <Box sx={{ mt: 2 }}>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                          <ModuleSecondaryText sx={{ mb: 2 }}>
                             Dépendances
-                          </Typography>
-                          <Typography variant="body2" fontFamily="monospace" sx={{ bgcolor: 'background.paper', p: 1, borderRadius: 1 }}>
+                          </ModuleSecondaryText>
+                          <ModuleBodyText sx={{ fontFamily: 'monospace', bgcolor: 'background.paper', p: 1, borderRadius: 1 }}>
                             {typeof instance.dependencies === 'string' 
                               ? instance.dependencies 
                               : JSON.stringify(instance.dependencies, null, 2)}
-                          </Typography>
+                          </ModuleBodyText>
                         </Box>
                       )}
                     </Box>
@@ -959,11 +940,11 @@ export default function TerraformPage() {
               )}
 
               <Divider sx={{ my: 2 }} />
-              <Typography variant="subtitle1" gutterBottom>
+              <ModuleSubtitle sx={{ mb: 1 }}>
                 Bloc Terraform
-              </Typography>
+              </ModuleSubtitle>
               <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="body2" fontFamily="monospace" component="pre" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                <ModuleBodyText component="pre" sx={{ fontFamily: '"JetBrains Mono", monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                   {(() => {
                     const instances = selectedResource.instances || []
                     const instanceBlocks = instances.map((instance: any, idx: number) => {
@@ -988,7 +969,7 @@ export default function TerraformPage() {
 ${moduleLine}${instanceBlocks}
 }`
                   })()}
-                </Typography>
+                </ModuleBodyText>
               </Box>
             </Box>
           )}
@@ -1072,9 +1053,9 @@ ${moduleLine}${instanceBlocks}
 
           {sourceType === 'gcp' && (
             <>
-              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+              <ModuleSubtitle sx={{ mt: 2, mb: 2, fontSize: '1rem' }}>
                 Configuration GCP Cloud Storage
-              </Typography>
+              </ModuleSubtitle>
               <TextField
                 fullWidth
                 label="Bucket GCP"
@@ -1156,9 +1137,9 @@ ${moduleLine}${instanceBlocks}
 
           {sourceType === 's3' && (
             <>
-              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+              <ModuleSubtitle sx={{ mt: 2, mb: 2, fontSize: '1rem' }}>
                 Configuration AWS S3
-              </Typography>
+              </ModuleSubtitle>
               <TextField
                 fullWidth
                 label="Bucket S3"
@@ -1263,9 +1244,9 @@ ${moduleLine}${instanceBlocks}
 
           {sourceType === 'azure' && (
             <>
-              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+              <ModuleSubtitle sx={{ mt: 2, mb: 2, fontSize: '1rem' }}>
                 Configuration Azure Blob Storage
-              </Typography>
+              </ModuleSubtitle>
               <TextField
                 fullWidth
                 label="Nom du compte de stockage"
@@ -1381,47 +1362,39 @@ ${moduleLine}${instanceBlocks}
               <CircularProgress />
             </Box>
           ) : !sources || sources.items.length === 0 ? (
-            <Card sx={{ animation: 'jellyfishFloat 12s ease-in-out infinite' }}>
-              <CardContent sx={{ textAlign: 'center', py: 6 }}>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
+            <ModuleCard sx={{ textAlign: 'center', py: 6 }}>
+                <ModuleSubtitle sx={{ mb: 2 }}>
                   Aucune source de synchronisation
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                </ModuleSubtitle>
+                <ModuleSecondaryText sx={{ mb: 3 }}>
                   Liez une source cloud pour synchroniser automatiquement vos états Terraform.
-                </Typography>
+                </ModuleSecondaryText>
                 <Button variant="contained" startIcon={<CloudQueueIcon />} onClick={() => setSourceDialogOpen(true)}>
                   Lier une source cloud
                 </Button>
-              </CardContent>
-            </Card>
+            </ModuleCard>
           ) : (
             <Grid container spacing={3}>
               {sources.items.map((source, idx) => (
                 <Grid item xs={12} md={6} lg={4} key={source.id}>
-                  <Card 
-                    sx={{ 
+                  <ModuleCard
+                    active={true}
+                    sx={{
                       height: '100%', 
-                      display: 'flex', 
-                      flexDirection: 'column',
                       '--card-delay': `${idx * 0.3}s`,
                     }}
                   >
-                    <CardContent sx={{ flexGrow: 1 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2.5 }}>
-                        <Typography 
-                          variant="h6" 
+        <ModuleSubtitle
                           component="div" 
-                          sx={{ 
-                            fontWeight: 500, 
-                            color: 'rgba(255, 255, 255, 0.95)', 
-                            fontSize: '1rem',
+          sx={{
                             fontFamily: '"JetBrains Mono", monospace',
-                          }}
-                        >
+          }}
+        >
                           {source.type === 'gcp' && `${source.config.gcp_bucket} /${source.config.gcp_object_name}`}
                           {source.type === 's3' && `${source.config.s3_bucket}/${source.config.s3_key}`}
                           {source.type === 'azure' && `${source.config.azure_account_name}/${source.config.azure_container}/${source.config.azure_blob_name}`}
-                        </Typography>
+        </ModuleSubtitle>
                         <Chip
                           label={source.enabled ? 'Actif' : 'Inactif'}
                           size="small"
@@ -1430,22 +1403,22 @@ ${moduleLine}${instanceBlocks}
                         />
                       </Box>
                       <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                        <ModuleSecondaryText sx={{ mb: 0.5, fontSize: '0.875rem' }}>
                           Type: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{source.type.toUpperCase()}</span>
-                        </Typography>
+                        </ModuleSecondaryText>
                         {source.last_sync && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                          <ModuleSecondaryText sx={{ mb: 0.5, fontSize: '0.875rem' }}>
                             Dernière sync: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{new Date(source.last_sync).toLocaleString('fr-FR')}</span>
-                          </Typography>
+                          </ModuleSecondaryText>
                         )}
                         {source.next_sync && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                          <ModuleSecondaryText sx={{ mb: 0.5, fontSize: '0.875rem' }}>
                             Prochaine sync: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{new Date(source.next_sync).toLocaleString('fr-FR')}</span>
-                          </Typography>
+                          </ModuleSecondaryText>
                         )}
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontSize: '0.875rem' }}>
+                        <ModuleSecondaryText sx={{ mb: 0.5, fontSize: '0.875rem' }}>
                           Intervalle: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{source.config.sync_interval || '15m'}</span>
-                        </Typography>
+                        </ModuleSecondaryText>
                       </Box>
                       <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, pt: 2.5 }}>
                         <Button
@@ -1480,9 +1453,8 @@ ${moduleLine}${instanceBlocks}
                         >
                           Supprimer
                         </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
+        </Box>
+                  </ModuleCard>
                 </Grid>
               ))}
             </Grid>

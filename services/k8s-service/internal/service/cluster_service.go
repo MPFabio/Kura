@@ -8,11 +8,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 
 	"github.com/modulops/k8s-service/internal/config"
 	"github.com/modulops/k8s-service/internal/models"
@@ -74,7 +76,7 @@ func (s *ClusterService) CreateCluster(ctx context.Context, cluster *models.Clus
 	s.clusters[cluster.ID] = cluster
 
 	// Sauvegarder dans le cache (pas d'expiration pour les configurations critiques)
-	cacheKey := fmt.Sprintf("k8s:cluster:%s", cluster.ID)
+	cacheKey := fmt.Sprintf("k8s:cluster:%s:%s", cluster.ProjectID, cluster.ID)
 	clusterJSON, _ := json.Marshal(cluster)
 	_ = s.cache.Set(ctx, cacheKey, string(clusterJSON), 0) // 0 = pas d'expiration
 
@@ -86,24 +88,22 @@ func (s *ClusterService) CreateCluster(ctx context.Context, cluster *models.Clus
 
 // GetCluster récupère un cluster par son ID.
 func (s *ClusterService) GetCluster(ctx context.Context, id string) (*models.Cluster, error) {
-	// Vérifier le cache
-	cacheKey := fmt.Sprintf("k8s:cluster:%s", id)
-	if cached, err := s.cache.Get(ctx, cacheKey); err == nil && cached != "" {
-		var cluster models.Cluster
-		if err := json.Unmarshal([]byte(cached), &cluster); err == nil {
-			return &cluster, nil
-		}
-	}
-
-	// Fallback sur le stockage en mémoire
+	// Fallback sur le stockage en mémoire (le cache utilise maintenant project_id)
 	if cluster, exists := s.clusters[id]; exists {
 		return cluster, nil
+	}
+
+	// Essayer de trouver dans tous les projets (pour compatibilité)
+	for _, cluster := range s.clusters {
+		if cluster.ID == id {
+			return cluster, nil
+		}
 	}
 
 	return nil, fmt.Errorf("cluster non trouvé: %s", id)
 }
 
-// ListClusters retourne la liste de tous les clusters.
+// ListClusters retourne la liste de tous les clusters (pour compatibilité).
 func (s *ClusterService) ListClusters(ctx context.Context) ([]*models.Cluster, error) {
 	result := make([]*models.Cluster, 0, len(s.clusters))
 	for _, cluster := range s.clusters {
@@ -113,6 +113,22 @@ func (s *ClusterService) ListClusters(ctx context.Context) ([]*models.Cluster, e
 			clusterCopy.Kubeconfig = clusterCopy.Kubeconfig[:100] + "..."
 		}
 		result = append(result, &clusterCopy)
+	}
+	return result, nil
+}
+
+// ListClustersByProject retourne la liste des clusters d'un projet.
+func (s *ClusterService) ListClustersByProject(ctx context.Context, projectID string) ([]*models.Cluster, error) {
+	result := make([]*models.Cluster, 0)
+	for _, cluster := range s.clusters {
+		if cluster.ProjectID == projectID {
+			// Ne pas exposer le kubeconfig complet dans la liste
+			clusterCopy := *cluster
+			if len(clusterCopy.Kubeconfig) > 100 {
+				clusterCopy.Kubeconfig = clusterCopy.Kubeconfig[:100] + "..."
+			}
+			result = append(result, &clusterCopy)
+		}
 	}
 	return result, nil
 }
@@ -147,7 +163,7 @@ func (s *ClusterService) UpdateCluster(ctx context.Context, id string, cluster *
 	}
 
 	// Sauvegarder dans le cache (pas d'expiration pour les configurations critiques)
-	cacheKey := fmt.Sprintf("k8s:cluster:%s", id)
+	cacheKey := fmt.Sprintf("k8s:cluster:%s:%s", existing.ProjectID, id)
 	clusterJSON, _ := json.Marshal(existing)
 	_ = s.cache.Set(ctx, cacheKey, string(clusterJSON), 0) // 0 = pas d'expiration
 
@@ -196,7 +212,7 @@ func (s *ClusterService) SetActiveCluster(ctx context.Context, id string) error 
 	cluster.UpdatedAt = time.Now()
 
 	// Sauvegarder
-	cacheKey := fmt.Sprintf("k8s:cluster:%s", id)
+	cacheKey := fmt.Sprintf("k8s:cluster:%s:%s", cluster.ProjectID, id)
 	clusterJSON, _ := json.Marshal(cluster)
 	_ = s.cache.Set(ctx, cacheKey, string(clusterJSON), 24*time.Hour)
 
@@ -237,6 +253,25 @@ func (s *ClusterService) TestClusterConnection(ctx context.Context, cluster *mod
 		return status, nil
 	}
 
+	// Validation de l'endpoint en production
+	isProduction := s.cfg.Environment == "production"
+	if isProduction && cluster.Endpoint != "" {
+		if strings.Contains(cluster.Endpoint, "127.0.0.1") || 
+			strings.Contains(cluster.Endpoint, "localhost") || 
+			strings.Contains(cluster.Endpoint, "host.docker.internal") {
+			status.Error = "endpoints locaux interdits en production"
+			return status, nil
+		}
+	}
+
+	// Créer un contexte avec timeout pour la connexion
+	timeout := 30 * time.Second
+	if s.cfg.K8sAPITimeout > 0 {
+		timeout = s.cfg.K8sAPITimeout
+	}
+	testCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	// Sauvegarder le kubeconfig dans un fichier temporaire
 	kubeconfigPath, err := s.saveKubeconfigToTempFile(cluster)
 	if err != nil {
@@ -245,11 +280,17 @@ func (s *ClusterService) TestClusterConnection(ctx context.Context, cluster *mod
 	}
 	defer os.Remove(kubeconfigPath) // Nettoyer le fichier temporaire
 
-	// Créer un client Kubernetes temporaire
+	// Créer un client Kubernetes temporaire avec validation TLS en production
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
 		status.Error = fmt.Sprintf("erreur lors du chargement du kubeconfig: %v", err)
 		return status, nil
+	}
+
+	// Configurer les timeouts et la validation TLS
+	restConfig.Timeout = timeout
+	if isProduction {
+		restConfig.Insecure = false // Forcer la validation TLS en production
 	}
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
@@ -258,15 +299,30 @@ func (s *ClusterService) TestClusterConnection(ctx context.Context, cluster *mod
 		return status, nil
 	}
 
-	// Tester la connexion en obtenant la version du serveur
-	version, err := clientset.Discovery().ServerVersion()
+	// Tester la connexion en obtenant la version du serveur avec retry
+	var version *version.Info
+	maxRetries := s.cfg.K8sMaxRetries
+	if maxRetries == 0 {
+		maxRetries = 3
+	}
+	
+	for i := 0; i < maxRetries; i++ {
+		version, err = clientset.Discovery().ServerVersion()
+		if err == nil {
+			break
+		}
+		if i < maxRetries-1 {
+			time.Sleep(time.Duration(i+1) * time.Second) // Backoff exponentiel
+		}
+	}
+	
 	if err != nil {
-		status.Error = fmt.Sprintf("impossible de se connecter au cluster: %v", err)
+		status.Error = fmt.Sprintf("impossible de se connecter au cluster après %d tentatives: %v", maxRetries, err)
 		return status, nil
 	}
 
 	// Obtenir le nombre de nodes
-	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	nodes, err := clientset.CoreV1().Nodes().List(testCtx, metav1.ListOptions{})
 	if err != nil {
 		// Ne pas échouer si on ne peut pas lister les nodes, mais noter l'erreur
 		status.Error = fmt.Sprintf("connexion OK mais erreur lors de la récupération des nodes: %v", err)
@@ -329,11 +385,15 @@ func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 	log.Printf("📦 Chargement de %d cluster(s) depuis Redis...", len(ids))
 
 	// Charger chaque cluster depuis le cache
+	// Note: Le cache utilise maintenant project_id, donc on doit scanner tous les projets
+	// Pour l'instant, on charge depuis la liste des IDs (ancien format)
 	for _, id := range ids {
+		// Essayer l'ancien format (sans project_id) pour compatibilité
 		cacheKey := fmt.Sprintf("k8s:cluster:%s", id)
 		cached, err := s.cache.Get(ctx, cacheKey)
 		if err != nil || cached == "" {
-			log.Printf("⚠️  Cluster %s non trouvé dans le cache", id)
+			// Si pas trouvé, essayer de scanner par projet (nécessiterait une liste de projets)
+			log.Printf("⚠️  Cluster %s non trouvé dans le cache (ancien format)", id)
 			continue
 		}
 		
@@ -343,8 +403,11 @@ func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 			continue
 		}
 		
+		// Si le cluster n'a pas de project_id, on le laisse vide
+		// Il sera assigné lors de la création via l'API avec le project_id de l'utilisateur
+		
 		s.clusters[cluster.ID] = &cluster
-		log.Printf("✅ Cluster chargé: %s (%s)", cluster.ID, cluster.Name)
+		log.Printf("✅ Cluster chargé: %s (%s) - Projet: %s", cluster.ID, cluster.Name, cluster.ProjectID)
 	}
 
 	// Charger l'ID du cluster actif

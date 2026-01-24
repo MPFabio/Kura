@@ -2,10 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
   Select,
   MenuItem,
   FormControl,
@@ -43,6 +39,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useProject } from '../contexts/ProjectContext'
 import { k8sService } from '../services/k8sService'
 import { clusterService, KubernetesCluster } from '../services/clusterService'
 import { Deployment } from '../services/api'
@@ -52,10 +49,15 @@ import {
   CheckCircle as CheckCircleIcon,
   CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material'
+import ModuleTitle from '../components/ModuleTitle'
+import ModuleButton from '../components/ModuleButton'
+import ModuleCard from '../components/ModuleCard'
+import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
 type ResourceTab = 'clusters' | 'pods' | 'deployments' | 'services' | 'configmaps' | 'secrets' | 'nodes'
 
 export default function K8sPage() {
+  const { currentProject } = useProject()
   const [selectedNamespace, setSelectedNamespace] = useState<string>('')
   const [activeTab, setActiveTab] = useState<ResourceTab>('clusters')
   const [searchTerm, setSearchTerm] = useState<string>('')
@@ -114,8 +116,9 @@ export default function K8sPage() {
 
   // Queries pour les clusters
   const { data: clusters, isLoading: clustersLoading, error: clustersError } = useQuery({
-    queryKey: ['clusters'],
-    queryFn: () => clusterService.getClusters(),
+    queryKey: ['clusters', currentProject?.id],
+    queryFn: () => clusterService.getClusters(currentProject!.id),
+    enabled: !!currentProject,
   })
 
   // activeCluster non utilisé pour l'instant mais peut être utile plus tard
@@ -434,10 +437,15 @@ export default function K8sPage() {
       return
     }
 
+    if (!currentProject) {
+      setSnackbar({ open: true, message: 'Aucun projet sélectionné', severity: 'error' })
+      return
+    }
+
     if (editingCluster) {
       updateClusterMutation.mutate({ id: editingCluster.id, cluster: clusterForm })
     } else {
-      createClusterMutation.mutate(clusterForm)
+      createClusterMutation.mutate({ ...clusterForm, project_id: currentProject.id })
     }
   }
 
@@ -694,9 +702,9 @@ export default function K8sPage() {
                   {dep.readyReplicas < dep.replicas ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <CircularProgress size={16} />
-                      <Typography variant="body2" color="text.secondary">
+                      <ModuleSecondaryText>
                         Scaling... {dep.readyReplicas}/{dep.replicas}
-                      </Typography>
+                      </ModuleSecondaryText>
                     </Box>
                   ) : dep.readyReplicas === dep.replicas && dep.replicas > 0 ? (
                     <Chip label="Ready" color="success" size="small" />
@@ -983,70 +991,55 @@ export default function K8sPage() {
 
     if (!clusters || clusters.items.length === 0) {
       return (
-        <Card>
-          <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              Aucun cluster Kubernetes configuré
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Ajoutez un cluster Kubernetes pour commencer à gérer vos ressources.
-            </Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenClusterDialog()}>
-              Ajouter un cluster
-            </Button>
-          </CardContent>
-        </Card>
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Aucun cluster Kubernetes configuré. Utilisez le bouton "Ajouter un cluster" ci-dessus pour en ajouter un.
+        </Alert>
       )
     }
 
     return (
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Clusters Kubernetes</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenClusterDialog()}>
-            Ajouter un cluster
-          </Button>
-        </Box>
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Nom</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Endpoint</TableCell>
-                <TableCell>Statut</TableCell>
-                <TableCell>Créé le</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Nom</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Description</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Endpoint</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Statut</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Créé le</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {clusters.items.map((cluster) => (
                 <TableRow key={cluster.id}>
-                  <TableCell>
+                  <TableCell sx={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.95)' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body1" fontWeight="medium">
+                      <ModuleBodyText sx={{ fontWeight: 600 }}>
                         {cluster.name}
-                      </Typography>
+                      </ModuleBodyText>
                       {cluster.is_active && (
                         <Chip
                           label="Actif"
                           color="success"
                           size="small"
                           icon={<CheckCircleIcon />}
+                          sx={{ fontSize: '0.75rem', fontWeight: 500 }}
                         />
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell>{cluster.description || '-'}</TableCell>
-                  <TableCell>{cluster.endpoint || '-'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.9)' }}>{cluster.description || '-'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.9)' }}>{cluster.endpoint || '-'}</TableCell>
                   <TableCell>
                     {cluster.is_active ? (
-                      <Chip label="Actif" color="success" size="small" />
+                      <Chip label="Actif" color="success" size="small" sx={{ fontSize: '0.75rem', fontWeight: 500 }} />
                     ) : (
-                      <Chip label="Inactif" color="default" size="small" />
+                      <Chip label="Inactif" color="default" size="small" sx={{ fontSize: '0.75rem', fontWeight: 500 }} />
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                     {new Date(cluster.created_at).toLocaleDateString('fr-FR')}
                   </TableCell>
                   <TableCell align="right">
@@ -1145,88 +1138,87 @@ export default function K8sPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 600 }}>
-        Kubernetes
-      </Typography>
+      <ModuleTitle>Kubernetes</ModuleTitle>
 
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Namespaces
-              </Typography>
-              {namespacesLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                  <CircularProgress />
-                </Box>
-              ) : namespacesError ? (
-                <Alert 
-                  severity="error"
-                  action={
-                    <Button 
-                      color="inherit" 
-                      size="small" 
-                      onClick={() => setActiveTab('clusters')}
-                    >
-                      Configurer un cluster
-                    </Button>
-                  }
-                >
-                  {(namespacesError as any)?.response?.status === 503 || 
-                   (namespacesError as any)?.response?.data?.error?.includes('Aucun cluster') ? (
-                    <>
-                      Aucun cluster Kubernetes configuré. Veuillez ajouter un cluster pour commencer.
-                    </>
-                  ) : (
-                    <>
-                      Erreur: {(namespacesError as any)?.response?.data?.error || (namespacesError as any)?.message || 'Erreur inconnue'}
-                    </>
-                  )}
-                </Alert>
-              ) : namespaces?.items && namespaces.items.length > 0 ? (
-                <Box>
-                  {namespaces.items.map((ns) => (
-                    <Chip
-                      key={ns.name}
-                      label={ns.name}
-                      onClick={() => setSelectedNamespace(ns.name)}
-                      sx={{ m: 0.5 }}
-                      color={selectedNamespace === ns.name ? 'primary' : 'default'}
-                    />
-                  ))}
-                </Box>
-              ) : (
-                <Alert severity="info">Aucun namespace trouvé</Alert>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+      {activeTab !== 'clusters' && activeTab !== 'nodes' && (
+        <ModuleCard sx={{ mb: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, alignItems: { xs: 'stretch', md: 'center' } }}>
+              <Box sx={{ flex: 1 }}>
+                <ModuleSubtitle sx={{ mb: 2 }}>
+                  Namespaces
+                </ModuleSubtitle>
+                {namespacesLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : namespacesError ? (
+                  <Alert 
+                    severity="error"
+                    sx={{ fontSize: '0.875rem' }}
+                    action={
+                      <Button 
+                        color="inherit" 
+                        size="small" 
+                        onClick={() => setActiveTab('clusters')}
+                        sx={{ fontSize: '0.75rem' }}
+                      >
+                        Configurer
+                      </Button>
+                    }
+                  >
+                    {(namespacesError as any)?.response?.status === 503 || 
+                     (namespacesError as any)?.response?.data?.error?.includes('Aucun cluster') ? (
+                      <>
+                        Aucun cluster Kubernetes configuré
+                      </>
+                    ) : (
+                      <>
+                        Erreur: {(namespacesError as any)?.response?.data?.error || (namespacesError as any)?.message || 'Erreur inconnue'}
+                      </>
+                    )}
+                  </Alert>
+                ) : namespaces?.items && namespaces.items.length > 0 ? (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {namespaces.items.map((ns) => (
+                      <Chip
+                        key={ns.name}
+                        label={ns.name}
+                        onClick={() => setSelectedNamespace(ns.name)}
+                        sx={{ 
+                          fontSize: '0.8125rem',
+                          fontWeight: selectedNamespace === ns.name ? 600 : 400,
+                          height: 32,
+                        }}
+                        color={selectedNamespace === ns.name ? 'primary' : 'default'}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Alert severity="info" sx={{ fontSize: '0.875rem' }}>Aucun namespace trouvé</Alert>
+                )}
+              </Box>
+              <Box sx={{ minWidth: { xs: '100%', md: 280 } }}>
+                <FormControl fullWidth>
+                  <InputLabel sx={{ fontSize: '0.875rem' }}>Sélectionner un namespace</InputLabel>
+                  <Select
+                    value={selectedNamespace}
+                    label="Sélectionner un namespace"
+                    onChange={(e) => setSelectedNamespace(e.target.value)}
+                    sx={{ fontSize: '0.875rem' }}
+                  >
+                    {namespaces?.items?.map((ns) => (
+                      <MenuItem key={ns.name} value={ns.name} sx={{ fontSize: '0.875rem' }}>
+                        {ns.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+        </ModuleCard>
+      )}
 
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <FormControl fullWidth>
-                <InputLabel>Sélectionner un namespace</InputLabel>
-                <Select
-                  value={selectedNamespace}
-                  label="Sélectionner un namespace"
-                  onChange={(e) => setSelectedNamespace(e.target.value)}
-                >
-                  {namespaces?.items?.map((ns) => (
-                    <MenuItem key={ns.name} value={ns.name}>
-                      {ns.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Card>
-        <CardContent>
+      <ModuleCard>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider', flexGrow: 1 }}>
               <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
@@ -1241,14 +1233,13 @@ export default function K8sPage() {
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               {activeTab === 'clusters' && (
-                <Button
-                  variant="contained"
+                <ModuleButton
                   startIcon={<AddIcon />}
                   onClick={() => handleOpenClusterDialog()}
                   sx={{ ml: 2 }}
                 >
                   Ajouter un cluster
-                </Button>
+                </ModuleButton>
               )}
               <TextField
                 placeholder="Rechercher..."
@@ -1271,8 +1262,7 @@ export default function K8sPage() {
           {activeTab === 'secrets' && renderSecretsTable()}
           {activeTab === 'clusters' && renderClustersTable()}
           {activeTab === 'nodes' && renderNodesTable()}
-        </CardContent>
-      </Card>
+      </ModuleCard>
 
       <ResourceDetailDialog
         open={detailDialog.open}
@@ -1343,9 +1333,9 @@ export default function K8sPage() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
-            <Typography variant="body1" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
+            <ModuleBodyText sx={{ fontWeight: 600 }}>
               {selectedResources.size} ressource{selectedResources.size > 1 ? 's' : ''} sélectionnée{selectedResources.size > 1 ? 's' : ''}
-            </Typography>
+            </ModuleBodyText>
             <Box sx={{ display: 'flex', gap: 2 }}>
               {activeTab === 'pods' && (
                 <Tooltip title="Redémarrer les pods sélectionnés">
@@ -1433,7 +1423,7 @@ export default function K8sPage() {
           Confirmer l'action en masse
         </DialogTitle>
         <DialogContent>
-          <Typography>
+          <ModuleBodyText>
             {bulkActionDialog.action === 'delete' && (
               <>Êtes-vous sûr de vouloir supprimer {bulkActionDialog.count} ressource{bulkActionDialog.count > 1 ? 's' : ''} ? Cette action est irréversible.</>
             )}
@@ -1443,7 +1433,7 @@ export default function K8sPage() {
             {bulkActionDialog.action === 'scale' && (
               <>Vous allez modifier le nombre de replicas de {bulkActionDialog.count} deployment{bulkActionDialog.count > 1 ? 's' : ''}.</>
             )}
-          </Typography>
+          </ModuleBodyText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkActionDialog({ ...bulkActionDialog, open: false })}>
@@ -1562,9 +1552,9 @@ export default function K8sPage() {
               <input type="file" hidden accept=".yaml,.yml" onChange={handleFileChange} />
             </Button>
             {kubeconfigFile && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              <ModuleCaption sx={{ mt: 1, display: 'block' }}>
                 Fichier sélectionné : {kubeconfigFile.name} ({(kubeconfigFile.size / 1024).toFixed(2)} KB)
-              </Typography>
+              </ModuleCaption>
             )}
           </Box>
           <TextField

@@ -58,6 +58,7 @@ type StateFile struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`
 	State       *TerraformState `json:"state"`
+	ProjectID   string         `json:"project_id"` // ID du projet auquel appartient l'état
 	UploadedAt  time.Time      `json:"uploaded_at"`
 	LastChecked time.Time      `json:"last_checked,omitempty"`
 	DriftResults []*DriftResult `json:"drift_results,omitempty"` // Résultats de détection de drift

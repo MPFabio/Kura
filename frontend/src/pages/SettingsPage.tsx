@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import {
   Box,
-  Typography,
-  Card,
-  CardContent,
   TextField,
-  Button,
   Grid,
   Alert,
   CircularProgress,
 } from '@mui/material'
 import { useAuth } from '../contexts/AuthContext'
 import { authService } from '../services/authService'
+import ModuleTitle from '../components/ModuleTitle'
+import ModuleButton from '../components/ModuleButton'
+import ModuleCard from '../components/ModuleCard'
+import { ModuleSubtitle } from '../components/ModuleText'
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth()
@@ -66,17 +66,14 @@ export default function SettingsPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 600 }}>
-        Paramètres
-      </Typography>
+      <ModuleTitle>Paramètres</ModuleTitle>
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 3 }}>
-                Profil
-              </Typography>
+          <ModuleCard>
+            <ModuleSubtitle sx={{ mb: 3 }}>
+              Profil
+            </ModuleSubtitle>
               {message && (
                 <Alert severity={message.type} sx={{ mb: 2 }}>
                   {message.text}
@@ -96,56 +93,51 @@ export default function SettingsPage() {
                 onChange={(e) => setName(e.target.value)}
                 sx={{ mb: 2 }}
               />
-              <Button
-                variant="contained"
+              <ModuleButton
                 onClick={handleUpdateProfile}
                 disabled={loading}
               >
                 {loading ? <CircularProgress size={24} /> : 'Mettre à jour le profil'}
-              </Button>
-            </CardContent>
-          </Card>
+              </ModuleButton>
+          </ModuleCard>
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 3 }}>
-                Changer le mot de passe
-              </Typography>
-              <TextField
-                fullWidth
-                label="Mot de passe actuel"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                fullWidth
-                label="Nouveau mot de passe"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                fullWidth
-                label="Confirmer le nouveau mot de passe"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                sx={{ mb: 2 }}
-              />
-              <Button
-                variant="contained"
-                onClick={handleChangePassword}
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={24} /> : 'Changer le mot de passe'}
-              </Button>
-            </CardContent>
-          </Card>
+          <ModuleCard>
+            <ModuleSubtitle sx={{ mb: 3 }}>
+              Changer le mot de passe
+            </ModuleSubtitle>
+            <TextField
+              fullWidth
+              label="Mot de passe actuel"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Nouveau mot de passe"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Confirmer le nouveau mot de passe"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <ModuleButton
+              onClick={handleChangePassword}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Changer le mot de passe'}
+            </ModuleButton>
+          </ModuleCard>
         </Grid>
       </Grid>
     </Box>

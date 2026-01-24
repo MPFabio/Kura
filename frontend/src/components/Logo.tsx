@@ -48,6 +48,7 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
+        minWidth: 'fit-content',
         ...sx,
       }}
     >
@@ -148,19 +149,6 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
             }}
           >
             KURA
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              fontFamily: '"JetBrains Mono", monospace',
-              fontSize: currentSize.text === '1rem' ? '0.65rem' : currentSize.text === '1.5rem' ? '0.75rem' : '1rem',
-              color: '#A0A0A0',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              fontWeight: 400,
-            }}
-          >
-            DevOps Treasury
           </Typography>
         </Box>
       )}

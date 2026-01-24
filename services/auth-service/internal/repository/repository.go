@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/modulops/auth-service/internal/config"
@@ -36,6 +37,13 @@ func New(cfg *config.Config) (*Repository, error) {
 	// Créer les tables si elles n'existent pas
 	if err := repo.migrate(); err != nil {
 		return nil, fmt.Errorf("erreur lors de la migration: %w", err)
+	}
+
+	// Migrer les données existantes vers un projet par défaut
+	// Cette migration est idempotente et peut être exécutée plusieurs fois
+	if err := repo.MigrateExistingDataToDefaultProject(); err != nil {
+		// Log l'erreur mais ne pas faire échouer le démarrage
+		log.Printf("⚠️  Erreur lors de la migration vers un projet par défaut (non bloquant): %v", err)
 	}
 
 	return repo, nil
@@ -74,6 +82,27 @@ func (r *Repository) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token)`,
 		`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)`,
+		`CREATE TABLE IF NOT EXISTS projects (
+			id VARCHAR(36) PRIMARY KEY,
+			name VARCHAR(100) NOT NULL,
+			description TEXT,
+			owner_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_projects_owner_id ON projects(owner_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name)`,
+		`CREATE TABLE IF NOT EXISTS project_members (
+			id VARCHAR(36) PRIMARY KEY,
+			project_id VARCHAR(36) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+			user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			role VARCHAR(20) NOT NULL DEFAULT 'member',
+			joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(project_id, user_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_members_project_id ON project_members(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_members_user_id ON project_members(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_members_role ON project_members(role)`,
 	}
 
 	for _, query := range queries {

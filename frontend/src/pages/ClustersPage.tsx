@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useProject } from '../contexts/ProjectContext'
 import {
   Box,
-  Typography,
-  Card,
-  CardContent,
   Button,
   CircularProgress,
   Alert,
@@ -35,8 +33,13 @@ import {
   CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material'
 import { clusterService, KubernetesCluster } from '../services/clusterService'
+import ModuleTitle from '../components/ModuleTitle'
+import ModuleButton from '../components/ModuleButton'
+import ModuleCard from '../components/ModuleCard'
+import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
 export default function ClustersPage() {
+  const { currentProject } = useProject()
   const [clusterDialogOpen, setClusterDialogOpen] = useState(false)
   const [editingCluster, setEditingCluster] = useState<KubernetesCluster | null>(null)
   const [clusterForm, setClusterForm] = useState({
@@ -55,8 +58,9 @@ export default function ClustersPage() {
   const queryClient = useQueryClient()
 
   const { data: clusters, isLoading, error } = useQuery({
-    queryKey: ['clusters'],
-    queryFn: () => clusterService.getClusters(),
+    queryKey: ['clusters', currentProject?.id],
+    queryFn: () => clusterService.getClusters(currentProject!.id),
+    enabled: !!currentProject,
   })
 
   // activeCluster non utilisé pour l'instant
@@ -180,10 +184,15 @@ export default function ClustersPage() {
       return
     }
 
+    if (!currentProject) {
+      setSnackbar({ open: true, message: 'Aucun projet sélectionné', severity: 'error' })
+      return
+    }
+
     if (editingCluster) {
       updateMutation.mutate({ id: editingCluster.id, cluster: clusterForm })
     } else {
-      createMutation.mutate(clusterForm)
+      createMutation.mutate({ ...clusterForm, project_id: currentProject.id })
     }
   }
 
@@ -210,24 +219,10 @@ export default function ClustersPage() {
   return (
     <Box sx={{ p: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
-        <Typography 
-          variant="h3" 
-          component="h1"
-          sx={{
-            fontWeight: 600,
-            background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            fontFamily: '"Inter", sans-serif',
-            letterSpacing: '0.02em',
-          }}
-        >
-          Kubernetes
-        </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+        <ModuleTitle sx={{ mb: 0 }}>Kubernetes</ModuleTitle>
+        <ModuleButton startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
           Ajouter un cluster
-        </Button>
+        </ModuleButton>
       </Box>
 
       {isLoading ? (
@@ -235,19 +230,17 @@ export default function ClustersPage() {
           <CircularProgress />
         </Box>
       ) : !clusters || clusters.items.length === 0 ? (
-        <Card sx={{ animation: 'jellyfishFloat 12s ease-in-out infinite' }}>
-          <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
+        <ModuleCard sx={{ textAlign: 'center', py: 6 }}>
+            <ModuleSubtitle sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.7)' }}>
               Aucun cluster Kubernetes configuré
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            </ModuleSubtitle>
+            <ModuleSecondaryText sx={{ mb: 3 }}>
               Ajoutez un cluster Kubernetes pour commencer à gérer vos ressources.
-            </Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+            </ModuleSecondaryText>
+            <ModuleButton startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
               Ajouter un cluster
-            </Button>
-          </CardContent>
-        </Card>
+            </ModuleButton>
+        </ModuleCard>
       ) : (
         <TableContainer 
           component={Paper}
@@ -271,9 +264,9 @@ export default function ClustersPage() {
                 <TableRow key={cluster.id}>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body1" fontWeight="medium">
+                      <ModuleBodyText sx={{ fontWeight: 600 }}>
                         {cluster.name}
-                      </Typography>
+                      </ModuleBodyText>
                       {cluster.is_active && (
                         <Chip
                           label="Actif"
@@ -377,9 +370,9 @@ export default function ClustersPage() {
               <input type="file" hidden accept=".yaml,.yml" onChange={handleFileChange} />
             </Button>
             {kubeconfigFile && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              <ModuleCaption sx={{ mt: 1, display: 'block' }}>
                 Fichier sélectionné : {kubeconfigFile.name} ({(kubeconfigFile.size / 1024).toFixed(2)} KB)
-              </Typography>
+              </ModuleCaption>
             )}
           </Box>
           <TextField
