@@ -1,161 +1,94 @@
-# Guide de test du service Ansible avec AWX
+# Guide de test du service Ansible avec AWX dans KinD
 
-Ce guide explique comment tester le service Ansible dans un codespace avec AWX.
+Ce guide explique comment tester le service Ansible dans un codespace avec AWX déployé sur KinD (Kubernetes in Docker).
 
 ## Prérequis
 
 - Codespace GitHub avec Docker
+- KinD installé et cluster créé
+- kubectl configuré pour le cluster KinD
 - Accès à Internet pour télécharger les images Docker
 
-## Étape 1 : Installer AWX dans le codespace
+## Étape 1 : Vérifier le cluster KinD
 
-### Option A : AWX via Docker Compose (recommandé pour le développement)
-
-Créez un fichier `docker-compose.awx.yml` à la racine du projet :
-
-```yaml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:13
-    environment:
-      POSTGRES_DB: awx
-      POSTGRES_USER: awx
-      POSTGRES_PASSWORD: awxpassword
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  memcached:
-    image: memcached:alpine
-    ports:
-      - "11211:11211"
-
-  awx:
-    image: ansible/awx:latest
-    depends_on:
-      - postgres
-      - memcached
-    environment:
-      AWX_ADMIN_USER: admin
-      AWX_ADMIN_PASSWORD: admin
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: awx
-      DATABASE_USER: awx
-      DATABASE_PASSWORD: awxpassword
-      MEMCACHED_HOST: memcached
-      MEMCACHED_PORT: 11211
-    ports:
-      - "8080:8080"
-    volumes:
-      - awx_data:/var/lib/awx
-
-volumes:
-  postgres_data:
-  awx_data:
-```
-
-Lancez AWX :
+### Vérifier que le cluster KinD est actif
 
 ```bash
-docker-compose -f docker-compose.awx.yml up -d
+# Vérifier le cluster
+kubectl cluster-info --context kind-kura
+
+# Vérifier les nodes
+kubectl get nodes
 ```
 
-Attendez que AWX soit prêt (peut prendre 2-3 minutes) :
+### Déployer AWX et le service Ansible sur KinD
+
+Les manifests Kubernetes sont déjà configurés dans `infrastructure/k8s/`. 
 
 ```bash
-# Vérifier les logs
-docker-compose -f docker-compose.awx.yml logs -f awx
+# Builder l'image du service Ansible et la charger dans KinD
+cd services/ansible-service
+docker build -t ansible-service:latest .
+kind load docker-image ansible-service:latest --name kura
 
-# Vérifier que le service répond
+# Déployer tous les services (y compris AWX et ansible-service)
+cd ../..
+kubectl apply -k infrastructure/k8s/
+
+# Attendre que les pods soient prêts
+kubectl wait --for=condition=ready --timeout=300s pod -l app=awx-postgres -n kura
+kubectl wait --for=condition=ready --timeout=300s pod -l app=awx-memcached -n kura
+kubectl wait --for=condition=ready --timeout=600s pod -l app=awx -n kura
+kubectl wait --for=condition=ready --timeout=300s pod -l app=ansible-service -n kura
+```
+
+**⏱️ AWX peut prendre 3-5 minutes** à démarrer complètement. Surveillez les logs :
+
+```bash
+# Vérifier les logs d'AWX
+kubectl logs -f deployment/awx -n kura
+
+# Vérifier que AWX répond
+kubectl port-forward svc/awx 8080:8080 -n kura &
 curl http://localhost:8080/api/v2/ping/
 ```
 
-### Option B : AWX via Kubernetes (si vous avez kubectl)
+## Étape 2 : Accéder aux services
+
+### Port-forward pour accéder aux services depuis l'extérieur du cluster
 
 ```bash
-# Installer AWX Operator
-kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/devel/deploy/awx-operator.yaml
+# Dans des terminaux séparés ou en arrière-plan
 
-# Créer une instance AWX
-kubectl apply -f - <<EOF
-apiVersion: awx.ansible.com/v1beta1
-kind: AWX
-metadata:
-  name: awx
-spec:
-  service_type: NodePort
-EOF
+# AWX (port 8080)
+kubectl port-forward svc/awx 8080:8080 -n kura
+
+# Service Ansible (port 8083)
+kubectl port-forward svc/ansible-service 8083:8083 -n kura
 ```
 
-## Étape 2 : Configurer le service Ansible
+### Ou utiliser les services LoadBalancer (dans KinD)
 
-### Créer un fichier `.env` dans `services/ansible-service/`
+Si vous avez configuré un LoadBalancer pour KinD (comme MetalLB), les services seront accessibles directement via leurs IPs externes :
 
 ```bash
-cd services/ansible-service
+# Obtenir l'IP externe d'AWX
+kubectl get svc awx -n kura
 
-cat > .env <<EOF
-# Serveur
-ANSIBLE_SERVICE_PORT=8083
-ENV=development
-LOG_LEVEL=info
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_DB=0
-ANSIBLE_CACHE_TTL=300
-
-# Ansible Tower/AWX
-ANSIBLE_TOWER_URL=http://localhost:8080
-ANSIBLE_TOWER_USERNAME=admin
-ANSIBLE_TOWER_PASSWORD=admin
-ANSIBLE_TOWER_VERIFY_SSL=false
-EOF
+# Obtenir l'IP externe du service Ansible
+kubectl get svc ansible-service -n kura
 ```
 
-### Installer les dépendances Python
-
-```bash
-cd services/ansible-service
-pip install -r requirements.txt
-```
-
-## Étape 3 : Démarrer Redis (si pas déjà démarré)
-
-```bash
-# Via Docker
-docker run -d --name redis -p 6379:6379 redis:7-alpine
-
-# Ou vérifier si Redis est déjà disponible
-redis-cli ping
-```
-
-## Étape 4 : Démarrer le service Ansible
-
-```bash
-cd services/ansible-service
-
-# Option 1 : Directement avec Python
-python main.py
-
-# Option 2 : Avec uvicorn (recommandé pour le développement)
-uvicorn main:app --host 0.0.0.0 --port 8083 --reload
-```
-
-Le service devrait démarrer sur `http://localhost:8083`
-
-## Étape 5 : Tester les endpoints
+## Étape 3 : Tester les endpoints
 
 ### Vérifier la santé du service
 
 ```bash
+# Si vous utilisez port-forward
 curl http://localhost:8083/health
+
+# Ou directement via kubectl
+kubectl exec -it deployment/ansible-service -n kura -- curl http://localhost:8083/health
 ```
 
 Réponse attendue :
@@ -262,14 +195,15 @@ curl -X POST http://localhost:8083/api/v1/webhooks/ansible-tower \
   }'
 ```
 
-## Étape 6 : Accéder à la documentation interactive
+## Étape 4 : Accéder à la documentation interactive
 
-Ouvrez dans votre navigateur :
+Ouvrez dans votre navigateur (après avoir fait le port-forward) :
 
-- **Swagger UI** : http://localhost:8083/docs
-- **ReDoc** : http://localhost:8083/redoc
+- **AWX Web UI** : http://localhost:8080 (admin/admin)
+- **Service Ansible Swagger UI** : http://localhost:8083/docs
+- **Service Ansible ReDoc** : http://localhost:8083/redoc
 
-## Étape 7 : Créer des données de test dans AWX
+## Étape 5 : Créer des données de test dans AWX
 
 ### Via l'interface web AWX
 
@@ -310,32 +244,57 @@ curl -X POST http://localhost:8080/api/v2/inventories/ \
 
 ```bash
 # Vérifier les logs
-docker-compose -f docker-compose.awx.yml logs awx
+kubectl logs -f deployment/awx -n kura
+
+# Vérifier les pods
+kubectl get pods -n kura | grep awx
 
 # Vérifier que PostgreSQL est prêt
-docker-compose -f docker-compose.awx.yml exec postgres pg_isready
+kubectl exec -it deployment/awx-postgres -n kura -- pg_isready -U awx
+
+# Vérifier les événements
+kubectl describe pod -l app=awx -n kura
 ```
 
 ### Le service Ansible ne peut pas se connecter à AWX
 
-1. Vérifier que AWX est accessible :
+1. Vérifier que AWX est accessible depuis le cluster :
    ```bash
-   curl http://localhost:8080/api/v2/ping/
+   # Depuis un pod dans le cluster
+   kubectl run -it --rm debug --image=curlimages/curl --restart=Never -- curl http://awx:8080/api/v2/ping/
    ```
 
-2. Vérifier les credentials dans `.env`
+2. Vérifier la configuration du service :
+   ```bash
+   kubectl get configmap ansible-service-config -n kura -o yaml
+   ```
 
 3. Vérifier les logs du service :
    ```bash
-   # Les logs devraient montrer les erreurs de connexion
+   kubectl logs -f deployment/ansible-service -n kura
    ```
 
 ### Redis n'est pas disponible
 
-Le service fonctionnera sans Redis mais sans cache. Pour démarrer Redis :
+Le service fonctionnera sans Redis mais sans cache. Vérifier Redis :
 
 ```bash
-docker run -d --name redis -p 6379:6379 redis:7-alpine
+kubectl get pods -n kura | grep redis
+kubectl logs deployment/redis -n kura
+```
+
+### Rebuilder et redéployer le service Ansible
+
+```bash
+# Builder l'image
+cd services/ansible-service
+docker build -t ansible-service:latest .
+
+# Charger dans KinD
+kind load docker-image ansible-service:latest --name kura
+
+# Redéployer
+kubectl rollout restart deployment/ansible-service -n kura
 ```
 
 ## Script de test complet

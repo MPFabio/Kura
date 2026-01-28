@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: awx-postgres-config
+  namespace: kura
+data:
+  POSTGRES_DB: awx
+  POSTGRES_USER: awx
+  POSTGRES_PASSWORD: awxpassword
