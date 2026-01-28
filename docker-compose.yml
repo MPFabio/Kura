@@ -250,7 +250,12 @@ services:
     ports:
       - "5173:80"
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      # URL de base de l'API pour le frontend.
+      # - En local classique: http://localhost:8000
+      # - En Codespaces: surcharger avec l'URL publique du port 8000,
+      #   par ex: https://${CODESPACE_NAME}-8000.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}
+      #   (penser à exporter VITE_API_BASE_URL avant le build)
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     depends_on:
       - kong
     healthcheck:

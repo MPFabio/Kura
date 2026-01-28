@@ -87,6 +87,7 @@ export const theme = createTheme({
       fontSize: '1.75rem',
       fontWeight: 500,
       letterSpacing: '-0.01em',
+      // Les composants ModuleTitle override ces valeurs
     },
     h4: {
       fontSize: '1.5rem',
@@ -380,6 +381,18 @@ export const theme = createTheme({
         },
       },
     },
+    MuiListItemText: {
+      styleOverrides: {
+        primary: {
+          background: 'linear-gradient(135deg, #00E5FF, #B388FF) !important',
+          backgroundClip: 'text !important',
+          WebkitBackgroundClip: 'text !important',
+          WebkitTextFillColor: 'transparent !important',
+          color: 'transparent !important',
+          fontWeight: 500,
+        },
+      },
+    },
     MuiAlert: {
       styleOverrides: {
         root: {
@@ -567,6 +580,14 @@ export const theme = createTheme({
             0 0 8px ${jellyfishColors.violetSoft}60,
             0 0 4px ${jellyfishColors.cyanSoft}40
           `,
+        },
+      },
+    },
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          // Les composants styled (ModuleTitle, ModuleText) override ces valeurs
+          // Ne pas définir de styles par défaut qui pourraient override
         },
       },
     },

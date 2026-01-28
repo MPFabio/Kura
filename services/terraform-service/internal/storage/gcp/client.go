@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	gcpStorage "cloud.google.com/go/storage"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	storageInterface "github.com/modulops/terraform-service/internal/storage"
 )
@@ -91,7 +90,7 @@ func (c *Client) ListStateFiles(ctx context.Context, bucket, prefix string) ([]s
 	it := bkt.Objects(ctx, query)
 	for {
 		attrs, err := it.Next()
-		if err == iterator.Done {
+		if err == io.EOF {
 			break
 		}
 		if err != nil {

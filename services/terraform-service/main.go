@@ -14,7 +14,6 @@ import (
 	"github.com/modulops/terraform-service/internal/cache"
 	"github.com/modulops/terraform-service/internal/config"
 	"github.com/modulops/terraform-service/internal/handler"
-	"github.com/modulops/terraform-service/internal/migration"
 	"github.com/modulops/terraform-service/internal/service"
 )
 

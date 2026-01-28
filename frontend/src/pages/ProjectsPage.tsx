@@ -236,20 +236,6 @@ export default function ProjectsPage() {
         >
           {displayedProjects.map((project) => {
             const isActive = currentProject?.id === project.id
-            // #region agent log
-            if (typeof window !== 'undefined') {
-              setTimeout(() => {
-                const cards = document.querySelectorAll('.MuiCard-root')
-                const projectCards = Array.from(cards).filter((_, i) => i >= 0) // All cards
-                projectCards.forEach((card, idx) => {
-                  if (idx < 3) { // Log first 3 project cards
-                    const computed = window.getComputedStyle(card as HTMLElement)
-                    fetch('http://127.0.0.1:7243/ingest/0f545d4a-2194-41e7-8131-580ff06d52fc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProjectsPage.tsx:285',message:'ProjectCard computed styles',data:{projectId:project.id,isActive,cardIndex:idx,borderRadius:computed.borderRadius,background:computed.background.substring(0,100),boxShadow:computed.boxShadow.substring(0,100),width:computed.width,height:computed.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{})
-                  }
-                })
-              }, 500)
-            }
-            // #endregion
             return (
               <ModuleCard
                 key={project.id}

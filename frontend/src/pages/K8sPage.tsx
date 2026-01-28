@@ -554,11 +554,21 @@ export default function K8sPage() {
                   onChange={() => handleSelectAll(podNames)}
                 />
               </TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell>Node</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Statut</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Node</ModuleSubtitle>
+              </TableCell>
+              <TableCell align="right">
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Actions</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -583,12 +593,18 @@ export default function K8sPage() {
                     onChange={() => handleSelectOne(pod.name)}
                   />
                 </TableCell>
-                <TableCell>{pod.name}</TableCell>
-                <TableCell>{pod.namespace}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{pod.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{pod.namespace}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip label={pod.status} color={getStatusColor(pod.status) as any} size="small" />
                 </TableCell>
-                <TableCell>{pod.node || '-'}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{pod.node || '-'}</ModuleBodyText>
+                </TableCell>
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                   <Tooltip title="Supprimer">
                     <IconButton
@@ -656,13 +672,27 @@ export default function K8sPage() {
                   onChange={() => handleSelectAll(deploymentNames)}
                 />
               </TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Replicas</TableCell>
-              <TableCell>Ready</TableCell>
-              <TableCell>Available</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Replicas</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Ready</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Available</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Statut</ModuleSubtitle>
+              </TableCell>
+              <TableCell align="right">
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Actions</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -687,9 +717,15 @@ export default function K8sPage() {
                     onChange={() => handleSelectOne(dep.name)}
                   />
                 </TableCell>
-                <TableCell>{dep.name}</TableCell>
-                <TableCell>{dep.namespace}</TableCell>
-                <TableCell>{dep.replicas}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{dep.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{dep.namespace}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{dep.replicas}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip
                     label={`${dep.readyReplicas}/${dep.replicas}`}
@@ -697,7 +733,9 @@ export default function K8sPage() {
                     size="small"
                   />
                 </TableCell>
-                <TableCell>{dep.availableReplicas}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{dep.availableReplicas}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   {dep.readyReplicas < dep.replicas ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -791,12 +829,24 @@ export default function K8sPage() {
                   onChange={() => handleSelectAll(serviceNames)}
                 />
               </TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Cluster IP</TableCell>
-              <TableCell>Ports</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Type</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Cluster IP</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Ports</ModuleSubtitle>
+              </TableCell>
+              <TableCell align="right">
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Actions</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -821,12 +871,18 @@ export default function K8sPage() {
                     onChange={() => handleSelectOne(svc.name)}
                   />
                 </TableCell>
-                <TableCell>{svc.name}</TableCell>
-                <TableCell>{svc.namespace}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{svc.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{svc.namespace}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip label={svc.type} size="small" />
                 </TableCell>
-                <TableCell>{svc.clusterIP || '-'}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{svc.clusterIP || '-'}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   {svc.ports?.map((p, idx) => (
                     <Chip key={idx} label={`${p.port}/${p.protocol}`} size="small" sx={{ mr: 0.5 }} />
@@ -888,16 +944,26 @@ export default function K8sPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Clés</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Clés</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredConfigMaps.map((cm) => (
               <TableRow key={cm.name}>
-                <TableCell>{cm.name}</TableCell>
-                <TableCell>{cm.namespace}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{cm.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{cm.namespace}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   {cm.dataKeys.map((key, idx) => (
                     <Chip key={idx} label={key} size="small" sx={{ mr: 0.5 }} />
@@ -945,17 +1011,29 @@ export default function K8sPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Clés</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Type</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Clés</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredSecrets.map((secret) => (
               <TableRow key={secret.name}>
-                <TableCell>{secret.name}</TableCell>
-                <TableCell>{secret.namespace}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{secret.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{secret.namespace}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip label={secret.type} size="small" />
                 </TableCell>
@@ -1003,18 +1081,30 @@ export default function K8sPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Nom</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Description</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Endpoint</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Statut</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Créé le</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.95)' }}>Actions</TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Description</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Endpoint</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Statut</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Créé le</ModuleSubtitle>
+                </TableCell>
+                <TableCell align="right">
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Actions</ModuleSubtitle>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {clusters.items.map((cluster) => (
                 <TableRow key={cluster.id}>
-                  <TableCell sx={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.95)' }}>
+                  <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <ModuleBodyText sx={{ fontWeight: 600 }}>
                         {cluster.name}
@@ -1030,8 +1120,12 @@ export default function K8sPage() {
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.9)' }}>{cluster.description || '-'}</TableCell>
-                  <TableCell sx={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.9)' }}>{cluster.endpoint || '-'}</TableCell>
+                  <TableCell>
+                    <ModuleBodyText>{cluster.description || '-'}</ModuleBodyText>
+                  </TableCell>
+                  <TableCell>
+                    <ModuleBodyText>{cluster.endpoint || '-'}</ModuleBodyText>
+                  </TableCell>
                   <TableCell>
                     {cluster.is_active ? (
                       <Chip label="Actif" color="success" size="small" sx={{ fontSize: '0.75rem', fontWeight: 500 }} />
@@ -1039,8 +1133,10 @@ export default function K8sPage() {
                       <Chip label="Inactif" color="default" size="small" sx={{ fontSize: '0.75rem', fontWeight: 500 }} />
                     )}
                   </TableCell>
-                  <TableCell sx={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                    {new Date(cluster.created_at).toLocaleDateString('fr-FR')}
+                  <TableCell>
+                    <ModuleBodyText>
+                      {new Date(cluster.created_at).toLocaleDateString('fr-FR')}
+                    </ModuleBodyText>
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
@@ -1109,25 +1205,47 @@ export default function K8sPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nom</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell>Version</TableCell>
-              <TableCell>CPU</TableCell>
-              <TableCell>Mémoire</TableCell>
-              <TableCell>Pods</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Statut</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Version</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>CPU</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Mémoire</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Pods</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredNodes.map((node) => (
               <TableRow key={node.name}>
-                <TableCell>{node.name}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.name}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip label={node.status} color={getStatusColor(node.status) as any} size="small" />
                 </TableCell>
-                <TableCell>{node.kubeletVersion}</TableCell>
-                <TableCell>{node.cpu}</TableCell>
-                <TableCell>{node.memory}</TableCell>
-                <TableCell>{node.pods}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.kubeletVersion}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.cpu}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.memory}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.pods}</ModuleBodyText>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -46,6 +46,7 @@ yarn-error.log*
 
 # Kubernetes
 *.kubeconfig
+kubeconfig-*.yaml
 
 # Docker
 docker-compose.override.yml

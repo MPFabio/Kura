@@ -167,5 +167,50 @@ code {
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgba(0, 229, 255, 0.8), rgba(179, 136, 255, 0.8));
-  boxShadow: '0 0 8px rgba(0, 229, 255, 0.4)';
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+
+/* Styles globaux pour forcer l'application des styles ModuleText et ModuleTitle */
+.module-title {
+  font-weight: 600 !important;
+  background: linear-gradient(135deg, #00E5FF, #B388FF) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important; /* Forcer color transparent pour que le dégradé soit visible */
+  font-family: 'Inter', sans-serif !important;
+  letter-spacing: 0.02em !important;
+  font-size: 2.5rem !important;
+  line-height: 1.2 !important;
+}
+
+.module-body-text {
+  font-family: 'Inter', sans-serif !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-size: 0.9375rem !important;
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+}
+
+.module-secondary-text {
+  font-family: 'Inter', sans-serif !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 0.9375rem !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+}
+
+.module-subtitle {
+  font-family: 'Inter', sans-serif !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-weight: 600 !important;
+  font-size: 1.125rem !important;
+  letter-spacing: 0.02em !important;
+}
+
+.module-caption {
+  font-family: 'Inter', sans-serif !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 400 !important;
 }

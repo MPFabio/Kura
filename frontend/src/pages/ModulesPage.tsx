@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { Grid, Typography, Box, Chip } from '@mui/material'
+import { Grid, Box, Chip, Typography } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material'
 import ModuleCard from '../components/ModuleCard'
+import ModuleTitle from '../components/ModuleTitle'
+import { ModuleBodyText, ModuleSecondaryText, ModuleSubtitle, ModuleCaption } from '../components/ModuleText'
 import TerraformIcon from '../components/icons/TerraformIcon'
 import KubernetesIcon from '../components/icons/KubernetesIcon'
 import AnsibleIcon from '../components/icons/AnsibleIcon'
@@ -111,21 +113,9 @@ export default function ModulesPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
-        <Typography
-          variant="h3"
-          component="h1"
-          sx={{
-            fontWeight: 600,
-            background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            fontFamily: '"Inter", sans-serif',
-            letterSpacing: '0.02em',
-          }}
-        >
+        <ModuleTitle>
           Modules
-        </Typography>
+        </ModuleTitle>
         <Chip
           label={`${modules.filter(m => m.active).length} actif${modules.filter(m => m.active).length > 1 ? 's' : ''} sur ${modules.length}`}
           sx={{
@@ -142,18 +132,6 @@ export default function ModulesPage() {
 
       <Grid container spacing={4}>
         {modules.map((module, idx) => {
-          // #region agent log
-          if (typeof window !== 'undefined') {
-            setTimeout(() => {
-              const gridItems = document.querySelectorAll('.MuiGrid-item')
-              const cardEl = gridItems[idx]?.querySelector('.MuiCard-root') as HTMLElement
-              if (cardEl) {
-                const computed = window.getComputedStyle(cardEl)
-                fetch('http://127.0.0.1:7243/ingest/0f545d4a-2194-41e7-8131-580ff06d52fc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ModulesPage.tsx:144',message:'ModuleCard computed styles',data:{moduleId:module.id,active:module.active,borderRadius:computed.borderRadius,background:computed.background.substring(0,100),boxShadow:computed.boxShadow.substring(0,100),width:computed.width,height:computed.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{})
-              }
-            }, 500)
-          }
-          // #endregion
           return (
             <Grid item xs={12} sm={6} key={module.id}>
               <ModuleCard
@@ -236,37 +214,24 @@ export default function ModulesPage() {
                   </Box>
 
                   {/* Nom du module */}
-                  <Typography
-                    variant="h4"
+                  <ModuleSubtitle
                     sx={{
-                      fontFamily: '"Inter", sans-serif',
-                      color: 'rgba(255, 255, 255, 0.98)',
                       mb: 2.5,
-                      fontWeight: 600,
-                      letterSpacing: '0.02em',
                       background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
                       backgroundClip: 'text',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
+                      fontSize: '1.5rem',
                     }}
                   >
                     {module.name}
-                  </Typography>
+                  </ModuleSubtitle>
 
                   {/* Description */}
                   {module.description && (
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontFamily: '"Inter", sans-serif',
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        fontSize: '0.9375rem',
-                        mb: 3,
-                        lineHeight: 1.6,
-                      }}
-                    >
+                    <ModuleSecondaryText sx={{ mb: 3 }}>
                       {module.description}
-                    </Typography>
+                    </ModuleSecondaryText>
                   )}
 
                   {/* Statistiques */}
@@ -318,18 +283,15 @@ export default function ModulesPage() {
                           >
                             {stat.value}
                           </Typography>
-                          <Typography
-                            variant="caption"
+                          <ModuleCaption
                             sx={{
-                              color: 'rgba(255, 255, 255, 0.7)',
-                              fontSize: '0.8125rem',
                               textTransform: 'uppercase',
                               letterSpacing: '0.08em',
                               fontWeight: 500,
                             }}
                           >
                             {stat.label}
-                          </Typography>
+                          </ModuleCaption>
                         </Box>
                       ))}
                     </Box>
@@ -338,11 +300,8 @@ export default function ModulesPage() {
                   {/* Features */}
                   {module.features && (
                     <Box sx={{ mt: 'auto', pt: 4 }}>
-                      <Typography
-                        variant="caption"
+                      <ModuleCaption
                         sx={{
-                          color: 'rgba(255, 255, 255, 0.6)',
-                          fontSize: '0.8125rem',
                           textTransform: 'uppercase',
                           letterSpacing: '0.12em',
                           mb: 2.5,
@@ -351,7 +310,7 @@ export default function ModulesPage() {
                         }}
                       >
                         Fonctionnalités
-                      </Typography>
+                      </ModuleCaption>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {module.features.map((feature, idx) => (
                           <Box
@@ -384,16 +343,9 @@ export default function ModulesPage() {
                                 flexShrink: 0,
                               }}
                             />
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color: 'rgba(255, 255, 255, 0.85)',
-                                fontSize: '0.9375rem',
-                                fontWeight: 400,
-                              }}
-                            >
+                            <ModuleBodyText>
                               {feature}
-                            </Typography>
+                            </ModuleBodyText>
                           </Box>
                         ))}
                       </Box>
@@ -452,17 +404,16 @@ export default function ModulesPage() {
                   </Box>
 
                   {/* Nom du module */}
-                  <Typography
-                    variant="h5"
+                  <ModuleSubtitle
                     sx={{
-                      fontFamily: '"Inter", sans-serif',
-                      color: 'rgba(255, 255, 255, 0.7)',
                       mb: 1,
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      fontSize: '1.25rem',
                       fontWeight: 500,
                     }}
                   >
                     {module.name}
-                  </Typography>
+                  </ModuleSubtitle>
 
                   {/* Subtitle */}
                   {module.subtitle && (
@@ -482,27 +433,22 @@ export default function ModulesPage() {
 
                   {/* Description */}
                   {module.description && (
-                    <Typography
-                      variant="body2"
+                    <ModuleSecondaryText
                       sx={{
-                        fontFamily: '"Inter", sans-serif',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontSize: '0.9375rem',
                         mb: 4,
-                        lineHeight: 1.7,
+                        color: 'rgba(255, 255, 255, 0.6)',
                         maxWidth: '320px',
                         mx: 'auto',
                       }}
                     >
                       {module.description}
-                    </Typography>
+                    </ModuleSecondaryText>
                   )}
 
                   {/* Features */}
                   {module.features && (
                     <Box sx={{ width: '100%', mt: 'auto' }}>
-                      <Typography
-                        variant="caption"
+                      <ModuleCaption
                         sx={{
                           color: 'rgba(255, 255, 255, 0.4)',
                           fontSize: '0.75rem',
@@ -513,7 +459,7 @@ export default function ModulesPage() {
                         }}
                       >
                         Fonctionnalités prévues
-                      </Typography>
+                      </ModuleCaption>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         {module.features.map((feature, idx) => (
                           <Box
@@ -533,15 +479,14 @@ export default function ModulesPage() {
                                 backgroundColor: 'rgba(179, 136, 255, 0.4)',
                               }}
                             />
-                            <Typography
-                              variant="body2"
+                            <ModuleSecondaryText
                               sx={{
                                 color: 'rgba(255, 255, 255, 0.5)',
                                 fontSize: '0.8125rem',
                               }}
                             >
                               {feature}
-                            </Typography>
+                            </ModuleSecondaryText>
                           </Box>
                         ))}
                       </Box>

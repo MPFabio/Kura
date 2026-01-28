@@ -291,7 +291,19 @@ export default function Layout() {
                     item.icon
                   )}
                 </ListItemIcon>
-                <ListItemText primary={item.text} />
+                <ListItemText 
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    sx: {
+                      background: 'linear-gradient(135deg, #00E5FF, #B388FF) !important',
+                      backgroundClip: 'text !important',
+                      WebkitBackgroundClip: 'text !important',
+                      WebkitTextFillColor: 'transparent !important',
+                      color: 'transparent !important',
+                      fontWeight: 500,
+                    },
+                  }}
+                />
               </ListItemButton>
             </ListItem>
           )
