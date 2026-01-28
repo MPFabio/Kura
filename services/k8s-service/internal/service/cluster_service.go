@@ -336,10 +336,13 @@ func (s *ClusterService) TestClusterConnection(ctx context.Context, cluster *mod
 	return status, nil
 }
 
-// rewriteKubeconfigServerForDocker remplace localhost/127.0.0.1 par host.docker.internal
+// rewriteKubeconfigServerForDocker remplace localhost/127.0.0.1/0.0.0.0 par host.docker.internal
 // dans les URLs server du kubeconfig pour que le conteneur puisse joindre un cluster sur l'hôte.
 func rewriteKubeconfigServerForDocker(content string) string {
 	out := content
+	// 0.0.0.0 n'est pas une adresse valide pour se connecter (c'est pour bind), on la remplace aussi
+	out = strings.ReplaceAll(out, "https://0.0.0.0:", "https://host.docker.internal:")
+	out = strings.ReplaceAll(out, "http://0.0.0.0:", "http://host.docker.internal:")
 	out = strings.ReplaceAll(out, "https://127.0.0.1:", "https://host.docker.internal:")
 	out = strings.ReplaceAll(out, "http://127.0.0.1:", "http://host.docker.internal:")
 	out = strings.ReplaceAll(out, "https://localhost:", "https://host.docker.internal:")
