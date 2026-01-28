@@ -13,7 +13,7 @@ from internal.client.tower_client import AnsibleTowerClient
 from internal.service.ansible_service import AnsibleService
 from internal.handler.ansible_handler import AnsibleHandler, create_router
 from internal.handler.webhook_handler import WebhookHandler, create_webhook_router
-from internal.handler.websocket_handler import WebSocketHandler, create_websocket_route
+from internal.handler.websocket_handler import WebSocketHandler
 from internal.metrics.prometheus import get_metrics_response
 
 # Configuration du logging
