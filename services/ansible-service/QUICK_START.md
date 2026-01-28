@@ -1,63 +1,27 @@
-# Quick Start - Service Ansible avec AWX dans KinD
+# Quick Start - Service Ansible avec AWX
 
-Guide rapide pour démarrer et tester le service Ansible avec AWX déployé sur KinD dans un codespace.
+Guide rapide pour démarrer et tester le service Ansible avec AWX via Docker Compose dans un codespace.
 
-## 🚀 Démarrage rapide (10 minutes)
+## 🚀 Démarrage rapide (5 minutes)
 
-### 1. Vérifier le cluster KinD
-
-```bash
-# Vérifier que le cluster existe
-kind get clusters
-
-# Si le cluster n'existe pas, le créer
-./scripts/setup-k8s.sh
-```
-
-### 2. Builder et déployer le service Ansible
+### 1. Démarrer les services
 
 ```bash
-# Builder l'image du service Ansible
-cd services/ansible-service
-docker build -t ansible-service:latest .
+# Depuis la racine du projet
+docker-compose up -d
 
-# Charger l'image dans KinD
-kind load docker-image ansible-service:latest --name kura
-
-# Retourner à la racine
-cd ../..
-```
-
-### 3. Déployer AWX et le service Ansible
-
-```bash
-# Déployer tous les services (y compris AWX et ansible-service)
-kubectl apply -k infrastructure/k8s/
-
-# Attendre que les services soient prêts
-kubectl wait --for=condition=ready --timeout=600s pod -l app=awx -n kura
-kubectl wait --for=condition=ready --timeout=300s pod -l app=ansible-service -n kura
+# Ou démarrer uniquement AWX et le service Ansible
+docker-compose up -d awx-postgres awx-memcached awx ansible-service
 ```
 
 **⏱️ AWX peut prendre 3-5 minutes** à démarrer complètement.
 
-### 4. Configurer le port-forward
+### 2. Vérifier que tout fonctionne
 
 ```bash
-# Dans des terminaux séparés ou en arrière-plan
-
-# Terminal 1: AWX
-kubectl port-forward svc/awx 8080:8080 -n kura
-
-# Terminal 2: Service Ansible
-kubectl port-forward svc/ansible-service 8083:8083 -n kura
-```
-
-### 5. Vérifier que tout fonctionne
-
-```bash
-# Vérifier AWX
-curl http://localhost:8080/api/v2/ping/
+# Vérifier AWX (attendre qu'il soit prêt)
+# Note: AWX est sur le port 8084 car 8080 est utilisé par auth-service
+curl http://localhost:8084/api/v2/ping/
 
 # Vérifier le service Ansible
 curl http://localhost:8083/health
@@ -69,9 +33,7 @@ bash test-service.sh
 
 ### 6. Accéder aux interfaces
 
-Après avoir configuré le port-forward :
-
-- **AWX Web UI** : http://localhost:8080 (admin/admin)
+- **AWX Web UI** : http://localhost:8084 (admin/admin) - *Note: port 8084 car 8080 est utilisé par auth-service*
 - **Service Ansible API** : http://localhost:8083/docs
 - **Métriques Prometheus** : http://localhost:8083/metrics
 
@@ -83,7 +45,7 @@ Après avoir configuré le port-forward :
 
 ```bash
 # Via port-forward
-curl -X POST http://localhost:8080/api/v2/organizations/ \
+curl -X POST http://localhost:8084/api/v2/organizations/ \
   -u admin:admin \
   -H "Content-Type: application/json" \
   -d '{"name": "Test Org"}'
@@ -105,13 +67,13 @@ curl -X POST http://localhost:8083/api/v1/ansible/playbooks/analyze \
   }'
 ```
 
-## 🔧 Configuration dans un Codespace GitHub avec KinD
+## 🔧 Configuration dans un Codespace GitHub
 
 ### Exposer les ports dans le codespace
 
 Dans l'interface GitHub Codespaces :
 1. Onglet "Ports"
-2. Exposer les ports après avoir fait le port-forward :
+2. Exposer les ports :
    - **8080** (AWX) - Public
    - **8083** (Service Ansible) - Public
 
@@ -121,67 +83,49 @@ Les URLs seront du type :
 - `https://your-codespace-8080.preview.app.github.dev` (AWX)
 - `https://your-codespace-8083.preview.app.github.dev` (Service Ansible)
 
-### Script de port-forward automatique
-
-Créez `scripts/port-forward-services.sh` :
-
-```bash
-#!/bin/bash
-# Port-forward pour AWX et le service Ansible
-
-kubectl port-forward svc/awx 8080:8080 -n kura &
-kubectl port-forward svc/ansible-service 8083:8083 -n kura &
-
-echo "Port-forward actif :"
-echo "  - AWX: http://localhost:8080"
-echo "  - Service Ansible: http://localhost:8083"
-echo ""
-echo "Appuyez sur Ctrl+C pour arrêter"
-wait
-```
-
 ## 🐛 Dépannage
 
 ### AWX ne démarre pas
 
 ```bash
 # Vérifier les logs
-kubectl logs -f deployment/awx -n kura
+docker-compose logs -f awx
 
-# Vérifier l'état des pods
-kubectl get pods -n kura | grep awx
+# Vérifier l'état des conteneurs
+docker-compose ps
 
 # Vérifier PostgreSQL
-kubectl exec -it deployment/awx-postgres -n kura -- pg_isready -U awx
+docker-compose exec awx-postgres pg_isready -U awx
 
-# Vérifier les événements
-kubectl describe pod -l app=awx -n kura
+# Redémarrer AWX
+docker-compose restart awx
 ```
 
 ### Le service ne peut pas se connecter à AWX
 
-1. Vérifier que AWX est prêt depuis le cluster :
+1. Vérifier que AWX est prêt :
    ```bash
-   kubectl run -it --rm debug --image=curlimages/curl --restart=Never -- curl http://awx:8080/api/v2/ping/
+   curl http://localhost:8084/api/v2/ping/
    ```
 
 2. Vérifier les logs du service :
    ```bash
-   kubectl logs -f deployment/ansible-service -n kura
+   docker-compose logs -f ansible-service
    ```
 
 3. Vérifier la configuration :
    ```bash
-   kubectl get configmap ansible-service-config -n kura -o yaml
+   docker-compose exec ansible-service env | grep ANSIBLE
    ```
 
 ### Rebuilder le service après modifications
 
 ```bash
-cd services/ansible-service
-docker build -t ansible-service:latest .
-kind load docker-image ansible-service:latest --name kura
-kubectl rollout restart deployment/ansible-service -n kura
+# Rebuilder l'image
+docker-compose build ansible-service
+
+# Redémarrer le service
+docker-compose up -d ansible-service
 ```
 
 ### Redis non disponible
@@ -189,8 +133,8 @@ kubectl rollout restart deployment/ansible-service -n kura
 Le service fonctionne sans Redis mais sans cache. Vérifier Redis :
 
 ```bash
-kubectl get pods -n kura | grep redis
-kubectl logs deployment/redis -n kura
+docker-compose ps redis
+docker-compose logs redis
 ```
 
 ## 📚 Prochaines étapes
@@ -220,13 +164,12 @@ kubectl logs deployment/redis -n kura
 ## 🛑 Arrêter les services
 
 ```bash
-# Arrêter les port-forwards (Ctrl+C dans les terminaux)
+# Arrêter tous les services
+docker-compose down
 
-# Supprimer les déploiements
-kubectl delete -k infrastructure/k8s/
+# Ou arrêter uniquement AWX et le service Ansible
+docker-compose stop awx ansible-service awx-postgres awx-memcached
 
-# Ou supprimer uniquement AWX et le service Ansible
-kubectl delete deployment awx awx-postgres awx-memcached ansible-service -n kura
-kubectl delete svc awx awx-postgres awx-memcached ansible-service -n kura
-kubectl delete pvc awx-pvc awx-postgres-pvc -n kura
+# Pour supprimer aussi les volumes (données AWX)
+docker-compose down -v
 ```

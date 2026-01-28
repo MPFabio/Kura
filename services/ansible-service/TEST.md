@@ -1,95 +1,53 @@
-# Guide de test du service Ansible avec AWX dans KinD
+# Guide de test du service Ansible avec AWX
 
-Ce guide explique comment tester le service Ansible dans un codespace avec AWX déployé sur KinD (Kubernetes in Docker).
+Ce guide explique comment tester le service Ansible dans un codespace avec AWX via Docker Compose.
 
 ## Prérequis
 
 - Codespace GitHub avec Docker
-- KinD installé et cluster créé
-- kubectl configuré pour le cluster KinD
+- Docker Compose installé
 - Accès à Internet pour télécharger les images Docker
 
-## Étape 1 : Vérifier le cluster KinD
+## Étape 1 : Démarrer les services avec Docker Compose
 
-### Vérifier que le cluster KinD est actif
-
-```bash
-# Vérifier le cluster
-kubectl cluster-info --context kind-kura
-
-# Vérifier les nodes
-kubectl get nodes
-```
-
-### Déployer AWX et le service Ansible sur KinD
-
-Les manifests Kubernetes sont déjà configurés dans `infrastructure/k8s/`. 
+### Démarrer tous les services
 
 ```bash
-# Builder l'image du service Ansible et la charger dans KinD
-cd services/ansible-service
-docker build -t ansible-service:latest .
-kind load docker-image ansible-service:latest --name kura
+# Depuis la racine du projet
+docker-compose up -d
 
-# Déployer tous les services (y compris AWX et ansible-service)
-cd ../..
-kubectl apply -k infrastructure/k8s/
-
-# Attendre que les pods soient prêts
-kubectl wait --for=condition=ready --timeout=300s pod -l app=awx-postgres -n kura
-kubectl wait --for=condition=ready --timeout=300s pod -l app=awx-memcached -n kura
-kubectl wait --for=condition=ready --timeout=600s pod -l app=awx -n kura
-kubectl wait --for=condition=ready --timeout=300s pod -l app=ansible-service -n kura
+# Ou démarrer uniquement AWX et le service Ansible
+docker-compose up -d awx-postgres awx-memcached awx ansible-service
 ```
 
 **⏱️ AWX peut prendre 3-5 minutes** à démarrer complètement. Surveillez les logs :
 
 ```bash
 # Vérifier les logs d'AWX
-kubectl logs -f deployment/awx -n kura
+docker-compose logs -f awx
 
-# Vérifier que AWX répond
-kubectl port-forward svc/awx 8080:8080 -n kura &
-curl http://localhost:8080/api/v2/ping/
+# Vérifier que AWX répond (port 8084 car 8080 est utilisé par auth-service)
+curl http://localhost:8084/api/v2/ping/
 ```
 
 ## Étape 2 : Accéder aux services
 
-### Port-forward pour accéder aux services depuis l'extérieur du cluster
+Les services sont directement accessibles via les ports exposés :
 
-```bash
-# Dans des terminaux séparés ou en arrière-plan
+- **AWX** : http://localhost:8084 (port 8084 car 8080 est utilisé par auth-service)
+- **Service Ansible** : http://localhost:8083
 
-# AWX (port 8080)
-kubectl port-forward svc/awx 8080:8080 -n kura
-
-# Service Ansible (port 8083)
-kubectl port-forward svc/ansible-service 8083:8083 -n kura
-```
-
-### Ou utiliser les services LoadBalancer (dans KinD)
-
-Si vous avez configuré un LoadBalancer pour KinD (comme MetalLB), les services seront accessibles directement via leurs IPs externes :
-
-```bash
-# Obtenir l'IP externe d'AWX
-kubectl get svc awx -n kura
-
-# Obtenir l'IP externe du service Ansible
-kubectl get svc ansible-service -n kura
-```
+Dans un codespace GitHub, exposez ces ports dans l'onglet "Ports" pour obtenir des URLs publiques.
 
 ## Étape 3 : Tester les endpoints
 
 ### Vérifier la santé du service
 
 ```bash
-# Si vous utilisez port-forward
 curl http://localhost:8083/health
-
-# Ou directement via kubectl
-kubectl exec -it deployment/ansible-service -n kura -- curl http://localhost:8083/health
 ```
+
+**Note** : AWX est accessible sur le port **8084** (au lieu de 8080) car le port 8080 est déjà utilisé par le service d'authentification.
 
 Réponse attendue :
 ```json
@@ -207,7 +165,7 @@ Ouvrez dans votre navigateur (après avoir fait le port-forward) :
 
 ### Via l'interface web AWX
 
-1. Accédez à http://localhost:8080
+1. Accédez à http://localhost:8084 (port 8084 car 8080 est utilisé par auth-service)
 2. Connectez-vous avec `admin` / `admin`
 3. Créez :
    - Une organisation
@@ -219,8 +177,8 @@ Ouvrez dans votre navigateur (après avoir fait le port-forward) :
 ### Via l'API AWX directement
 
 ```bash
-# Créer une organisation
-curl -X POST http://localhost:8080/api/v2/organizations/ \
+# Créer une organisation (AWX sur port 8084)
+curl -X POST http://localhost:8084/api/v2/organizations/ \
   -u admin:admin \
   -H "Content-Type: application/json" \
   -d '{
@@ -229,7 +187,7 @@ curl -X POST http://localhost:8080/api/v2/organizations/ \
   }'
 
 # Créer un inventaire
-curl -X POST http://localhost:8080/api/v2/inventories/ \
+curl -X POST http://localhost:8084/api/v2/inventories/ \
   -u admin:admin \
   -H "Content-Type: application/json" \
   -d '{

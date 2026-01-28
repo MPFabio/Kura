@@ -6,7 +6,7 @@
 set -e
 
 SERVICE_URL="${SERVICE_URL:-http://localhost:8083}"
-AWX_URL="${AWX_URL:-http://localhost:8080}"
+AWX_URL="${AWX_URL:-http://localhost:8084}"  # Port 8084 car 8080 est utilisé par auth-service
 
 echo "🧪 Test du service Ansible"
 echo "Service URL: $SERVICE_URL"
