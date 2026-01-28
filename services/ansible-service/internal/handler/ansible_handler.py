@@ -2,7 +2,7 @@
 import logging
 import time
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query, Path, Request
+from fastapi import APIRouter, HTTPException, Query, Path, Request, Body
 from fastapi.responses import JSONResponse
 
 from internal.service.ansible_service import AnsibleService
@@ -11,6 +11,7 @@ from internal.models.models import (
     InventoryDetail,
     JobTemplateDetail,
     JobHistoryResponse,
+    PlaybookAnalysisRequest,
 )
 from internal.metrics.prometheus import (
     api_requests_total,
@@ -413,11 +414,11 @@ class AnsibleHandler:
     # Playbook analysis
     def analyze_playbook(
         self,
-        playbook_content: str,
+        request: PlaybookAnalysisRequest,
     ):
         """Analyse un playbook en profondeur."""
         try:
-            result = self.service.analyze_playbook(playbook_content)
+            result = self.service.analyze_playbook(request.playbook_content)
             return result
         except Exception as e:
             logger.error(f"Erreur lors de l'analyse du playbook: {e}")
@@ -595,7 +596,7 @@ def create_router(handler: AnsibleHandler) -> APIRouter:
         handler.analyze_playbook,
         methods=["POST"],
         summary="Analyser un playbook",
-        description="Analyse en profondeur un playbook YAML",
+        description="Analyse en profondeur un playbook YAML. Body: {\"playbook_content\": \"...\"}",
     )
 
     return router

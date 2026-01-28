@@ -246,6 +246,11 @@ class OrganizationUpdate(BaseModel):
     default_environment: Optional[int] = None
 
 
+class PlaybookAnalysisRequest(BaseModel):
+    """Requête pour analyser un playbook."""
+    playbook_content: str
+
+
 class PlaybookAnalysis(BaseModel):
     """Analyse complète d'un playbook."""
     parsed: Dict[str, Any]
