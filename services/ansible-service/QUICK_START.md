@@ -2,34 +2,52 @@
 
 Guide rapide pour démarrer et tester le service Ansible avec AWX via Docker Compose dans un codespace.
 
-## 🚀 Démarrage rapide (5 minutes)
+## 🚀 Démarrage rapide (2 minutes)
 
-### 1. Démarrer les services
+### 1. Démarrer le service Ansible (sans AWX)
 
 ```bash
 # Depuis la racine du projet
-docker-compose up -d
+docker-compose up -d ansible-service
 
-# Ou démarrer uniquement AWX et le service Ansible
-docker-compose up -d awx-postgres awx-memcached awx ansible-service
+# Le service fonctionne sans AWX mais avec fonctionnalités limitées
 ```
 
-**⏱️ AWX peut prendre 3-5 minutes** à démarrer complètement.
-
-### 2. Vérifier que tout fonctionne
+### 2. Vérifier que le service fonctionne
 
 ```bash
-# Vérifier AWX (attendre qu'il soit prêt)
-# Note: AWX est sur le port 8084 car 8080 est utilisé par auth-service
-curl http://localhost:8084/api/v2/ping/
-
 # Vérifier le service Ansible
 curl http://localhost:8083/health
 
-# Lancer les tests
-cd services/ansible-service
-bash test-service.sh
+# La réponse devrait indiquer "ansible_tower_configured": false
+# C'est normal si AWX n'est pas configuré
 ```
+
+### 3. Tester les fonctionnalités disponibles sans AWX
+
+```bash
+# Analyser un playbook (fonctionne sans AWX)
+curl -X POST http://localhost:8083/api/v1/ansible/playbooks/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "playbook_content": "---\n- name: Test\n  hosts: localhost\n  tasks:\n    - debug:\n        msg: Hello"
+  }'
+
+# Vérifier les métriques Prometheus
+curl http://localhost:8083/metrics
+
+# Accéder à la documentation
+# http://localhost:8083/docs
+```
+
+## 📋 Configuration AWX (optionnel)
+
+Pour utiliser toutes les fonctionnalités (jobs, inventaires, templates), vous devez configurer AWX. Voir `AWX_SETUP.md` pour les instructions détaillées.
+
+**Note** : AWX n'a plus d'image Docker officielle simple. Les options sont :
+- Utiliser une instance AWX existante
+- Installer AWX via Kubernetes/AWX Operator
+- Construire AWX depuis les sources
 
 ### 6. Accéder aux interfaces
 
