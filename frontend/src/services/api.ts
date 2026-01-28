@@ -1,6 +1,12 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+// Utiliser par défaut le même origin que le frontend,
+// et laisser nginx proxyfier /api vers Kong (voir nginx.conf).
+// On peut toujours surcharger via VITE_API_BASE_URL si besoin.
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.trim() !== ''
+    ? import.meta.env.VITE_API_BASE_URL
+    : '/api'
 
 class ApiClient {
   private client: AxiosInstance
