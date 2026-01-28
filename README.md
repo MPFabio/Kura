@@ -189,7 +189,7 @@ kubectl get all -n kura
 
 ## Documentation
 
-Voir `docs/` pour plus de détails sur l'architecture et les services.
+Voir `docs/` pour l'architecture et les services.
 
 ## Licence
 

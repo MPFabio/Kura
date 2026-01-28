@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/modulops/k8s-service/internal/config"
 	"github.com/modulops/k8s-service/internal/models"
@@ -29,9 +29,9 @@ type ClusterCache interface {
 
 // ClusterService gère les clusters Kubernetes.
 type ClusterService struct {
-	cache          ClusterCache
-	cfg            *config.Config
-	clusters       map[string]*models.Cluster // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
+	cache           ClusterCache
+	cfg             *config.Config
+	clusters        map[string]*models.Cluster // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
 	activeClusterID string
 }
 
@@ -42,15 +42,15 @@ func NewClusterService(cache ClusterCache, cfg *config.Config) *ClusterService {
 		cfg:      cfg,
 		clusters: make(map[string]*models.Cluster),
 	}
-	
+
 	// Charger les clusters depuis le cache au démarrage
 	// Utiliser un contexte avec timeout pour éviter les blocages
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	log.Printf("🔄 Initialisation du ClusterService, chargement depuis Redis...")
 	cs.loadClustersFromCache(ctx)
-	
+
 	return cs
 }
 
@@ -256,8 +256,8 @@ func (s *ClusterService) TestClusterConnection(ctx context.Context, cluster *mod
 	// Validation de l'endpoint en production
 	isProduction := s.cfg.Environment == "production"
 	if isProduction && cluster.Endpoint != "" {
-		if strings.Contains(cluster.Endpoint, "127.0.0.1") || 
-			strings.Contains(cluster.Endpoint, "localhost") || 
+		if strings.Contains(cluster.Endpoint, "127.0.0.1") ||
+			strings.Contains(cluster.Endpoint, "localhost") ||
 			strings.Contains(cluster.Endpoint, "host.docker.internal") {
 			status.Error = "endpoints locaux interdits en production"
 			return status, nil
@@ -305,7 +305,7 @@ func (s *ClusterService) TestClusterConnection(ctx context.Context, cluster *mod
 	if maxRetries == 0 {
 		maxRetries = 3
 	}
-	
+
 	for i := 0; i < maxRetries; i++ {
 		version, err = clientset.Discovery().ServerVersion()
 		if err == nil {
@@ -315,7 +315,7 @@ func (s *ClusterService) TestClusterConnection(ctx context.Context, cluster *mod
 			time.Sleep(time.Duration(i+1) * time.Second) // Backoff exponentiel
 		}
 	}
-	
+
 	if err != nil {
 		status.Error = fmt.Sprintf("impossible de se connecter au cluster après %d tentatives: %v", maxRetries, err)
 		return status, nil
@@ -336,6 +336,17 @@ func (s *ClusterService) TestClusterConnection(ctx context.Context, cluster *mod
 	return status, nil
 }
 
+// rewriteKubeconfigServerForDocker remplace localhost/127.0.0.1 par host.docker.internal
+// dans les URLs server du kubeconfig pour que le conteneur puisse joindre un cluster sur l'hôte.
+func rewriteKubeconfigServerForDocker(content string) string {
+	out := content
+	out = strings.ReplaceAll(out, "https://127.0.0.1:", "https://host.docker.internal:")
+	out = strings.ReplaceAll(out, "http://127.0.0.1:", "http://host.docker.internal:")
+	out = strings.ReplaceAll(out, "https://localhost:", "https://host.docker.internal:")
+	out = strings.ReplaceAll(out, "http://localhost:", "http://host.docker.internal:")
+	return out
+}
+
 // saveKubeconfigToTempFile sauvegarde un kubeconfig dans un fichier temporaire.
 func (s *ClusterService) saveKubeconfigToTempFile(cluster *models.Cluster) (string, error) {
 	// Créer un répertoire temporaire pour les kubeconfigs
@@ -349,13 +360,15 @@ func (s *ClusterService) saveKubeconfigToTempFile(cluster *models.Cluster) (stri
 		if decoded, err := base64.StdEncoding.DecodeString(cluster.Kubeconfig); err == nil {
 			kubeconfigContent = string(decoded)
 		} else {
-			// Sinon, utiliser directement
 			kubeconfigContent = cluster.Kubeconfig
 		}
 	}
 
-	// Ne pas modifier le kubeconfig ici - laisser client.go gérer TLS via ConfigOverrides
-	// Cela évite de casser la structure YAML du kubeconfig
+	// En dev/Docker : réécrire localhost/127.0.0.1 -> host.docker.internal pour que
+	// le conteneur puisse joindre un cluster tournant sur l'hôte (minikube, k3d, etc.)
+	if s.cfg.Environment != "production" && kubeconfigContent != "" {
+		kubeconfigContent = rewriteKubeconfigServerForDocker(kubeconfigContent)
+	}
 
 	// Sauvegarder dans un fichier temporaire
 	filePath := filepath.Join(tmpDir, fmt.Sprintf("%s-config-%d", cluster.ID, time.Now().UnixNano()))
@@ -396,16 +409,16 @@ func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 			log.Printf("⚠️  Cluster %s non trouvé dans le cache (ancien format)", id)
 			continue
 		}
-		
+
 		var cluster models.Cluster
 		if err := json.Unmarshal([]byte(cached), &cluster); err != nil {
 			log.Printf("⚠️  Erreur lors du parsing du cluster %s: %v", id, err)
 			continue
 		}
-		
+
 		// Si le cluster n'a pas de project_id, on le laisse vide
 		// Il sera assigné lors de la création via l'API avec le project_id de l'utilisateur
-		
+
 		s.clusters[cluster.ID] = &cluster
 		log.Printf("✅ Cluster chargé: %s (%s) - Projet: %s", cluster.ID, cluster.Name, cluster.ProjectID)
 	}
@@ -432,6 +445,6 @@ func (s *ClusterService) saveClustersList(ctx context.Context) {
 	}
 	idsJSON, _ := json.Marshal(ids)
 	// Pas d'expiration pour les configurations critiques
-	_ = s.cache.Set(ctx, "k8s:clusters:list", string(idsJSON), 0) // 0 = pas d'expiration
+	_ = s.cache.Set(ctx, "k8s:clusters:list", string(idsJSON), 0)     // 0 = pas d'expiration
 	_ = s.cache.Set(ctx, "k8s:clusters:active", s.activeClusterID, 0) // 0 = pas d'expiration
 }
