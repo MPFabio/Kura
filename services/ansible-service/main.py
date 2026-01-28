@@ -77,13 +77,18 @@ async def lifespan(app: FastAPI):
             webhook_handler = None
             websocket_handler = None
 
-        # Les routes seront configurées dans startup_event()
-        logger.info("Initialisation terminée, configuration des routes...")
-
     except Exception as e:
         logger.error(f"Erreur lors de l'initialisation: {e}", exc_info=True)
         # Ne pas lever l'exception pour permettre au service de démarrer même en mode dégradé
         logger.warning("Le service démarre en mode dégradé")
+
+    # Configurer les routes maintenant que tout est initialisé (même en mode dégradé)
+    logger.info("Configuration des routes...")
+    try:
+        setup_routes()
+    except Exception as e:
+        logger.error(f"Erreur lors de la configuration des routes: {e}", exc_info=True)
+        logger.warning("Le service démarre sans certaines routes")
 
     yield
 
@@ -152,45 +157,52 @@ def setup_routes():
     global ansible_service, webhook_handler, websocket_handler, tower_client
 
     try:
+        logger.info(f"Configuration des routes - ansible_service: {ansible_service is not None}, webhook_handler: {webhook_handler is not None}")
+        
         if ansible_service is None:
             logger.warning("Service Ansible non initialisé - les routes ne seront pas disponibles")
             return
 
         # Routes principales Ansible
+        logger.info("Création du handler Ansible...")
         handler = AnsibleHandler(ansible_service)
+        logger.info("Création du router Ansible...")
         router = create_router(handler)
+        logger.info("Ajout du router Ansible à l'application...")
         app.include_router(router, prefix="/api/v1")
+        logger.info("Router Ansible ajouté avec succès")
 
         # Routes webhooks
         if webhook_handler:
+            logger.info("Configuration des routes webhooks...")
             webhook_router = create_webhook_router(webhook_handler)
             app.include_router(webhook_router, prefix="/api/v1")
+            logger.info("Routes webhooks ajoutées avec succès")
+        else:
+            logger.warning("webhook_handler est None - les routes webhooks ne seront pas disponibles")
 
         # Route WebSocket pour streaming
         if websocket_handler and tower_client:
+            logger.info("Configuration de la route WebSocket...")
             from fastapi import WebSocket, Path
             
             async def websocket_endpoint(websocket: WebSocket, job_id: int = Path(...)):
                 await websocket_handler.handle_websocket(websocket, job_id)
             
             app.add_api_websocket_route("/api/v1/ansible/jobs/{job_id}/stream", websocket_endpoint)
+            logger.info("Route WebSocket ajoutée avec succès")
+        else:
+            logger.info("WebSocket non configuré (websocket_handler ou tower_client manquant)")
         
-        logger.info("Routes configurées avec succès")
+        logger.info("✅ Routes configurées avec succès")
     except Exception as e:
-        logger.error(f"Erreur lors de la configuration des routes: {e}", exc_info=True)
+        logger.error(f"❌ Erreur lors de la configuration des routes: {e}", exc_info=True)
         # Ne pas lever l'exception pour permettre au service de démarrer même si certaines routes échouent
+        import traceback
+        logger.error(f"Traceback complet: {traceback.format_exc()}")
 
 
-# Configurer les routes après le démarrage
-@app.on_event("startup")
-async def startup_event():
-    """Événement de démarrage."""
-    try:
-        setup_routes()
-        logger.info("Service Ansible prêt et routes configurées")
-    except Exception as e:
-        logger.error(f"Erreur lors de la configuration des routes au démarrage: {e}", exc_info=True)
-        # Le service peut continuer même si certaines routes échouent
+# Les routes sont maintenant configurées dans le lifespan avant le yield
 
 
 if __name__ == "__main__":
