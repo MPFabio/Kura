@@ -23,10 +23,10 @@ type Cache interface {
 
 // TerraformService contient la logique métier autour de Terraform.
 type TerraformService struct {
-	parser   *parser.TFStateParser
-	cache    Cache
-	cfg      *config.Config
-	states   map[string]*models.StateFile // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
+	parser *parser.TFStateParser
+	cache  Cache
+	cfg    *config.Config
+	states map[string]*models.StateFile // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
 }
 
 // NewTerraformService crée un nouveau service Terraform.
@@ -136,27 +136,42 @@ func (s *TerraformService) GetStateFile(ctx context.Context, id string) (*models
 	return nil, fmt.Errorf("fichier d'état non trouvé: %s", id)
 }
 
-// ListStateFiles retourne la liste de tous les fichiers d'état.
-func (s *TerraformService) ListStateFiles(ctx context.Context) ([]*models.StateFile, error) {
+// ListStateFiles retourne la liste des fichiers d'état, filtrés par project_id si fourni.
+func (s *TerraformService) ListStateFiles(ctx context.Context, projectID string) ([]*models.StateFile, error) {
 	resultMap := make(map[string]*models.StateFile)
-	
+
 	// Charger depuis la mémoire
 	for _, stateFile := range s.states {
+		// Filtrer par project_id si fourni
+		if projectID != "" && stateFile.ProjectID != projectID {
+			continue
+		}
 		resultMap[stateFile.ID] = stateFile
 	}
-	
+
 	// Charger depuis Redis si l'interface Keys est disponible
 	type KeysCache interface {
 		Keys(ctx context.Context, pattern string) ([]string, error)
 	}
 	if cacheWithKeys, ok := s.cache.(KeysCache); ok {
-		keys, err := cacheWithKeys.Keys(ctx, "terraform:state:*")
+		// Utiliser un pattern qui inclut project_id si fourni
+		var pattern string
+		if projectID != "" {
+			pattern = fmt.Sprintf("terraform:state:%s:*", projectID)
+		} else {
+			pattern = "terraform:state:*"
+		}
+		keys, err := cacheWithKeys.Keys(ctx, pattern)
 		if err == nil {
 			for _, key := range keys {
 				cached, err := s.cache.Get(ctx, key)
 				if err == nil && cached != "" {
 					var stateFile models.StateFile
 					if err := json.Unmarshal([]byte(cached), &stateFile); err == nil {
+						// Filtrer par project_id si fourni (pour les anciens formats sans project_id dans la clé)
+						if projectID != "" && stateFile.ProjectID != projectID {
+							continue
+						}
 						resultMap[stateFile.ID] = &stateFile
 						// Mettre aussi en mémoire pour éviter de recharger
 						s.states[stateFile.ID] = &stateFile
@@ -165,13 +180,13 @@ func (s *TerraformService) ListStateFiles(ctx context.Context) ([]*models.StateF
 			}
 		}
 	}
-	
+
 	// Convertir en slice
 	result := make([]*models.StateFile, 0, len(resultMap))
 	for _, stateFile := range resultMap {
 		result = append(result, stateFile)
 	}
-	
+
 	return result, nil
 }
 
@@ -279,7 +294,7 @@ func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string, 
 		stateTTL := 30 * 24 * time.Hour
 		_ = s.cache.Set(ctx, cacheKey, string(stateJSON), stateTTL)
 	}
-	
+
 	// Mettre à jour en mémoire
 	s.states[stateFile.ID] = stateFile
 

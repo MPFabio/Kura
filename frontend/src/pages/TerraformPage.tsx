@@ -45,12 +45,14 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material'
 import { terraformService, TerraformState, terraformSourceService, TerraformDriftResult } from '../services/terraformService'
+import { useProject } from '../contexts/ProjectContext'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleButton from '../components/ModuleButton'
 import ModuleCard from '../components/ModuleCard'
 import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
 export default function TerraformPage() {
+  const { currentProject } = useProject()
   const [activeTab, setActiveTab] = useState(0)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [stateName, setStateName] = useState('')
@@ -103,9 +105,12 @@ export default function TerraformPage() {
   const queryClient = useQueryClient()
 
   const { data: states, isLoading, error, refetch } = useQuery({
-    queryKey: ['terraform-states'],
+    queryKey: ['terraform-states', currentProject?.id],
     queryFn: async () => {
-      const statesData = await terraformService.getStates()
+      if (!currentProject) {
+        return { items: [] }
+      }
+      const statesData = await terraformService.getStates(currentProject.id)
       // Pour chaque état, charger le résumé si les ressources ne sont pas disponibles
       const statesWithCounts = await Promise.all(
         statesData.items.map(async (state) => {
