@@ -116,6 +116,7 @@ app.add_middleware(
 
 
 @app.get("/health")
+@app.head("/health")
 async def health_check():
     """Endpoint de santé."""
     try:
