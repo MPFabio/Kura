@@ -51,8 +51,10 @@ export default function ModulesPage() {
     enabled: !!currentProject?.id,
   })
 
-  const statesCount = terraformStatesData?.items?.length ?? 0
-  const clustersCount = clustersData?.items?.length ?? 0
+  const hasProject = !!currentProject?.id
+  const statesCount = hasProject ? (terraformStatesData?.items?.length ?? 0) : null
+  const clustersCount = hasProject ? (clustersData?.items?.length ?? 0) : null
+  const formatStat = (n: number | null) => (n === null ? '—' : String(n))
 
   const modules: Module[] = [
     {
@@ -66,8 +68,8 @@ export default function ModulesPage() {
       statusText: 'Module actif',
       description: 'Gestion complète de vos états Terraform avec synchronisation cloud et détection de drift en temps réel.',
       stats: [
-        { label: 'États', value: String(statesCount) },
-        { label: 'Sources', value: String(statesCount) },
+        { label: 'États', value: formatStat(statesCount) },
+        { label: 'Sources', value: formatStat(statesCount) },
         { label: 'Drifts', value: '0' },
       ],
       features: [
@@ -86,7 +88,7 @@ export default function ModulesPage() {
       statusText: 'Module actif',
       description: 'Gestion complète de vos clusters Kubernetes avec terminal interactif et actions en masse.',
       stats: [
-        { label: 'Clusters', value: String(clustersCount) },
+        { label: 'Clusters', value: formatStat(clustersCount) },
         { label: 'Pods', value: '0' },
         { label: 'Services', value: '0' },
       ],
