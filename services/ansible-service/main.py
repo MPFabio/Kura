@@ -84,11 +84,7 @@ async def lifespan(app: FastAPI):
 
     # Configurer les routes maintenant que tout est initialisé (même en mode dégradé)
     logger.info("Configuration des routes...")
-    try:
-        setup_routes()
-    except Exception as e:
-        logger.error(f"Erreur lors de la configuration des routes: {e}", exc_info=True)
-        logger.warning("Le service démarre sans certaines routes")
+    setup_routes()  # setup_routes() gère déjà ses propres exceptions
 
     yield
 
@@ -164,13 +160,23 @@ def setup_routes():
             return
 
         # Routes principales Ansible
-        logger.info("Création du handler Ansible...")
-        handler = AnsibleHandler(ansible_service)
-        logger.info("Création du router Ansible...")
-        router = create_router(handler)
-        logger.info("Ajout du router Ansible à l'application...")
-        app.include_router(router, prefix="/api/v1")
-        logger.info("Router Ansible ajouté avec succès")
+        try:
+            logger.info("Création du handler Ansible...")
+            handler = AnsibleHandler(ansible_service)
+            logger.info("Handler Ansible créé avec succès")
+            
+            logger.info("Création du router Ansible...")
+            router = create_router(handler)
+            logger.info("Router Ansible créé avec succès")
+            
+            logger.info("Ajout du router Ansible à l'application...")
+            app.include_router(router, prefix="/api/v1")
+            logger.info("✅ Router Ansible ajouté avec succès")
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la configuration des routes Ansible: {e}", exc_info=True)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Continuer pour configurer les autres routes même si les routes Ansible échouent
 
         # Routes webhooks
         if webhook_handler:
