@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Grid, Box, Chip, Typography } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -11,6 +12,9 @@ import TerraformIcon from '../components/icons/TerraformIcon'
 import KubernetesIcon from '../components/icons/KubernetesIcon'
 import AnsibleIcon from '../components/icons/AnsibleIcon'
 import MonitoringIcon from '../components/icons/MonitoringIcon'
+import { useProject } from '../contexts/ProjectContext'
+import { terraformService } from '../services/terraformService'
+import { clusterService } from '../services/clusterService'
 
 interface Module {
   id: string
@@ -33,6 +37,22 @@ interface Module {
 
 export default function ModulesPage() {
   const navigate = useNavigate()
+  const { currentProject } = useProject()
+
+  const { data: terraformStatesData } = useQuery({
+    queryKey: ['terraform-states', currentProject?.id],
+    queryFn: () => terraformService.getStates(currentProject!.id),
+    enabled: !!currentProject?.id,
+  })
+
+  const { data: clustersData } = useQuery({
+    queryKey: ['clusters', currentProject?.id],
+    queryFn: () => clusterService.getClusters(currentProject!.id),
+    enabled: !!currentProject?.id,
+  })
+
+  const statesCount = terraformStatesData?.items?.length ?? 0
+  const clustersCount = clustersData?.items?.length ?? 0
 
   const modules: Module[] = [
     {
@@ -46,8 +66,8 @@ export default function ModulesPage() {
       statusText: 'Module actif',
       description: 'Gestion complète de vos états Terraform avec synchronisation cloud et détection de drift en temps réel.',
       stats: [
-        { label: 'États', value: '2' },
-        { label: 'Sources', value: '2' },
+        { label: 'États', value: String(statesCount) },
+        { label: 'Sources', value: String(statesCount) },
         { label: 'Drifts', value: '0' },
       ],
       features: [
@@ -66,9 +86,9 @@ export default function ModulesPage() {
       statusText: 'Module actif',
       description: 'Gestion complète de vos clusters Kubernetes avec terminal interactif et actions en masse.',
       stats: [
-        { label: 'Clusters', value: '1' },
-        { label: 'Pods', value: '12' },
-        { label: 'Services', value: '5' },
+        { label: 'Clusters', value: String(clustersCount) },
+        { label: 'Pods', value: '0' },
+        { label: 'Services', value: '0' },
       ],
       features: [
         'Gestion multi-clusters',
