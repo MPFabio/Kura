@@ -5,6 +5,8 @@ WORKDIR /app
 # Installer les dépendances système
 RUN apt-get update && apt-get install -y \
     gcc \
+    wget \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copier les fichiers de dépendances

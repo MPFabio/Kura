@@ -68,21 +68,33 @@ async def lifespan(app: FastAPI):
         logger.info("Service Ansible initialisé")
 
         # Initialiser les handlers webhook et websocket
-        webhook_handler = WebhookHandler()
-        websocket_handler = WebSocketHandler(tower_client)
-        logger.info("Handlers webhook et websocket initialisés")
+        try:
+            webhook_handler = WebhookHandler()
+            websocket_handler = WebSocketHandler(tower_client)
+            logger.info("Handlers webhook et websocket initialisés")
+        except Exception as e:
+            logger.warning(f"Erreur lors de l'initialisation des handlers webhook/websocket: {e}")
+            webhook_handler = None
+            websocket_handler = None
+
+        # Les routes seront configurées dans startup_event()
+        logger.info("Initialisation terminée, configuration des routes...")
 
     except Exception as e:
-        logger.error(f"Erreur lors de l'initialisation: {e}")
-        raise
+        logger.error(f"Erreur lors de l'initialisation: {e}", exc_info=True)
+        # Ne pas lever l'exception pour permettre au service de démarrer même en mode dégradé
+        logger.warning("Le service démarre en mode dégradé")
 
     yield
 
     # Arrêt
     logger.info("Arrêt du service Ansible...")
     if cache:
-        cache.close()
-        logger.info("Cache Redis fermé")
+        try:
+            cache.close()
+            logger.info("Cache Redis fermé")
+        except Exception as e:
+            logger.error(f"Erreur lors de la fermeture de Redis: {e}")
 
 
 # Créer l'application FastAPI
@@ -106,14 +118,25 @@ app.add_middleware(
 @app.get("/health")
 async def health_check():
     """Endpoint de santé."""
-    return JSONResponse(
-        content={
-            "status": "ok",
-            "service": "ansible-service",
-            "ansible_tower_configured": config.ansible_tower_url is not None if config else False,
-            "redis_available": cache is not None,
-        }
-    )
+    try:
+        return JSONResponse(
+            content={
+                "status": "ok",
+                "service": "ansible-service",
+                "ansible_tower_configured": config.ansible_tower_url is not None if config else False,
+                "redis_available": cache is not None,
+            }
+        )
+    except Exception as e:
+        logger.error(f"Erreur dans health check: {e}")
+        return JSONResponse(
+            content={
+                "status": "error",
+                "service": "ansible-service",
+                "error": str(e),
+            },
+            status_code=500
+        )
 
 
 @app.get("/metrics")
@@ -127,35 +150,46 @@ def setup_routes():
     """Configure les routes de l'API."""
     global ansible_service, webhook_handler, websocket_handler, tower_client
 
-    if ansible_service is None:
-        logger.warning("Service Ansible non initialisé - les routes ne seront pas disponibles")
-        return
+    try:
+        if ansible_service is None:
+            logger.warning("Service Ansible non initialisé - les routes ne seront pas disponibles")
+            return
 
-    # Routes principales Ansible
-    handler = AnsibleHandler(ansible_service)
-    router = create_router(handler)
-    app.include_router(router, prefix="/api/v1")
+        # Routes principales Ansible
+        handler = AnsibleHandler(ansible_service)
+        router = create_router(handler)
+        app.include_router(router, prefix="/api/v1")
 
-    # Routes webhooks
-    if webhook_handler:
-        webhook_router = create_webhook_router(webhook_handler)
-        app.include_router(webhook_router, prefix="/api/v1")
+        # Routes webhooks
+        if webhook_handler:
+            webhook_router = create_webhook_router(webhook_handler)
+            app.include_router(webhook_router, prefix="/api/v1")
 
-    # Route WebSocket pour streaming
-    if websocket_handler and tower_client:
-        from fastapi import WebSocket, Path
+        # Route WebSocket pour streaming
+        if websocket_handler and tower_client:
+            from fastapi import WebSocket, Path
+            
+            async def websocket_endpoint(websocket: WebSocket, job_id: int = Path(...)):
+                await websocket_handler.handle_websocket(websocket, job_id)
+            
+            app.add_api_websocket_route("/api/v1/ansible/jobs/{job_id}/stream", websocket_endpoint)
         
-        async def websocket_endpoint(websocket: WebSocket, job_id: int = Path(...)):
-            await websocket_handler.handle_websocket(websocket, job_id)
-        
-        app.add_api_websocket_route("/api/v1/ansible/jobs/{job_id}/stream", websocket_endpoint)
+        logger.info("Routes configurées avec succès")
+    except Exception as e:
+        logger.error(f"Erreur lors de la configuration des routes: {e}", exc_info=True)
+        # Ne pas lever l'exception pour permettre au service de démarrer même si certaines routes échouent
 
 
 # Configurer les routes après le démarrage
 @app.on_event("startup")
 async def startup_event():
     """Événement de démarrage."""
-    setup_routes()
+    try:
+        setup_routes()
+        logger.info("Service Ansible prêt et routes configurées")
+    except Exception as e:
+        logger.error(f"Erreur lors de la configuration des routes au démarrage: {e}", exc_info=True)
+        # Le service peut continuer même si certaines routes échouent
 
 
 if __name__ == "__main__":
