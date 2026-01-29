@@ -104,6 +104,7 @@ services:
       - auth-service
       - terraform-service
       - k8s-service
+      - ansible-service
     healthcheck:
       test: ["CMD", "kong", "health"]
       interval: 10s

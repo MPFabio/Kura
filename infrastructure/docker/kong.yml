@@ -54,17 +54,23 @@ services:
     - DELETE
 
 - name: ansible-service
-  url: http://ansible-service:8080
+  url: http://ansible-service:8083
   routes:
   - name: ansible-route
     paths:
-    - /api/ansible
+    - /api/v1/ansible
     strip_path: false
     methods:
     - GET
     - POST
     - PUT
     - DELETE
+  - name: ansible-webhooks-route
+    paths:
+    - /api/v1/webhooks/ansible-tower
+    strip_path: false
+    methods:
+    - POST
 
 - name: pipeline-service
   url: http://pipeline-service:8080
