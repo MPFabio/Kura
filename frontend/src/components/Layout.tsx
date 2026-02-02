@@ -83,9 +83,9 @@ export default function Layout() {
     <div>
       <Box
         sx={{
-          background: 'rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(30px) saturate(180%)',
-          borderBottom: '1px solid rgba(176, 190, 197, 0.1)',
+          background: 'rgba(0, 0, 0, 0.2)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           px: 2,
           py: 2,
         }}
@@ -154,8 +154,8 @@ export default function Layout() {
           <Logo variant="full" size="small" />
         </Box>
       </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(176, 190, 197, 0.1)', mb: 1 }} />
-      <Box sx={{ px: 2, py: 2, background: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(30px) saturate(180%)' }}>
+      <Divider sx={{ borderColor: 'rgba(0, 184, 212, 0.2)', mb: 1 }} />
+      <Box sx={{ px: 2, py: 2, background: 'rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(30px) saturate(180%)' }}>
         <FormControl fullWidth size="small">
           <Select
             value={currentProject?.id || ''}
@@ -172,20 +172,20 @@ export default function Layout() {
             MenuProps={{
               PaperProps: {
                 sx: {
-                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  backgroundColor: 'rgba(26, 35, 50, 0.98)',
                   backdropFilter: 'blur(30px) saturate(180%)',
-                  border: '1px solid rgba(176, 190, 197, 0.1)',
+                  border: '1px solid rgba(0, 229, 255, 0.3)',
                   borderRadius: '12px',
                   mt: 1,
                 },
               },
             }}
             sx={{
-              color: '#FFFFFF',
-              backgroundColor: 'rgba(0, 0, 0, 0.2)',
+              color: '#f0f0f0',
+              backgroundColor: 'rgba(26, 35, 50, 0.8)',
               backdropFilter: 'blur(10px)',
               '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(176, 190, 197, 0.3)',
+                borderColor: 'rgba(0, 229, 255, 0.3)',
               },
               '&:hover .MuiOutlinedInput-notchedOutline': {
                 borderColor: 'rgba(0, 229, 255, 0.5)',
@@ -194,7 +194,7 @@ export default function Layout() {
                 borderColor: 'rgba(0, 229, 255, 0.8)',
               },
               '& .MuiSelect-icon': {
-                color: '#FFFFFF',
+                color: '#b8b8b8',
               },
               '& .MuiSelect-select': {
                 backgroundColor: 'transparent',
@@ -204,8 +204,8 @@ export default function Layout() {
               if (!selected) {
                 return (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FolderIcon sx={{ fontSize: 16 }} />
-                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                    <FolderIcon sx={{ fontSize: 16, color: '#b8b8b8' }} />
+                    <Typography variant="body2" sx={{ color: '#b8b8b8', fontWeight: 500 }}>
                       Sélectionner un projet
                     </Typography>
                   </Box>
@@ -215,7 +215,7 @@ export default function Layout() {
               return (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <FolderIcon sx={{ fontSize: 16, color: '#00E5FF' }} />
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#f0f0f0' }}>
                     {project?.name || 'Projet'}
                   </Typography>
                 </Box>
@@ -226,9 +226,9 @@ export default function Layout() {
               value="" 
               onClick={() => navigate('/projects')}
               sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                backgroundColor: 'transparent',
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                  backgroundColor: 'rgba(0, 229, 255, 0.12)',
                 },
               }}
             >
@@ -242,9 +242,9 @@ export default function Layout() {
                 key={project.id} 
                 value={project.id}
                 sx={{
-                  backgroundColor: currentProject?.id === project.id ? 'rgba(0, 229, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+                  backgroundColor: currentProject?.id === project.id ? 'rgba(0, 229, 255, 0.15)' : 'transparent',
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                    backgroundColor: 'rgba(0, 229, 255, 0.12)',
                   },
                 }}
               >
@@ -257,8 +257,8 @@ export default function Layout() {
                       size="small"
                       sx={{
                         ml: 'auto',
-                        background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.3), rgba(179, 136, 255, 0.3))',
-                        color: '#FFFFFF',
+                        background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.35), rgba(179, 136, 255, 0.35))',
+                        color: '#f0f0f0',
                         fontSize: '0.65rem',
                         height: '20px',
                       }}
@@ -270,7 +270,7 @@ export default function Layout() {
           </Select>
         </FormControl>
       </Box>
-      <Divider sx={{ borderColor: 'rgba(176, 190, 197, 0.1)', mb: 1 }} />
+      <Divider sx={{ borderColor: 'rgba(0, 184, 212, 0.2)', mb: 1 }} />
       <List>
         {menuItems.map((item) => {
           const isSelected = location.pathname === item.path || 
@@ -294,14 +294,16 @@ export default function Layout() {
                 <ListItemText 
                   primary={item.text}
                   primaryTypographyProps={{
-                    sx: {
-                      background: 'linear-gradient(135deg, #00E5FF, #B388FF) !important',
-                      backgroundClip: 'text !important',
-                      WebkitBackgroundClip: 'text !important',
-                      WebkitTextFillColor: 'transparent !important',
-                      color: 'transparent !important',
-                      fontWeight: 500,
-                    },
+                    sx: isSelected
+                      ? { color: '#f0f0f0', fontWeight: 600 }
+                      : {
+                          background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          color: 'transparent',
+                          fontWeight: 500,
+                        },
                   }}
                 />
               </ListItemButton>

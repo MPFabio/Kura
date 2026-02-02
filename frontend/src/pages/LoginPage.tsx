@@ -114,11 +114,12 @@ export default function LoginPage() {
             >
               {loading ? <CircularProgress size={24} /> : 'Se connecter'}
             </Button>
-            <Box sx={{ textAlign: 'center', mt: 2 }}>
-              <Link to="/register" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <Typography variant="body2" color="primary">
-                  Pas encore de compte ? S'inscrire
-                </Typography>
+            <Box sx={{ textAlign: 'center', mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Link to="/register" style={{ textDecoration: 'none', color: '#00E5FF' }}>
+                <Typography variant="body2">Pas encore de compte ? S'inscrire</Typography>
+              </Link>
+              <Link to="/" style={{ textDecoration: 'none', color: '#b8b8b8' }}>
+                <Typography variant="body2">Retour à l'accueil</Typography>
               </Link>
             </Box>
           </Box>

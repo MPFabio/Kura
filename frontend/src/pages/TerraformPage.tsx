@@ -507,15 +507,15 @@ export default function TerraformPage() {
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <ModuleBodyText sx={{ mb: 1 }}>
-                      Version: <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 400 }}>{state.state?.version || 'N/A'}</span>
+                      Version: <span style={{ color: '#e8e8e8', fontWeight: 400 }}>{state.state?.version || 'N/A'}</span>
                     </ModuleBodyText>
                     <ModuleBodyText sx={{ mb: 1 }}>
-                      Ressources: <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 400 }}>{(state as any)._resourceCount !== undefined 
+                      Ressources: <span style={{ color: '#e8e8e8', fontWeight: 400 }}>{(state as any)._resourceCount !== undefined 
                         ? (state as any)._resourceCount 
                         : (state.state?.resources?.length || 0)}</span>
                     </ModuleBodyText>
                     <ModuleBodyText sx={{ mb: 1 }}>
-                      Sorties: <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: 400 }}>{Object.keys(state.state?.outputs || {}).length}</span>
+                      Sorties: <span style={{ color: '#e8e8e8', fontWeight: 400 }}>{Object.keys(state.state?.outputs || {}).length}</span>
                     </ModuleBodyText>
                     <ModuleCaption sx={{ mt: 1.5, display: 'block' }}>
                       {new Date(state.uploaded_at).toLocaleString('fr-FR')}
@@ -1409,20 +1409,20 @@ ${moduleLine}${instanceBlocks}
                       </Box>
                       <Box sx={{ mb: 2 }}>
                         <ModuleSecondaryText sx={{ mb: 0.5, fontSize: '0.875rem' }}>
-                          Type: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{source.type.toUpperCase()}</span>
+                          Type: <span style={{ color: '#b8b8b8' }}>{source.type.toUpperCase()}</span>
                         </ModuleSecondaryText>
                         {source.last_sync && (
                           <ModuleSecondaryText sx={{ mb: 0.5, fontSize: '0.875rem' }}>
-                            Dernière sync: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{new Date(source.last_sync).toLocaleString('fr-FR')}</span>
+                            Dernière sync: <span style={{ color: '#b8b8b8' }}>{new Date(source.last_sync).toLocaleString('fr-FR')}</span>
                           </ModuleSecondaryText>
                         )}
                         {source.next_sync && (
                           <ModuleSecondaryText sx={{ mb: 0.5, fontSize: '0.875rem' }}>
-                            Prochaine sync: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{new Date(source.next_sync).toLocaleString('fr-FR')}</span>
+                            Prochaine sync: <span style={{ color: '#b8b8b8' }}>{new Date(source.next_sync).toLocaleString('fr-FR')}</span>
                           </ModuleSecondaryText>
                         )}
                         <ModuleSecondaryText sx={{ mb: 0.5, fontSize: '0.875rem' }}>
-                          Intervalle: <span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{source.config.sync_interval || '15m'}</span>
+                          Intervalle: <span style={{ color: '#b8b8b8' }}>{source.config.sync_interval || '15m'}</span>
                         </ModuleSecondaryText>
                       </Box>
                       <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, pt: 2.5 }}>

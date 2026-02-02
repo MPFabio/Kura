@@ -6,17 +6,20 @@ interface ModuleTextProps extends TypographyProps {
   sx?: SxProps<Theme>
 }
 
-// Composants styled pour forcer les styles - override les styles du theme
+// Texte très lisible sur fond sombre - contraste inversé (clair sur sombre)
+const textPrimary = '#f0f0f0'
+const textSecondary = '#b8b8b8'
+
 const StyledBodyText = styled(Typography)({
   fontFamily: '"Inter", sans-serif',
-  color: 'rgba(255, 255, 255, 0.95)',
-  fontSize: '0.9375rem',
+  color: textPrimary,
+  fontSize: '1rem',
   fontWeight: 500,
   lineHeight: 1.6,
   '&.MuiTypography-body2': {
     fontFamily: '"Inter", sans-serif !important',
-    color: 'rgba(255, 255, 255, 0.95) !important',
-    fontSize: '0.9375rem !important',
+    color: `${textPrimary} !important`,
+    fontSize: '1rem !important',
     fontWeight: '500 !important',
     lineHeight: '1.6 !important',
   },
@@ -24,28 +27,28 @@ const StyledBodyText = styled(Typography)({
 
 const StyledSecondaryText = styled(Typography)({
   fontFamily: '"Inter", sans-serif',
-  color: 'rgba(255, 255, 255, 0.7)',
-  fontSize: '0.9375rem',
-  fontWeight: 400,
+  color: textSecondary,
+  fontSize: '1rem',
+  fontWeight: 500,
   lineHeight: 1.6,
   '&.MuiTypography-body2': {
     fontFamily: '"Inter", sans-serif !important',
-    color: 'rgba(255, 255, 255, 0.7) !important',
-    fontSize: '0.9375rem !important',
-    fontWeight: '400 !important',
+    color: `${textSecondary} !important`,
+    fontSize: '1rem !important',
+    fontWeight: '500 !important',
     lineHeight: '1.6 !important',
   },
 })
 
 const StyledSubtitle = styled(Typography)({
   fontFamily: '"Inter", sans-serif',
-  color: 'rgba(255, 255, 255, 0.95)',
+  color: textPrimary,
   fontWeight: 600,
   fontSize: '1.125rem',
   letterSpacing: '0.02em',
   '&.MuiTypography-h6': {
     fontFamily: '"Inter", sans-serif !important',
-    color: 'rgba(255, 255, 255, 0.95) !important',
+    color: `${textPrimary} !important`,
     fontWeight: '600 !important',
     fontSize: '1.125rem !important',
     letterSpacing: '0.02em !important',
@@ -54,14 +57,14 @@ const StyledSubtitle = styled(Typography)({
 
 const StyledCaption = styled(Typography)({
   fontFamily: '"Inter", sans-serif',
-  color: 'rgba(255, 255, 255, 0.7)',
-  fontSize: '0.8125rem',
-  fontWeight: 400,
+  color: textSecondary,
+  fontSize: '0.875rem',
+  fontWeight: 500,
   '&.MuiTypography-caption': {
     fontFamily: '"Inter", sans-serif !important',
-    color: 'rgba(255, 255, 255, 0.7) !important',
-    fontSize: '0.8125rem !important',
-    fontWeight: '400 !important',
+    color: `${textSecondary} !important`,
+    fontSize: '0.875rem !important',
+    fontWeight: '500 !important',
   },
 })
 

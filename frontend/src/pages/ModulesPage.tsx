@@ -141,13 +141,13 @@ export default function ModulesPage() {
         <Chip
           label={`${modules.filter(m => m.active).length} actif${modules.filter(m => m.active).length > 1 ? 's' : ''} sur ${modules.length}`}
           sx={{
-            backgroundColor: 'rgba(0, 229, 255, 0.1)',
+            backgroundColor: 'rgba(0, 229, 255, 0.18)',
             color: '#00E5FF',
-            border: '1px solid rgba(0, 229, 255, 0.3)',
+            border: '1px solid rgba(0, 229, 255, 0.4)',
             fontFamily: '"JetBrains Mono", monospace',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            boxShadow: '0 0 8px rgba(0, 229, 255, 0.2)',
+            fontSize: '0.9375rem',
+            fontWeight: 700,
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
           }}
         />
       </Box>
@@ -228,9 +228,10 @@ export default function ModulesPage() {
                       size="small"
                       sx={{
                         backgroundColor: 'rgba(102, 187, 106, 0.2)',
-                        color: '#66BB6A',
+                        color: '#81C784',
                         border: '1px solid rgba(102, 187, 106, 0.4)',
-                        fontWeight: 500,
+                        fontWeight: 600,
+                        fontSize: '0.8125rem',
                       }}
                     />
                   </Box>
@@ -239,7 +240,7 @@ export default function ModulesPage() {
                   <ModuleSubtitle
                     sx={{
                       mb: 2.5,
-                      background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+                      background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
                       backgroundClip: 'text',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
@@ -251,15 +252,19 @@ export default function ModulesPage() {
 
                   {/* Description */}
                   {module.description && (
-                    <ModuleSecondaryText sx={{ mb: 3 }}>
+                    <ModuleSecondaryText sx={{ mb: 3, color: '#b8b8b8', fontSize: '1rem' }}>
                       {module.description}
                     </ModuleSecondaryText>
                   )}
 
-                  {/* Statistiques */}
+                  {/* Statistiques - ordre logo : cyan (gauche) → violet → magenta (droite) */}
                   {module.stats && (
                     <Box sx={{ display: 'flex', gap: 3, mb: 4 }}>
-                      {module.stats.map((stat, idx) => (
+                      {module.stats.map((stat, idx) => {
+                        const isCyan = idx === 0
+                        const isViolet = idx === 1
+                        const isMagenta = idx === 2
+                        return (
                         <Box
                           key={idx}
                           sx={{
@@ -267,25 +272,29 @@ export default function ModulesPage() {
                             textAlign: 'center',
                             p: 2.5,
                             borderRadius: 3,
-                            background: idx === 0 
-                              ? 'linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(0, 229, 255, 0.05))'
-                              : idx === 1
-                              ? 'linear-gradient(135deg, rgba(179, 136, 255, 0.12), rgba(179, 136, 255, 0.05))'
-                              : 'linear-gradient(135deg, rgba(0, 229, 255, 0.1), rgba(179, 136, 255, 0.05))',
+                            background: isCyan
+                              ? 'linear-gradient(135deg, rgba(0, 30, 40, 0.95) 0%, rgba(0, 50, 60, 0.95) 100%)'
+                              : isViolet
+                              ? 'linear-gradient(135deg, rgba(30, 20, 40, 0.95) 0%, rgba(50, 30, 60, 0.95) 100%)'
+                              : 'linear-gradient(135deg, rgba(40, 20, 35, 0.95) 0%, rgba(60, 25, 50, 0.95) 100%)',
                             backdropFilter: 'blur(10px)',
-                            border: 'none',
-                            boxShadow: idx === 0
-                              ? '0 4px 16px rgba(0, 229, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-                              : idx === 1
-                              ? '0 4px 16px rgba(179, 136, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-                              : '0 4px 14px rgba(0, 229, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                            border: isCyan
+                              ? '1px solid rgba(0, 229, 255, 0.35)'
+                              : isViolet
+                              ? '1px solid rgba(171, 71, 188, 0.35)'
+                              : '1px solid rgba(236, 64, 122, 0.35)',
+                            boxShadow: isCyan
+                              ? '0 4px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 229, 255, 0.08)'
+                              : isViolet
+                              ? '0 4px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(171, 71, 188, 0.08)'
+                              : '0 4px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(236, 64, 122, 0.08)',
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                             '&:hover': {
-                              boxShadow: idx === 0
-                                ? '0 6px 20px rgba(0, 229, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12)'
-                                : idx === 1
-                                ? '0 6px 20px rgba(179, 136, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12)'
-                                : '0 6px 18px rgba(0, 229, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
+                              boxShadow: isCyan
+                                ? '0 6px 20px rgba(0, 0, 0, 0.35), 0 0 24px rgba(0, 229, 255, 0.12)'
+                                : isViolet
+                                ? '0 6px 20px rgba(0, 0, 0, 0.35), 0 0 24px rgba(171, 71, 188, 0.12)'
+                                : '0 6px 20px rgba(0, 0, 0, 0.35), 0 0 24px rgba(236, 64, 122, 0.12)',
                             },
                           }}
                         >
@@ -293,14 +302,10 @@ export default function ModulesPage() {
                             variant="h4"
                             sx={{
                               fontFamily: '"JetBrains Mono", monospace',
-                              color: idx === 0 ? '#00E5FF' : idx === 1 ? '#B388FF' : '#00E5FF',
+                              color: '#f0f0f0',
                               fontWeight: 700,
                               mb: 0.75,
-                              textShadow: idx === 0
-                                ? '0 0 10px rgba(0, 229, 255, 0.5)'
-                                : idx === 1
-                                ? '0 0 10px rgba(179, 136, 255, 0.5)'
-                                : '0 0 8px rgba(0, 229, 255, 0.4)',
+                              fontSize: '1.75rem',
                             }}
                           >
                             {stat.value}
@@ -309,26 +314,30 @@ export default function ModulesPage() {
                             sx={{
                               textTransform: 'uppercase',
                               letterSpacing: '0.08em',
-                              fontWeight: 500,
+                              fontWeight: 700,
+                              color: '#e0e0e0',
                             }}
                           >
                             {stat.label}
                           </ModuleCaption>
                         </Box>
-                      ))}
+                        )
+                      })}
                     </Box>
                   )}
 
                   {/* Features */}
                   {module.features && (
                     <Box sx={{ mt: 'auto', pt: 4 }}>
-                      <ModuleCaption
+                        <ModuleCaption
                         sx={{
                           textTransform: 'uppercase',
                           letterSpacing: '0.12em',
                           mb: 2.5,
                           display: 'block',
-                          fontWeight: 600,
+                          fontWeight: 700,
+                          color: '#e0e0e0',
+                          fontSize: '0.875rem',
                         }}
                       >
                         Fonctionnalités
@@ -343,13 +352,13 @@ export default function ModulesPage() {
                               gap: 2,
                               p: 1.5,
                               borderRadius: 2,
-                              background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1))',
+                              background: 'rgba(30, 42, 61, 0.8)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
                               backdropFilter: 'blur(10px)',
-                              border: 'none',
                               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                               '&:hover': {
-                                background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(179, 136, 255, 0.05))',
-                                boxShadow: '0 2px 8px rgba(0, 229, 255, 0.08)',
+                                background: 'rgba(40, 55, 80, 0.9)',
+                                boxShadow: '0 2px 8px rgba(0, 229, 255, 0.1)',
                               },
                             }}
                           >
@@ -358,10 +367,10 @@ export default function ModulesPage() {
                                 width: 8,
                                 height: 8,
                                 borderRadius: '50%',
-                                backgroundColor: idx % 2 === 0 ? '#00E5FF' : '#B388FF',
+                                backgroundColor: idx % 2 === 0 ? '#00E5FF' : '#EC407A',
                                 boxShadow: idx % 2 === 0 
                                   ? '0 0 10px rgba(0, 229, 255, 0.7)' 
-                                  : '0 0 10px rgba(179, 136, 255, 0.7)',
+                                  : '0 0 10px rgba(236, 64, 122, 0.7)',
                                 flexShrink: 0,
                               }}
                             />
@@ -412,12 +421,12 @@ export default function ModulesPage() {
                       sx={{
                         position: 'relative',
                         zIndex: 1,
-                        color: 'rgba(179, 136, 255, 0.6)',
-                        filter: 'drop-shadow(0 0 12px rgba(179, 136, 255, 0.5))',
+                        color: '#EC407A',
+                        filter: 'drop-shadow(0 0 12px rgba(236, 64, 122, 0.5))',
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          color: 'rgba(179, 136, 255, 0.8)',
-                          filter: 'drop-shadow(0 0 18px rgba(179, 136, 255, 0.7))',
+                          color: '#E91E63',
+                          filter: 'drop-shadow(0 0 18px rgba(236, 64, 122, 0.6))',
                         },
                       }}
                     >
@@ -429,7 +438,6 @@ export default function ModulesPage() {
                   <ModuleSubtitle
                     sx={{
                       mb: 1,
-                      color: 'rgba(255, 255, 255, 0.7)',
                       fontSize: '1.25rem',
                       fontWeight: 500,
                     }}
@@ -445,10 +453,11 @@ export default function ModulesPage() {
                       icon={<ScheduleIcon />}
                       sx={{
                         mb: 2,
-                        backgroundColor: 'rgba(179, 136, 255, 0.1)',
-                        color: '#B388FF',
-                        border: '1px solid rgba(179, 136, 255, 0.3)',
+                        backgroundColor: 'rgba(236, 64, 122, 0.2)',
+                        color: '#F48FB1',
+                        border: '1px solid rgba(236, 64, 122, 0.4)',
                         fontSize: '0.75rem',
+                        fontWeight: 500,
                       }}
                     />
                   )}
@@ -458,7 +467,6 @@ export default function ModulesPage() {
                     <ModuleSecondaryText
                       sx={{
                         mb: 4,
-                        color: 'rgba(255, 255, 255, 0.6)',
                         maxWidth: '320px',
                         mx: 'auto',
                       }}
@@ -472,12 +480,13 @@ export default function ModulesPage() {
                     <Box sx={{ width: '100%', mt: 'auto' }}>
                       <ModuleCaption
                         sx={{
-                          color: 'rgba(255, 255, 255, 0.4)',
-                          fontSize: '0.75rem',
+                          fontSize: '0.875rem',
                           textTransform: 'uppercase',
                           letterSpacing: '0.1em',
                           mb: 1.5,
                           display: 'block',
+                          color: '#e0e0e0',
+                          fontWeight: 600,
                         }}
                       >
                         Fonctionnalités prévues
@@ -498,15 +507,10 @@ export default function ModulesPage() {
                                 width: 4,
                                 height: 4,
                                 borderRadius: '50%',
-                                backgroundColor: 'rgba(179, 136, 255, 0.4)',
+                                backgroundColor: '#EC407A',
                               }}
                             />
-                            <ModuleSecondaryText
-                              sx={{
-                                color: 'rgba(255, 255, 255, 0.5)',
-                                fontSize: '0.8125rem',
-                              }}
-                            >
+                            <ModuleSecondaryText sx={{ fontSize: '0.9375rem', color: '#b8b8b8' }}>
                               {feature}
                             </ModuleSecondaryText>
                           </Box>

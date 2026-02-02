@@ -5,7 +5,7 @@ export const kuraWordmarkSx = {
   fontFamily: '"Inter", sans-serif',
   fontWeight: 600,
   letterSpacing: '0.15em',
-  background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+  background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
   backgroundClip: 'text',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
@@ -18,7 +18,7 @@ export const kuraWordmarkSx = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.4), rgba(179, 136, 255, 0.4))',
+    background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.4), rgba(236, 64, 122, 0.4))',
     filter: 'blur(12px)',
     zIndex: -1,
     borderRadius: '4px',
@@ -63,12 +63,12 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
                 width: 2,
                 height: 2,
                 borderRadius: '50%',
-                background: i % 2 === 0 ? 'rgba(0, 229, 255, 0.7)' : 'rgba(179, 136, 255, 0.7)',
+                background: i % 2 === 0 ? 'rgba(0, 229, 255, 0.7)' : 'rgba(236, 64, 122, 0.7)',
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 60}%`,
                 animation: 'particleFloat 8s ease-in-out infinite',
                 animationDelay: `${i * 0.4}s`,
-                boxShadow: `0 0 8px ${i % 2 === 0 ? 'rgba(0, 229, 255, 0.9)' : 'rgba(179, 136, 255, 0.9)'}`,
+                boxShadow: `0 0 8px ${i % 2 === 0 ? 'rgba(0, 229, 255, 0.9)' : 'rgba(236, 64, 122, 0.9)'}`,
               }}
             />
           ))}

@@ -150,30 +150,24 @@ func (s *TerraformService) ListStateFiles(ctx context.Context, projectID string)
 	}
 
 	// Charger depuis Redis si l'interface Keys est disponible
+	// Toujours utiliser le pattern "terraform:state:*" pour trouver les états quel que soit le format de clé
+	// (terraform:state:id ou terraform:state:projectID:id), puis filtrer par project_id.
 	type KeysCache interface {
 		Keys(ctx context.Context, pattern string) ([]string, error)
 	}
 	if cacheWithKeys, ok := s.cache.(KeysCache); ok {
-		// Utiliser un pattern qui inclut project_id si fourni
-		var pattern string
-		if projectID != "" {
-			pattern = fmt.Sprintf("terraform:state:%s:*", projectID)
-		} else {
-			pattern = "terraform:state:*"
-		}
-		keys, err := cacheWithKeys.Keys(ctx, pattern)
+		keys, err := cacheWithKeys.Keys(ctx, "terraform:state:*")
 		if err == nil {
 			for _, key := range keys {
 				cached, err := s.cache.Get(ctx, key)
 				if err == nil && cached != "" {
 					var stateFile models.StateFile
 					if err := json.Unmarshal([]byte(cached), &stateFile); err == nil {
-						// Filtrer par project_id si fourni (pour les anciens formats sans project_id dans la clé)
-						if projectID != "" && stateFile.ProjectID != projectID {
+						// Filtrer par project_id si fourni : garder les états du projet ou sans project (ancien format)
+						if projectID != "" && stateFile.ProjectID != projectID && stateFile.ProjectID != "" {
 							continue
 						}
 						resultMap[stateFile.ID] = &stateFile
-						// Mettre aussi en mémoire pour éviter de recharger
 						s.states[stateFile.ID] = &stateFile
 					}
 				}
@@ -303,17 +297,51 @@ func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string, 
 
 // DeleteStateFile supprime un fichier d'état.
 func (s *TerraformService) DeleteStateFile(ctx context.Context, id string) error {
-	// Supprimer du cache
-	cacheKey := fmt.Sprintf("terraform:state:%s", id)
-	_ = s.cache.Delete(ctx, cacheKey)
-
-	// Supprimer du stockage
-	if _, exists := s.states[id]; !exists {
-		return fmt.Errorf("fichier d'état non trouvé: %s", id)
+	// Récupérer l'état pour connaître project_id (clé Redis peut être terraform:state:projectID:id)
+	stateFile, exists := s.states[id]
+	if exists {
+		// Supprimer les deux formes de clé cache (avec et sans project_id)
+		cacheKey := fmt.Sprintf("terraform:state:%s", id)
+		_ = s.cache.Delete(ctx, cacheKey)
+		if stateFile.ProjectID != "" {
+			projectCacheKey := fmt.Sprintf("terraform:state:%s:%s", stateFile.ProjectID, id)
+			_ = s.cache.Delete(ctx, projectCacheKey)
+		}
+		delete(s.states, id)
+		return nil
 	}
 
-	delete(s.states, id)
-	return nil
+	// État pas en mémoire : supprimer du cache Redis (clé avec project_id) pour qu’il disparaisse à la prochaine liste
+	if deleted := s.deleteStateFileFromCacheByID(ctx, id); deleted {
+		return nil
+	}
+	return fmt.Errorf("fichier d'état non trouvé: %s", id)
+}
+
+// deleteStateFileFromCacheByID supprime du cache toutes les clés correspondant à cet id.
+// Retourne true si au moins une clé a été supprimée.
+func (s *TerraformService) deleteStateFileFromCacheByID(ctx context.Context, id string) bool {
+	type KeysCache interface {
+		Keys(ctx context.Context, pattern string) ([]string, error)
+	}
+	cacheWithKeys, ok := s.cache.(KeysCache)
+	if !ok {
+		return false
+	}
+	keys, err := cacheWithKeys.Keys(ctx, "terraform:state:*")
+	if err != nil {
+		return false
+	}
+	// Ne supprimer que les clés qui correspondent exactement à cet id (éviter id sous-chaîne)
+	// Format: "terraform:state:id" ou "terraform:state:projectID:id" (exactement 3 ':' dans ce cas)
+	var deleted bool
+	for _, key := range keys {
+		if key == "terraform:state:"+id || (strings.HasSuffix(key, ":"+id) && strings.Count(key, ":") == 3) {
+			_ = s.cache.Delete(ctx, key)
+			deleted = true
+		}
+	}
+	return deleted
 }
 
 // GetResources retourne toutes les ressources d'un état.

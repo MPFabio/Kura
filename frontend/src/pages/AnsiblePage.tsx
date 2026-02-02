@@ -69,11 +69,13 @@ export default function AnsiblePage() {
   const {
     data: jobsData,
     isLoading: jobsLoading,
+    isError: jobsError,
     refetch: refetchJobs,
   } = useQuery({
     queryKey: ['ansible-jobs'],
     queryFn: () => ansibleService.getJobs(),
-    refetchInterval: 30000, // Rafraîchir toutes les 30 secondes
+    refetchInterval: 30000,
+    retry: false, // Ne pas réessayer en boucle si l'API n'est pas joignable
   })
 
   const {
@@ -163,24 +165,21 @@ export default function AnsiblePage() {
     return `${mins}m ${secs}s`
   }
 
-  // Vérifier si le service Ansible Tower est configuré
-  const isServiceAvailable = jobsData !== undefined || inventoriesData !== undefined
+  // Afficher un avertissement si l'API Ansible n'est pas joignable (Kong ou ansible-service)
+  const apiUnreachable = jobsError
 
   return (
     <Box>
       <ModuleTitle>Ansible</ModuleTitle>
 
-      {!isServiceAvailable && (
-        <ModuleCard>
-          <Alert severity="info">
-            Le service Ansible sera bientôt disponible. Cette page affichera les jobs Ansible Tower, les inventaires et
-            l'historique d'exécution.
-          </Alert>
-        </ModuleCard>
+      {apiUnreachable && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Le service Ansible n'est pas joignable. Vérifiez que Kong (port 8000) et ansible-service (8083) tournent et que
+          le frontend utilise <code>VITE_API_BASE_URL=http://localhost:8000</code>.
+        </Alert>
       )}
 
-      {isServiceAvailable && (
-        <ModuleCard>
+      <ModuleCard>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tabValue} onChange={handleTabChange}>
               <Tab label="Jobs" />
@@ -341,7 +340,7 @@ export default function AnsiblePage() {
                 ))}
               </Grid>
             ) : (
-              <Alert severity="info">Aucun inventaire trouvé</Alert>
+              <Alert severity="info">Aucun inventaire trouvé. Connectez Ansible Tower/AWX pour en voir.</Alert>
             )}
           </TabPanel>
 
@@ -389,11 +388,10 @@ export default function AnsiblePage() {
                 ))}
               </Grid>
             ) : (
-              <Alert severity="info">Aucun template trouvé</Alert>
+              <Alert severity="info">Aucun template trouvé. Connectez Ansible Tower/AWX pour en voir.</Alert>
             )}
           </TabPanel>
         </ModuleCard>
-      )}
 
       {/* Dialog de détails du job */}
       <Dialog open={jobDetailDialogOpen} onClose={() => setJobDetailDialogOpen(false)} maxWidth="md" fullWidth>

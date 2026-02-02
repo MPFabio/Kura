@@ -11,7 +11,7 @@ const StyledModuleTitle = styled(Typography, {
   shouldForwardProp: (prop) => prop !== 'sx',
 })({
   fontWeight: '600 !important',
-  background: 'linear-gradient(135deg, #00E5FF, #B388FF) !important',
+  background: 'linear-gradient(135deg, #00E5FF, #EC407A) !important',
   backgroundClip: 'text !important',
   WebkitBackgroundClip: 'text !important',
   WebkitTextFillColor: 'transparent !important',
@@ -84,7 +84,7 @@ export default function ModuleTitle({ children, sx }: ModuleTitleProps) {
       
       // Forcer aussi le background directement si nécessaire
       if (!computedStyle.backgroundImage || !computedStyle.backgroundImage.includes('gradient')) {
-        element.style.setProperty('background', 'linear-gradient(135deg, #00E5FF, #B388FF)', 'important')
+        element.style.setProperty('background', 'linear-gradient(135deg, #00E5FF, #EC407A)', 'important')
         element.style.setProperty('background-clip', 'text', 'important')
         element.style.setProperty('-webkit-background-clip', 'text', 'important')
       }
@@ -101,7 +101,7 @@ export default function ModuleTitle({ children, sx }: ModuleTitleProps) {
         mb: 5,
         ...sx,
         // Forcer le dégradé après sx pour s'assurer qu'il n'est jamais override
-        background: 'linear-gradient(135deg, #00E5FF, #B388FF) !important',
+        background: 'linear-gradient(135deg, #00E5FF, #EC407A) !important',
         backgroundClip: 'text !important',
         WebkitBackgroundClip: 'text !important',
         WebkitTextFillColor: 'transparent !important',

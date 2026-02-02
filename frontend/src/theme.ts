@@ -1,31 +1,41 @@
 import { createTheme } from '@mui/material/styles'
 
-// Palette "Jellyfish Serenity" - Minimaliste et calme
+// Palette DA KURA : charbon, bioluminescence cyan/magenta/violet, glassmorphism
 export const jellyfishColors = {
-  // Fonds doux et apaisants
-  deepOcean: '#0F1419',
-  oceanDark: '#1A1F2E',
-  oceanMedium: '#252B3A',
-  
-  // Cyan de la méduse - versions plus vives mais harmonieuses
-  cyanSoft: '#00E5FF',      // Cyan vif principal (plus lumineux)
-  cyanMedium: '#00B8D4',    // Cyan moyen
-  cyanLight: '#4DD0E1',     // Cyan clair pour accents
-  cyanSubtle: 'rgba(0, 229, 255, 0.2)', // Cyan subtil pour backgrounds
-  
-  // Violet de la méduse - versions plus vives mais harmonieuses
-  violetSoft: '#B388FF',    // Violet vif principal (plus lumineux)
-  violetMedium: '#9C27B0',  // Violet moyen
-  violetLight: '#CE93D8',   // Violet clair
-  violetSubtle: 'rgba(179, 136, 255, 0.2)', // Violet subtil
-  
-  // Gris neutres et doux
-  grayLight: '#B0BEC5',     // Gris clair pour texte secondaire
-  grayMedium: '#78909C',    // Gris moyen
-  grayDark: '#546E7A',      // Gris foncé
-  graySubtle: 'rgba(176, 190, 197, 0.1)', // Gris très subtil
-  
-  // Alertes douces
+  // Fonds charbon (DA)
+  backgroundLight: '#0d0e12',   // charbon principal
+  backgroundPaper: '#14161f',   // cartes / paper légèrement plus clair
+  backgroundCard: '#1a1d28',   // cartes
+
+  // Cloche méduse - cyan / bleu
+  cyanSoft: '#00E5FF',      // Cyan vif (haut cloche)
+  cyanMedium: '#26C6DA',    // #26C6DA cyan 400 - bleu-cyan
+  cyanLight: '#4DD0E1',     // #4DD0E1 cyan 300
+  cyanDeep: '#00ACC1',      // #00ACC1 cyan 600 - bleu plus profond
+  cyanSubtle: 'rgba(0, 229, 255, 0.2)',
+
+  // Bas cloche + tentacules - violet-rose / magenta / fuchsia (logo)
+  violetSoft: '#CE93D8',    // #CE93D8 violet 200 - violet clair
+  violetMedium: '#AB47BC',   // #AB47BC violet 400 - violet moyen
+  violetDeep: '#7B1FA2',    // #7B1FA2 violet 700 - violet foncé
+  violetLight: '#E1BEE7',   // violet 100
+  // Violet-rose / magenta / fuchsia (tentacules)
+  magenta: '#EC407A',       // #EC407A Pink 400 - rose vif
+  magentaDeep: '#E91E63',   // #E91E63 Pink 600 - magenta
+  fuchsia: '#E040FB',       // #E040FB Accent A200 - fuchsia (tentacules)
+  violetRed: '#D500F9',     // #D500F9 Accent A400 - violet-rouge
+  violetSubtle: 'rgba(206, 147, 216, 0.25)',
+  frameViolet: 'rgba(171, 71, 188, 0.65)',     // #AB47BC - cadre visible comme la méduse
+  frameVioletRed: 'rgba(236, 64, 122, 0.55)',  // #EC407A magenta - bordure violet-rose
+  magentaSoft: 'rgba(236, 64, 122, 0.4)',      // #EC407A
+
+  // Gris (texte sur fond clair)
+  grayLight: '#546E7A',
+  grayMedium: '#455A64',
+  grayDark: '#37474F',
+  graySubtle: 'rgba(55, 71, 79, 0.08)',
+
+  // Alertes
   successSoft: '#66BB6A',
   warningSoft: '#FFA726',
   errorSoft: '#EF5350',
@@ -46,12 +56,12 @@ export const theme = createTheme({
       dark: jellyfishColors.violetMedium,
     },
     background: {
-      default: jellyfishColors.deepOcean,
-      paper: jellyfishColors.oceanDark,
+      default: jellyfishColors.backgroundLight,
+      paper: jellyfishColors.backgroundPaper,
     },
     text: {
-      primary: 'rgba(255, 255, 255, 0.98)',
-      secondary: 'rgba(255, 255, 255, 0.85)',
+      primary: '#f0f0f0',
+      secondary: '#b8b8b8',
     },
     error: {
       main: jellyfishColors.errorSoft,
@@ -75,13 +85,13 @@ export const theme = createTheme({
       fontSize: '2.5rem',
       fontWeight: 500,
       letterSpacing: '-0.02em',
-      color: 'rgba(255, 255, 255, 0.95)',
+      color: '#f0f0f0',
     },
     h2: {
       fontSize: '2rem',
       fontWeight: 500,
       letterSpacing: '-0.01em',
-      color: 'rgba(255, 255, 255, 0.95)',
+      color: '#f0f0f0',
     },
     h3: {
       fontSize: '1.75rem',
@@ -102,14 +112,14 @@ export const theme = createTheme({
       fontWeight: 500,
     },
     body1: {
-      fontSize: '0.9375rem',
+      fontSize: '1rem',
       lineHeight: 1.6,
-      color: 'rgba(255, 255, 255, 0.95)',
+      color: '#f0f0f0',
     },
     body2: {
-      fontSize: '0.875rem',
+      fontSize: '1rem',
       lineHeight: 1.5,
-      color: 'rgba(255, 255, 255, 0.9)',
+      color: '#b8b8b8',
     },
   },
   shape: {
@@ -141,14 +151,14 @@ export const theme = createTheme({
           },
         },
         contained: {
-          background: `linear-gradient(135deg, ${jellyfishColors.cyanSoft}, ${jellyfishColors.violetSoft})`,
-          color: '#FFFFFF',
+          background: `linear-gradient(135deg, ${jellyfishColors.cyanSoft}, ${jellyfishColors.magenta})`,
+          color: '#fff',
           border: 'none',
           boxShadow: `0 4px 16px ${jellyfishColors.cyanSoft}30`,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           '&:hover': {
-            background: `linear-gradient(135deg, ${jellyfishColors.cyanMedium}, ${jellyfishColors.violetMedium})`,
-            boxShadow: `0 6px 20px ${jellyfishColors.cyanSoft}35, 0 0 16px ${jellyfishColors.violetSoft}25`,
+            background: `linear-gradient(135deg, ${jellyfishColors.cyanMedium}, ${jellyfishColors.magentaDeep})`,
+            boxShadow: `0 6px 20px ${jellyfishColors.cyanSoft}35, 0 0 16px ${jellyfishColors.magenta}40`,
           },
         },
         text: {
@@ -162,54 +172,18 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}E6, ${jellyfishColors.deepOcean}E6)`,
-          backdropFilter: 'blur(30px) saturate(180%)',
-          border: 'none',
-          borderRadius: 32,
-          boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.5),
-            0 2px 8px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12)
-          `,
-          transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          background: 'rgba(20, 22, 31, 0.6)',
+          backdropFilter: 'blur(20px) saturate(150%)',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: 20,
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03)',
+          transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           position: 'relative',
           overflow: 'hidden',
-          animation: 'jellyfishFloat 8s ease-in-out infinite',
           animationDelay: 'var(--card-delay, 0s)',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: -2,
-            left: -2,
-            right: -2,
-            bottom: -2,
-            borderRadius: 32,
-            background: `linear-gradient(135deg, ${jellyfishColors.violetSoft}50, ${jellyfishColors.cyanSoft}50)`,
-            zIndex: -1,
-            opacity: 0.6,
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: '-50%',
-            left: '-50%',
-            width: '200%',
-            height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}08 0%, transparent 70%)`,
-            animation: 'etherealGlow 6s ease-in-out infinite',
-            pointerEvents: 'none',
-            zIndex: 0,
-          },
           '&:hover': {
-            boxShadow: `
-              0 12px 48px rgba(0, 229, 255, 0.3),
-              0 4px 16px rgba(179, 136, 255, 0.25),
-              0 2px 8px rgba(0, 0, 0, 0.3),
-              inset 0 1px 0 rgba(255, 255, 255, 0.15)
-            `,
-            '&::before': {
-              opacity: 0.8,
-            },
+            borderColor: 'rgba(0, 229, 255, 0.15)',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 229, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
           },
         },
       },
@@ -217,92 +191,47 @@ export const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundImage: 'none',
-          background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
-          backdropFilter: 'blur(35px) saturate(200%)',
-          border: 'none',
-          borderRadius: 28,
-          boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1)
-          `,
-          transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          animation: 'depthPulse 10s ease-in-out infinite',
+          background: 'rgba(20, 22, 31, 0.65)',
+          backdropFilter: 'blur(20px) saturate(150%)',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: 20,
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03)',
+          transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           position: 'relative',
           overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: '-50%',
-            left: '-50%',
-            width: '200%',
-            height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}12 0%, ${jellyfishColors.violetSoft}08 50%, transparent 70%)`,
-            animation: 'etherealGlow 10s ease-in-out infinite',
-            pointerEvents: 'none',
-            zIndex: 0,
-          },
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: `linear-gradient(180deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
-          backdropFilter: 'blur(30px) saturate(180%)',
-          borderRight: 'none',
-          borderRadius: '0 32px 32px 0',
-          boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.5),
-            inset -2px 0 0 rgba(179, 136, 255, 0.3),
-            inset 0 -2px 0 rgba(0, 229, 255, 0.3)
-          `,
+          background: 'rgba(13, 14, 18, 0.85)',
+          backdropFilter: 'blur(24px) saturate(150%)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: '0 20px 20px 0',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 1px 0 0 rgba(0, 229, 255, 0.08)',
           position: 'fixed',
           height: '100vh',
           overflowY: 'hidden',
           overflowX: 'hidden',
-          transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           zIndex: 1200,
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `linear-gradient(180deg, ${jellyfishColors.violetSoft}40 0%, transparent 20%, transparent 80%, ${jellyfishColors.cyanSoft}40 100%)`,
-            pointerEvents: 'none',
-            opacity: 0.8,
-            zIndex: 0,
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `linear-gradient(180deg, ${jellyfishColors.violetSoft}20 0%, transparent 30%, transparent 70%, ${jellyfishColors.cyanSoft}20 100%)`,
-            animation: 'etherealGlow 8s ease-in-out infinite',
-            pointerEvents: 'none',
-            zIndex: 0,
-          },
         },
       },
     },
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: `linear-gradient(180deg, ${jellyfishColors.oceanDark}E6, ${jellyfishColors.deepOcean}E6)`,
+          background: `linear-gradient(180deg, ${jellyfishColors.backgroundPaper}E6, ${jellyfishColors.backgroundLight}E6)`,
           backdropFilter: 'blur(30px) saturate(180%)',
           borderBottom: 'none',
           borderLeft: 'none',
           borderRadius: '16px',
           boxShadow: `
-            0 4px 16px rgba(0, 0, 0, 0.3),
-            0 2px 8px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08),
-            0 0 0 1px rgba(0, 229, 255, 0.1)
+            0 4px 16px rgba(236, 64, 122, 0.2),
+            0 2px 8px rgba(171, 71, 188, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            0 0 0 1px ${jellyfishColors.frameViolet}
           `,
           position: 'relative',
           overflow: 'hidden',
@@ -313,7 +242,7 @@ export const theme = createTheme({
             left: 0,
             right: 0,
             bottom: 0,
-            background: `linear-gradient(180deg, ${jellyfishColors.violetSoft}15 0%, transparent 30%, transparent 70%, ${jellyfishColors.cyanSoft}15 100%)`,
+            background: `linear-gradient(180deg, ${jellyfishColors.violetMedium}22 0%, transparent 30%, transparent 70%, ${jellyfishColors.magenta}18 100%)`,
             animation: 'etherealGlow 8s ease-in-out infinite',
             pointerEvents: 'none',
             zIndex: 0,
@@ -326,7 +255,7 @@ export const theme = createTheme({
             right: 0,
             bottom: 0,
             borderRadius: '16px',
-            background: `linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, transparent 50%, rgba(179, 136, 255, 0.1) 100%)`,
+            background: `linear-gradient(135deg, rgba(236, 64, 122, 0.15) 0%, transparent 50%, rgba(171, 71, 188, 0.12) 100%)`,
             pointerEvents: 'none',
             zIndex: 0,
           },
@@ -343,12 +272,12 @@ export const theme = createTheme({
             background: `linear-gradient(90deg, ${jellyfishColors.cyanSubtle}, ${jellyfishColors.violetSubtle})`,
           },
           '&.Mui-selected': {
-            background: `${jellyfishColors.cyanSoft}40`,
+            background: `linear-gradient(90deg, ${jellyfishColors.magenta}35, ${jellyfishColors.violetMedium}30)`,
             borderRadius: 12,
             boxShadow: `
-              0 0 16px ${jellyfishColors.cyanSoft}50,
-              0 0 8px ${jellyfishColors.cyanSoft}30,
-              inset 0 0 20px ${jellyfishColors.cyanSoft}20
+              0 0 16px rgba(236, 64, 122, 0.35),
+              0 0 8px rgba(171, 71, 188, 0.25),
+              inset 0 0 20px rgba(236, 64, 122, 0.08)
             `,
             position: 'relative',
             '&::before': {
@@ -358,12 +287,12 @@ export const theme = createTheme({
               top: 0,
               bottom: 0,
               width: '3px',
-              background: `linear-gradient(180deg, ${jellyfishColors.violetSoft}, ${jellyfishColors.cyanSoft})`,
+              background: `linear-gradient(180deg, ${jellyfishColors.magenta}, ${jellyfishColors.cyanSoft})`,
               borderRadius: '12px 0 0 12px',
               zIndex: 1,
             },
             '&:hover': {
-              background: `${jellyfishColors.cyanSoft}50`,
+              background: `linear-gradient(90deg, ${jellyfishColors.magenta}45, ${jellyfishColors.violetMedium}40)`,
             },
           },
         },
@@ -384,25 +313,34 @@ export const theme = createTheme({
     MuiListItemText: {
       styleOverrides: {
         primary: {
-          background: 'linear-gradient(135deg, #00E5FF, #B388FF) !important',
-          backgroundClip: 'text !important',
-          WebkitBackgroundClip: 'text !important',
-          WebkitTextFillColor: 'transparent !important',
-          color: 'transparent !important',
           fontWeight: 500,
+          // Dégradé logo (cyan → magenta) pour les items non sélectionnés
+          '.MuiListItemButton-root:not(.Mui-selected) &': {
+            background: 'linear-gradient(135deg, #00E5FF, #EC407A) !important',
+            backgroundClip: 'text !important',
+            WebkitBackgroundClip: 'text !important',
+            WebkitTextFillColor: 'transparent !important',
+            color: 'transparent !important',
+          },
+          // Item sélectionné : texte clair pour lisibilité sur fond magenta/violet
+          '.MuiListItemButton-root.Mui-selected &': {
+            color: '#f0f0f0 !important',
+            background: 'none !important',
+            WebkitTextFillColor: '#f0f0f0 !important',
+          },
         },
       },
     },
     MuiAlert: {
       styleOverrides: {
         root: {
-          background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
+          background: `linear-gradient(135deg, ${jellyfishColors.backgroundPaper}CC, ${jellyfishColors.backgroundLight}CC)`,
           backdropFilter: 'blur(35px) saturate(200%)',
-          border: 'none',
+          border: `1px solid ${jellyfishColors.frameViolet}`,
           borderRadius: 24,
           boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1)
+            0 8px 32px rgba(236, 64, 122, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8)
           `,
           padding: '24px 28px',
           transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
@@ -423,7 +361,7 @@ export const theme = createTheme({
           },
         },
         standardInfo: {
-          background: `linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(179, 136, 255, 0.08))`,
+          background: `linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(236, 64, 122, 0.1))`,
           '& .MuiAlert-icon': {
             color: jellyfishColors.cyanSoft,
             filter: `drop-shadow(0 0 12px ${jellyfishColors.cyanSoft})`,
@@ -446,13 +384,14 @@ export const theme = createTheme({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
+          background: `linear-gradient(135deg, ${jellyfishColors.backgroundPaper}CC, ${jellyfishColors.backgroundLight}CC)`,
           backdropFilter: 'blur(40px) saturate(180%)',
           borderRadius: 28,
-          border: 'none',
+          border: `1px solid ${jellyfishColors.frameViolet}`,
           boxShadow: `
-            0 24px 80px rgba(0, 0, 0, 0.6),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1)
+            0 24px 80px rgba(236, 64, 122, 0.22),
+            0 8px 24px rgba(171, 71, 188, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8)
           `,
           transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           animation: 'depthPulse 12s ease-in-out infinite',
@@ -479,7 +418,7 @@ export const theme = createTheme({
           background: 'transparent',
           borderBottom: 'none',
           padding: '24px 28px 20px',
-          color: 'rgba(255, 255, 255, 0.95)',
+          color: '#f0f0f0',
         },
       },
     },
@@ -506,12 +445,12 @@ export const theme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             borderRadius: 16,
-            background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
+            background: `linear-gradient(135deg, ${jellyfishColors.backgroundPaper}CC, ${jellyfishColors.backgroundLight}CC)`,
             backdropFilter: 'blur(20px) saturate(180%)',
-            border: 'none',
+            border: `1px solid ${jellyfishColors.frameViolet}`,
             boxShadow: `
-              0 4px 16px rgba(0, 0, 0, 0.2),
-              inset 0 1px 0 rgba(255, 255, 255, 0.08)
+              0 4px 16px rgba(236, 64, 122, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8)
             `,
             transition: 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             '& fieldset': {
@@ -519,15 +458,16 @@ export const theme = createTheme({
             },
             '&:hover': {
               boxShadow: `
-                0 6px 20px rgba(0, 229, 255, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1)
+                0 6px 20px rgba(236, 64, 122, 0.2),
+                0 0 0 1px rgba(171, 71, 188, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9)
               `,
             },
             '&.Mui-focused': {
               boxShadow: `
-                0 8px 24px rgba(0, 229, 255, 0.25),
-                0 0 0 2px rgba(0, 229, 255, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.12)
+                0 8px 24px rgba(236, 64, 122, 0.25),
+                0 0 0 2px rgba(171, 71, 188, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9)
               `,
             },
           },
@@ -567,17 +507,17 @@ export const theme = createTheme({
             left: 0,
             right: 0,
             height: '1px',
-            background: `linear-gradient(90deg, transparent, ${jellyfishColors.cyanSoft}30, ${jellyfishColors.violetSoft}30, transparent)`,
+            background: `linear-gradient(90deg, transparent, ${jellyfishColors.cyanSoft}30, ${jellyfishColors.magenta}30, transparent)`,
             opacity: 0.5,
           },
         },
         indicator: {
-          background: `linear-gradient(90deg, ${jellyfishColors.cyanSoft}, ${jellyfishColors.violetSoft})`,
+          background: `linear-gradient(90deg, ${jellyfishColors.cyanSoft}, ${jellyfishColors.magenta})`,
           height: 3,
           borderRadius: '3px 3px 0 0',
           boxShadow: `
             0 0 12px ${jellyfishColors.cyanSoft}70,
-            0 0 8px ${jellyfishColors.violetSoft}60,
+            0 0 8px ${jellyfishColors.magenta}60,
             0 0 4px ${jellyfishColors.cyanSoft}40
           `,
         },
@@ -597,18 +537,16 @@ export const theme = createTheme({
           textTransform: 'none',
           fontWeight: 500,
           fontSize: '0.9375rem',
-          color: jellyfishColors.grayLight,
+          color: '#b8b8b8',
           transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           '&:hover': {
             color: jellyfishColors.cyanSoft,
           },
           '&.Mui-selected': {
-            background: `linear-gradient(135deg, ${jellyfishColors.cyanSoft}20, ${jellyfishColors.violetSoft}15)`,
-            color: '#FFFFFF',
-            textShadow: `
-              0 0 12px ${jellyfishColors.cyanSoft}80,
-              0 0 8px ${jellyfishColors.violetSoft}60
-            `,
+            background: `linear-gradient(135deg, ${jellyfishColors.cyanSoft}25, ${jellyfishColors.magenta}22)`,
+            color: '#f0f0f0',
+            fontWeight: 600,
+            textShadow: 'none',
             borderRadius: '8px 8px 0 0',
           },
         },
@@ -618,12 +556,12 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 28,
-          border: 'none',
-          background: `linear-gradient(135deg, ${jellyfishColors.oceanDark}CC, ${jellyfishColors.deepOcean}CC)`,
+          border: `1px solid ${jellyfishColors.frameViolet}`,
+          background: `linear-gradient(135deg, ${jellyfishColors.backgroundPaper}CC, ${jellyfishColors.backgroundLight}CC)`,
           backdropFilter: 'blur(35px) saturate(200%)',
           boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1)
+            0 8px 32px rgba(236, 64, 122, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8)
           `,
           overflow: 'hidden',
           transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
@@ -648,8 +586,8 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiTableCell-head': {
-            background: `linear-gradient(135deg, ${jellyfishColors.oceanMedium}80, ${jellyfishColors.oceanDark}80)`,
-            color: jellyfishColors.grayLight,
+            background: `linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(171, 71, 188, 0.12))`,
+            color: '#e8e8e8',
             fontWeight: 600,
             fontSize: '0.875rem',
             borderBottom: 'none',

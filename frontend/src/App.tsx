@@ -1,9 +1,10 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { useProject } from './contexts/ProjectContext'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import LandingPage from './pages/LandingPage'
 import ProjectsPage from './pages/ProjectsPage'
 import DashboardPage from './pages/DashboardPage'
 import ModulesPage from './pages/ModulesPage'
@@ -43,27 +44,42 @@ function ProjectRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function App() {
+function AppRoot() {
+  const { user, loading } = useAuth()
+  const location = useLocation()
+  const isPublicPath = location.pathname === '/' || location.pathname === '/login' || location.pathname === '/register'
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d0e12', color: '#f0f0f0' }}>
+        Chargement...
+      </div>
+    )
+  }
+
+  if (!user && isPublicPath) {
+    if (location.pathname === '/') return <LandingPage />
+    if (location.pathname === '/login') return <LoginPage />
+    if (location.pathname === '/register') return <RegisterPage />
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />
+  }
+
+  if (user && (location.pathname === '/login' || location.pathname === '/register')) {
+    return <Navigate to="/projects" replace />
+  }
+
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route
-        path="/projects"
-        element={
-          <PrivateRoute>
-            <ProjectsPage />
-          </PrivateRoute>
-        }
-      />
+      <Route path="/projects" element={<ProjectsPage />} />
       <Route
         path="/"
         element={
-          <PrivateRoute>
-            <ProjectRoute>
-              <Layout />
-            </ProjectRoute>
-          </PrivateRoute>
+          <ProjectRoute>
+            <Layout />
+          </ProjectRoute>
         }
       >
         <Route index element={<ModulesPage />} />
@@ -77,6 +93,14 @@ function App() {
         <Route path="metrics" element={<MetricsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
+    </Routes>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/*" element={<AppRoot />} />
     </Routes>
   )
 }

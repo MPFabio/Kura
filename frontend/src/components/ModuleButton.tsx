@@ -11,7 +11,7 @@ export default function ModuleButton({ children, sx, ...props }: ModuleButtonPro
       variant="contained"
       {...props}
       sx={{
-        background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+        background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
         '&:hover': {
           background: 'linear-gradient(135deg, #00B8D4, #9C6ADE)',
         },

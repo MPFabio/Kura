@@ -212,14 +212,15 @@ export default function ProjectsPage() {
           sx={{
             p: 4,
             textAlign: 'center',
-            background: 'rgba(0, 0, 0, 0.3)',
+            background: 'linear-gradient(135deg, rgba(236, 64, 122, 0.05) 0%, rgba(178, 235, 242, 0.9) 50%, rgba(224, 247, 250, 0.95) 100%)',
             backdropFilter: 'blur(30px) saturate(180%)',
             borderRadius: '32px',
-            border: '1px solid rgba(176, 190, 197, 0.1)',
+            border: '1px solid rgba(171, 71, 188, 0.55)',
+            boxShadow: '0 8px 32px rgba(236, 64, 122, 0.2), 0 4px 12px rgba(171, 71, 188, 0.15)',
           }}
         >
-          <FolderIcon sx={{ fontSize: 64, color: 'rgba(176, 190, 197, 0.5)', mb: 2 }} />
-          <ModuleSubtitle sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.7)' }}>
+          <FolderIcon sx={{ fontSize: 64, color: '#EC407A', mb: 2, filter: 'drop-shadow(0 0 12px rgba(236, 64, 122, 0.5))' }} />
+          <ModuleSubtitle sx={{ mb: 2, color: '#f0f0f0' }}>
             Aucun projet
           </ModuleSubtitle>
           <ModuleSecondaryText sx={{ mb: 3 }}>
@@ -265,7 +266,7 @@ export default function ProjectsPage() {
                           position: 'absolute',
                           width: 60,
                           height: 60,
-                          border: '1px solid rgba(0, 229, 255, 0.3)',
+                          border: '1px solid rgba(236, 64, 122, 0.35)',
                           borderRadius: '50%',
                           animation: 'constructAnimation 8s linear infinite',
                         }}
@@ -289,7 +290,7 @@ export default function ProjectsPage() {
                           color: '#00E5FF', 
                           position: 'relative',
                           zIndex: 1,
-                          filter: 'drop-shadow(0 0 20px rgba(0, 229, 255, 0.8)) drop-shadow(0 0 40px rgba(179, 136, 255, 0.5))',
+                          filter: 'drop-shadow(0 0 20px rgba(0, 229, 255, 0.8)) drop-shadow(0 0 40px rgba(236, 64, 122, 0.5))',
                           animation: 'breathingGlow 3s ease-in-out infinite',
                         }} 
                       />
@@ -302,7 +303,7 @@ export default function ProjectsPage() {
                         color="success"
                         sx={{
                           backgroundColor: 'rgba(102, 187, 106, 0.2)',
-                          color: '#66BB6A',
+                          color: '#81C784',
                           border: '1px solid rgba(102, 187, 106, 0.4)',
                           fontWeight: 500,
                         }}
@@ -313,7 +314,7 @@ export default function ProjectsPage() {
                     sx={{
                       mb: 2.5,
                       fontSize: '1.5rem',
-                      background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+                      background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
                       backgroundClip: 'text',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
@@ -327,17 +328,17 @@ export default function ProjectsPage() {
                     </ModuleSecondaryText>
                   )}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto', pt: 2 }}>
-                    <ModuleCaption>
+                    <ModuleCaption sx={{ color: '#b8b8b8', fontWeight: 500 }}>
                       {new Date(project.created_at).toLocaleDateString('fr-FR')}
                     </ModuleCaption>
                     <IconButton
                       size="small"
                       onClick={(e) => handleDeleteProject(project.id, e)}
                       sx={{
-                        color: 'rgba(255, 69, 0, 0.7)',
+                        color: '#F48FB1',
                         '&:hover': {
-                          color: '#FF4500',
-                          background: 'rgba(255, 69, 0, 0.1)',
+                          color: '#EC407A',
+                          background: 'rgba(236, 64, 122, 0.2)',
                         },
                       }}
                     >
@@ -354,7 +355,7 @@ export default function ProjectsPage() {
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle
           sx={{
-            background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+            background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -392,7 +393,7 @@ export default function ProjectsPage() {
             variant="contained"
             disabled={createProjectMutation.isPending || !projectName.trim()}
             sx={{
-              background: 'linear-gradient(135deg, #00E5FF, #B388FF)',
+              background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
               '&:hover': {
                 background: 'linear-gradient(135deg, #00B8D4, #9C6ADE)',
               },
