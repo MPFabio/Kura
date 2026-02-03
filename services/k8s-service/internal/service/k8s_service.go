@@ -32,6 +32,12 @@ type K8sClient interface {
 	GetPodYAML(ctx context.Context, namespace, name string) (string, error)
 	GetDeploymentYAML(ctx context.Context, namespace, name string) (string, error)
 	GetServiceYAML(ctx context.Context, namespace, name string) (string, error)
+	GetConfigMap(ctx context.Context, namespace, name string) (*corev1.ConfigMap, error)
+	GetSecret(ctx context.Context, namespace, name string) (*corev1.Secret, error)
+	GetNode(ctx context.Context, name string) (*corev1.Node, error)
+	GetConfigMapYAML(ctx context.Context, namespace, name string) (string, error)
+	GetSecretYAML(ctx context.Context, namespace, name string) (string, error)
+	GetNodeYAML(ctx context.Context, name string) (string, error)
 	ScaleDeployment(ctx context.Context, namespace, name string, replicas int32) error
 	DeletePod(ctx context.Context, namespace, name string) error
 	DeleteDeployment(ctx context.Context, namespace, name string) error
@@ -281,7 +287,7 @@ func (s *K8sService) ListServices(ctx context.Context, namespace string) ([]Serv
 		return nil, fmt.Errorf("erreur lors de la récupération des services: %w", err)
 	}
 
-		result := make([]ServiceDTO, 0, len(services))
+	result := make([]ServiceDTO, 0, len(services))
 	for _, svc := range services {
 		ports := make([]ServicePortDTO, 0, len(svc.Spec.Ports))
 		for _, p := range svc.Spec.Ports {
@@ -487,6 +493,21 @@ func (s *K8sService) GetServiceYAML(ctx context.Context, namespace, name string)
 	return s.k8sClient.GetServiceYAML(ctx, namespace, name)
 }
 
+// GetConfigMapYAML retourne le YAML d'un ConfigMap.
+func (s *K8sService) GetConfigMapYAML(ctx context.Context, namespace, name string) (string, error) {
+	return s.k8sClient.GetConfigMapYAML(ctx, namespace, name)
+}
+
+// GetSecretYAML retourne le YAML d'un Secret.
+func (s *K8sService) GetSecretYAML(ctx context.Context, namespace, name string) (string, error) {
+	return s.k8sClient.GetSecretYAML(ctx, namespace, name)
+}
+
+// GetNodeYAML retourne le YAML d'un Node.
+func (s *K8sService) GetNodeYAML(ctx context.Context, name string) (string, error) {
+	return s.k8sClient.GetNodeYAML(ctx, name)
+}
+
 // ScaleDeployment modifie le nombre de replicas d'un deployment.
 func (s *K8sService) ScaleDeployment(ctx context.Context, namespace, name string, replicas int32) error {
 	return s.k8sClient.ScaleDeployment(ctx, namespace, name, replicas)
@@ -509,16 +530,16 @@ func (s *K8sService) DeleteService(ctx context.Context, namespace, name string) 
 
 // EventDTO est un DTO simplifié pour exposer les événements.
 type EventDTO struct {
-	Name              string    `json:"name"`
-	Namespace         string    `json:"namespace"`
-	Type              string    `json:"type"`
-	Reason            string    `json:"reason"`
-	Message           string    `json:"message"`
-	FirstTimestamp    time.Time `json:"firstTimestamp"`
-	LastTimestamp     time.Time `json:"lastTimestamp"`
-	Count             int32     `json:"count"`
-	InvolvedObject    string    `json:"involvedObject"`
-	InvolvedObjectKind string   `json:"involvedObjectKind"`
+	Name               string    `json:"name"`
+	Namespace          string    `json:"namespace"`
+	Type               string    `json:"type"`
+	Reason             string    `json:"reason"`
+	Message            string    `json:"message"`
+	FirstTimestamp     time.Time `json:"firstTimestamp"`
+	LastTimestamp      time.Time `json:"lastTimestamp"`
+	Count              int32     `json:"count"`
+	InvolvedObject     string    `json:"involvedObject"`
+	InvolvedObjectKind string    `json:"involvedObjectKind"`
 }
 
 // ListEvents retourne la liste des événements pour un namespace donné.
@@ -539,15 +560,15 @@ func (s *K8sService) ListEvents(ctx context.Context, namespace string) ([]EventD
 			involvedObject = fmt.Sprintf("%s/%s", event.InvolvedObject.Kind, event.InvolvedObject.Name)
 		}
 		result = append(result, EventDTO{
-			Name:              event.Name,
-			Namespace:         event.Namespace,
-			Type:              event.Type,
-			Reason:            event.Reason,
-			Message:           event.Message,
-			FirstTimestamp:    event.FirstTimestamp.Time,
-			LastTimestamp:     event.LastTimestamp.Time,
-			Count:             event.Count,
-			InvolvedObject:    involvedObject,
+			Name:               event.Name,
+			Namespace:          event.Namespace,
+			Type:               event.Type,
+			Reason:             event.Reason,
+			Message:            event.Message,
+			FirstTimestamp:     event.FirstTimestamp.Time,
+			LastTimestamp:      event.LastTimestamp.Time,
+			Count:              event.Count,
+			InvolvedObject:     involvedObject,
 			InvolvedObjectKind: event.InvolvedObject.Kind,
 		})
 	}
@@ -563,4 +584,9 @@ func (s *K8sService) ExecPod(ctx context.Context, namespace, name, container str
 // GetPod retourne les détails d'un pod.
 func (s *K8sService) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
 	return s.k8sClient.GetPod(ctx, namespace, name)
+}
+
+// GetDeployment retourne les détails d'un deployment.
+func (s *K8sService) GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
+	return s.k8sClient.GetDeployment(ctx, namespace, name)
 }

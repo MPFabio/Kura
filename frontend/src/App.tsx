@@ -51,8 +51,31 @@ function AppRoot() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d0e12', color: '#f0f0f0' }}>
-        Chargement...
+      <div
+        style={{
+          minHeight: '100vh',
+          width: '100vw',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#1a1d28',
+          color: '#ffffff',
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: '1.25rem',
+          gap: '1rem',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 99999,
+        }}
+        role="status"
+        aria-live="polite"
+      >
+        <div style={{ width: 48, height: 48, border: '4px solid rgba(0,229,255,0.3)', borderTopColor: '#00E5FF', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+        <span style={{ color: '#ffffff', fontWeight: 600 }}>Chargement...</span>
       </div>
     )
   }
@@ -70,7 +93,6 @@ function AppRoot() {
   if (user && (location.pathname === '/login' || location.pathname === '/register')) {
     return <Navigate to="/projects" replace />
   }
-
   return (
     <Routes>
       <Route path="/projects" element={<ProjectsPage />} />

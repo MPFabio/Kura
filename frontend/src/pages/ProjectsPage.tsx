@@ -16,6 +16,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Typography,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -61,11 +62,12 @@ export default function ProjectsPage() {
   }
 
   const { data: projectsData, isLoading } = useQuery({
-    queryKey: ['projects'],
+    queryKey: ['projects', user?.id],
     queryFn: async () => {
       const response = await projectService.getProjects()
       return response.items || []
     },
+    enabled: !!user,
   })
 
   const createProjectMutation = useMutation({
@@ -128,7 +130,12 @@ export default function ProjectsPage() {
   const displayedProjects = projectsData || projects
 
   return (
-    <>
+    <Box
+      component="div"
+      data-page="projects"
+      sx={{ position: 'relative', zIndex: 1, minHeight: '100vh', background: '#32364a' }}
+      style={{ minHeight: '100vh', background: '#32364a', position: 'relative', zIndex: 1 }}
+    >
       <AnimatedBackground />
       {/* Header simple en haut avec logo et avatar - pleine largeur */}
       <Box
@@ -139,9 +146,8 @@ export default function ProjectsPage() {
           left: 0,
           right: 0,
           width: '100vw',
-          background: 'rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(30px) saturate(180%)',
-          borderBottom: '1px solid rgba(176, 190, 197, 0.1)',
+          background: '#2c2f3f',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           borderRadius: 0,
           zIndex: 1000,
         }}
@@ -152,8 +158,8 @@ export default function ProjectsPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
             px: { xs: 3, sm: 4 },
-            py: 2.5,
-            minHeight: '80px',
+            py: 3,
+            minHeight: '100px',
           }}
         >
           <Logo variant="full" size="small" />
@@ -186,8 +192,8 @@ export default function ProjectsPage() {
         </Box>
       </Box>
       {/* Contenu principal - EXACTEMENT même style que ModulesPage */}
-      <Box sx={{ minHeight: '100vh', position: 'relative', width: '100vw', p: 4, pt: '130px', zIndex: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
+      <Box sx={{ minHeight: '100vh', position: 'relative', width: '100vw', p: 4, pt: '170px', pb: 6, zIndex: 1, background: '#32364a', color: '#f0f0f0' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5, mt: 1 }}>
           <ModuleTitle sx={{ mb: 0 }}>Projets</ModuleTitle>
           <ModuleButton
             startIcon={<AddIcon />}
@@ -210,22 +216,18 @@ export default function ProjectsPage() {
       ) : displayedProjects.length === 0 ? (
         <Card
           sx={{
-            p: 4,
+            p: 6,
             textAlign: 'center',
-            background: 'linear-gradient(135deg, rgba(236, 64, 122, 0.05) 0%, rgba(178, 235, 242, 0.9) 50%, rgba(224, 247, 250, 0.95) 100%)',
-            backdropFilter: 'blur(30px) saturate(180%)',
-            borderRadius: '32px',
-            border: '1px solid rgba(171, 71, 188, 0.55)',
-            boxShadow: '0 8px 32px rgba(236, 64, 122, 0.2), 0 4px 12px rgba(171, 71, 188, 0.15)',
+            borderLeft: '4px solid #AB47BC',
           }}
         >
-          <FolderIcon sx={{ fontSize: 64, color: '#EC407A', mb: 2, filter: 'drop-shadow(0 0 12px rgba(236, 64, 122, 0.5))' }} />
-          <ModuleSubtitle sx={{ mb: 2, color: '#f0f0f0' }}>
+          <FolderIcon sx={{ fontSize: 64, color: '#AB47BC', mb: 3, opacity: 0.6 }} />
+          <Typography sx={{ mb: 2, color: '#f0f0f0', fontSize: '1.25rem', fontWeight: 700 }}>
             Aucun projet
-          </ModuleSubtitle>
-          <ModuleSecondaryText sx={{ mb: 3 }}>
-            Utilisez le bouton "Créer un projet" en haut à droite pour commencer
-          </ModuleSecondaryText>
+          </Typography>
+          <Typography sx={{ color: '#a0a0a0', fontSize: '0.9375rem' }}>
+            Utilisez le bouton "Créer un projet" pour commencer
+          </Typography>
         </Card>
       ) : (
         <Box
@@ -248,97 +250,50 @@ export default function ProjectsPage() {
                 }}
               >
                 <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Box
-                      sx={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 60,
-                        height: 60,
-                        mb: 1,
-                      }}
-                    >
-                      {/* Cercles orbitaux pour effet moderne */}
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          width: 60,
-                          height: 60,
-                          border: '1px solid rgba(236, 64, 122, 0.35)',
-                          borderRadius: '50%',
-                          animation: 'constructAnimation 8s linear infinite',
-                        }}
-                      />
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          width: 70,
-                          height: 70,
-                          border: '1px solid transparent',
-                          borderTop: '1px solid rgba(0, 229, 255, 0.5)',
-                          borderRight: '1px solid rgba(179, 136, 255, 0.4)',
-                          borderRadius: '50%',
-                          animation: 'constructAnimation 6s linear infinite reverse',
-                        }}
-                      />
-                      {/* Icône dossier avec effet de lueur */}
-                      <FolderIcon 
-                        sx={{ 
-                          fontSize: 40, 
-                          color: '#00E5FF', 
-                          position: 'relative',
-                          zIndex: 1,
-                          filter: 'drop-shadow(0 0 20px rgba(0, 229, 255, 0.8)) drop-shadow(0 0 40px rgba(236, 64, 122, 0.5))',
-                          animation: 'breathingGlow 3s ease-in-out infinite',
-                        }} 
-                      />
-                    </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                    <FolderIcon sx={{ fontSize: 48, color: '#00E5FF' }} />
                     {isActive && (
-                      <Chip
-                        icon={<CheckCircleIcon />}
-                        label="Actif"
-                        size="small"
-                        color="success"
+                      <Box
                         sx={{
-                          backgroundColor: 'rgba(102, 187, 106, 0.2)',
+                          px: 1.5,
+                          py: 0.5,
+                          border: '1px solid #81C784',
                           color: '#81C784',
-                          border: '1px solid rgba(102, 187, 106, 0.4)',
-                          fontWeight: 500,
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.05em',
                         }}
-                      />
+                      >
+                        ACTIF
+                      </Box>
                     )}
                   </Box>
-                  <ModuleSubtitle
+                  <Typography
                     sx={{
-                      mb: 2.5,
+                      mb: 2,
                       fontSize: '1.5rem',
-                      background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
-                      backgroundClip: 'text',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
+                      fontWeight: 700,
+                      color: '#f0f0f0',
                     }}
                   >
                     {project.name}
-                  </ModuleSubtitle>
+                  </Typography>
                   {project.description && (
-                    <ModuleSecondaryText sx={{ mb: 3 }}>
+                    <Typography sx={{ mb: 3, color: '#a0a0a0', fontSize: '0.9375rem', lineHeight: 1.6 }}>
                       {project.description}
-                    </ModuleSecondaryText>
+                    </Typography>
                   )}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto', pt: 2 }}>
-                    <ModuleCaption sx={{ color: '#b8b8b8', fontWeight: 500 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto', pt: 3, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <Typography sx={{ color: '#707070', fontSize: '0.8125rem', fontFamily: '"JetBrains Mono", monospace' }}>
                       {new Date(project.created_at).toLocaleDateString('fr-FR')}
-                    </ModuleCaption>
+                    </Typography>
                     <IconButton
                       size="small"
                       onClick={(e) => handleDeleteProject(project.id, e)}
                       sx={{
-                        color: '#F48FB1',
+                        color: '#EC407A',
                         '&:hover': {
-                          color: '#EC407A',
-                          background: 'rgba(236, 64, 122, 0.2)',
+                          background: 'rgba(236, 64, 122, 0.15)',
                         },
                       }}
                     >
@@ -355,11 +310,8 @@ export default function ProjectsPage() {
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle
           sx={{
-            background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            fontWeight: 600,
+            color: '#f0f0f0',
+            fontWeight: 700,
           }}
         >
           Créer un nouveau projet
@@ -393,17 +345,19 @@ export default function ProjectsPage() {
             variant="contained"
             disabled={createProjectMutation.isPending || !projectName.trim()}
             sx={{
-              background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
+              background: '#00E5FF',
+              color: '#0d0e12',
+              fontWeight: 700,
               '&:hover': {
-                background: 'linear-gradient(135deg, #00B8D4, #9C6ADE)',
+                background: '#26C6DA',
               },
             }}
           >
-            {createProjectMutation.isPending ? <CircularProgress size={20} /> : 'Créer'}
+            {createProjectMutation.isPending ? <CircularProgress size={20} sx={{ color: '#0d0e12' }} /> : 'Créer'}
           </Button>
         </DialogActions>
       </Dialog>
       </Box>
-    </>
+    </Box>
   )
 }

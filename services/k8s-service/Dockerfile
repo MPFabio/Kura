@@ -4,26 +4,41 @@ WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates && update-ca-certificates
 
-# Étape 1 : préparer le cache des dépendances à partir du go.mod
 COPY go.mod ./
 RUN go mod download && go mod verify
 
-# Étape 2 : copier le code source et s'assurer que go.sum contient bien toutes les entrées nécessaires
 COPY . .
 RUN go mod tidy
 
-# Étape 3 : builder le binaire
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o k8s-service ./main.go
 
-FROM gcr.io/distroless/base-debian12
+# Image finale avec le plugin GKE pour que le kubeconfig généré par gcloud soit lisible nativement
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    apt-transport-https \
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+    | tee /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl -sL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+    | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-cloud-sdk google-cloud-sdk-gke-gcloud-auth-plugin \
+    && ln -sf /usr/bin/gke-gcloud-auth-plugin /usr/bin/gke-gcloud-auth-plugin.exe \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY --from=builder /app/k8s-service /app/k8s-service
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8081
 
 ENV K8S_SERVICE_PORT=8081
+ENV PATH="/usr/bin:${PATH}"
 
-ENTRYPOINT ["/app/k8s-service"]
-
+ENTRYPOINT ["/app/entrypoint.sh"]

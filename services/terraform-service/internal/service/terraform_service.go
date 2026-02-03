@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	gcpDrift "github.com/modulops/terraform-service/internal/drift/gcp"
 	"github.com/modulops/terraform-service/internal/models"
 	"github.com/modulops/terraform-service/internal/parser"
+	"github.com/modulops/terraform-service/internal/storage"
 )
 
 // Cache définit l'interface minimale du cache utilisée par le service.
@@ -23,19 +25,22 @@ type Cache interface {
 
 // TerraformService contient la logique métier autour de Terraform.
 type TerraformService struct {
-	parser *parser.TFStateParser
-	cache  Cache
-	cfg    *config.Config
-	states map[string]*models.StateFile // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
+	parser        *parser.TFStateParser
+	cache         Cache
+	cfg           *config.Config
+	states        map[string]*models.StateFile // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
+	backendWriter storage.BackendWriter        // optionnel : persistance tfstate dans un bucket S3
 }
 
 // NewTerraformService crée un nouveau service Terraform.
-func NewTerraformService(cache Cache, cfg *config.Config) *TerraformService {
+// Si backendWriter est non nil et cfg.StateBackend == "s3", chaque état uploadé est aussi persisté dans le bucket.
+func NewTerraformService(cache Cache, cfg *config.Config, backendWriter storage.BackendWriter) *TerraformService {
 	return &TerraformService{
-		parser: parser.NewTFStateParser(),
-		cache:  cache,
-		cfg:    cfg,
-		states: make(map[string]*models.StateFile),
+		parser:        parser.NewTFStateParser(),
+		cache:         cache,
+		cfg:           cfg,
+		states:        make(map[string]*models.StateFile),
+		backendWriter: backendWriter,
 	}
 }
 
@@ -112,6 +117,17 @@ func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID
 		// Utiliser un TTL de 30 jours pour les états Terraform (beaucoup plus long que le TTL par défaut)
 		stateTTL := 30 * 24 * time.Hour
 		_ = s.cache.Set(ctx, cacheKey, string(stateJSON), stateTTL)
+	}
+
+	// Persister dans le backend S3 si configuré (tfstate dans un bucket)
+	if s.backendWriter != nil && s.cfg.StateBackend == "s3" && len(stateData) > 0 {
+		key := s.cfg.S3KeyPrefix + "/" + stateFile.ID + ".tfstate"
+		if stateFile.ProjectID != "" {
+			key = s.cfg.S3KeyPrefix + "/" + stateFile.ProjectID + "/" + stateFile.ID + ".tfstate"
+		}
+		if err := s.backendWriter.PutStateFile(ctx, s.cfg.S3Bucket, key, stateData); err != nil {
+			log.Printf("⚠️  Persistance tfstate vers S3 ignorée: %v", err)
+		}
 	}
 
 	return stateFile, nil

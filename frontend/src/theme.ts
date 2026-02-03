@@ -1,11 +1,11 @@
 import { createTheme } from '@mui/material/styles'
 
-// Palette DA KURA : charbon, bioluminescence cyan/magenta/violet, glassmorphism
+// Palette DA KURA : fond gris-bleu clair, accents cyan/magenta/violet
 export const jellyfishColors = {
-  // Fonds charbon (DA)
-  backgroundLight: '#0d0e12',   // charbon principal
-  backgroundPaper: '#14161f',   // cartes / paper légèrement plus clair
-  backgroundCard: '#1a1d28',   // cartes
+  // Fonds gris-bleu CLAIRS (lisibles et agréables)
+  backgroundLight: '#2c2f3f',   // fond principal gris-bleu clair
+  backgroundPaper: '#32364a',   // cartes / paper légèrement plus clair
+  backgroundCard: '#383c50',   // cartes
 
   // Cloche méduse - cyan / bleu
   cyanSoft: '#00E5FF',      // Cyan vif (haut cloche)
@@ -82,48 +82,54 @@ export const theme = createTheme({
       'sans-serif',
     ].join(','),
     h1: {
-      fontSize: '2.5rem',
-      fontWeight: 500,
-      letterSpacing: '-0.02em',
+      fontSize: '3rem',
+      fontWeight: 700,
+      letterSpacing: '-0.04em',
       color: '#f0f0f0',
     },
     h2: {
-      fontSize: '2rem',
-      fontWeight: 500,
-      letterSpacing: '-0.01em',
+      fontSize: '2.25rem',
+      fontWeight: 700,
+      letterSpacing: '-0.03em',
       color: '#f0f0f0',
     },
     h3: {
-      fontSize: '1.75rem',
-      fontWeight: 500,
-      letterSpacing: '-0.01em',
-      // Les composants ModuleTitle override ces valeurs
+      fontSize: '1.875rem',
+      fontWeight: 700,
+      letterSpacing: '-0.02em',
+      color: '#f0f0f0',
     },
     h4: {
       fontSize: '1.5rem',
-      fontWeight: 500,
+      fontWeight: 700,
+      letterSpacing: '-0.02em',
+      color: '#f0f0f0',
     },
     h5: {
       fontSize: '1.25rem',
-      fontWeight: 500,
+      fontWeight: 700,
+      color: '#f0f0f0',
     },
     h6: {
-      fontSize: '1rem',
-      fontWeight: 500,
+      fontSize: '1.125rem',
+      fontWeight: 700,
+      color: '#f0f0f0',
     },
     body1: {
-      fontSize: '1rem',
+      fontSize: '0.9375rem',
       lineHeight: 1.6,
+      fontWeight: 400,
       color: '#f0f0f0',
     },
     body2: {
-      fontSize: '1rem',
+      fontSize: '0.875rem',
       lineHeight: 1.5,
+      fontWeight: 400,
       color: '#b8b8b8',
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 0,
   },
   spacing: 8,
   components: {
@@ -131,40 +137,38 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           textTransform: 'none',
-          borderRadius: 8,
-          fontWeight: 500,
-          padding: '10px 20px',
-          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          borderRadius: 0,
+          fontWeight: 700,
+          padding: '12px 24px',
+          fontSize: '0.9375rem',
+          transition: 'all 0.15s ease',
           boxShadow: 'none',
+          '&:hover': {
+            boxShadow: 'none',
+          },
         },
         outlined: {
-          border: `2px solid ${jellyfishColors.cyanSoft}60`,
+          border: `2px solid ${jellyfishColors.cyanSoft}`,
           color: jellyfishColors.cyanSoft,
           background: 'transparent',
-          borderRadius: 12,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: `0 0 8px ${jellyfishColors.cyanSoft}30`,
           '&:hover': {
-            border: `2px solid ${jellyfishColors.cyanSoft}80`,
-            background: `${jellyfishColors.cyanSoft}15`,
-            boxShadow: `0 0 16px ${jellyfishColors.cyanSoft}50`,
+            background: 'rgba(0, 229, 255, 0.08)',
+            borderColor: jellyfishColors.cyanSoft,
           },
         },
         contained: {
-          background: `linear-gradient(135deg, ${jellyfishColors.cyanSoft}, ${jellyfishColors.magenta})`,
-          color: '#fff',
-          border: 'none',
-          boxShadow: `0 4px 16px ${jellyfishColors.cyanSoft}30`,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          background: jellyfishColors.cyanSoft,
+          color: '#0d0e12',
+          fontWeight: 700,
           '&:hover': {
-            background: `linear-gradient(135deg, ${jellyfishColors.cyanMedium}, ${jellyfishColors.magentaDeep})`,
-            boxShadow: `0 6px 20px ${jellyfishColors.cyanSoft}35, 0 0 16px ${jellyfishColors.magenta}40`,
+            background: jellyfishColors.cyanMedium,
           },
         },
         text: {
           color: jellyfishColors.cyanSoft,
+          fontWeight: 600,
           '&:hover': {
-            background: jellyfishColors.cyanSubtle,
+            background: 'rgba(0, 229, 255, 0.08)',
           },
         },
       },
@@ -172,18 +176,15 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          background: 'rgba(20, 22, 31, 0.6)',
-          backdropFilter: 'blur(20px) saturate(150%)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          borderRadius: 20,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03)',
-          transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          background: jellyfishColors.backgroundCard,
+          border: '1px solid rgba(0, 229, 255, 0.15)',
+          borderRadius: 0,
+          boxShadow: 'none',
+          transition: 'border-color 0.15s ease',
           position: 'relative',
           overflow: 'hidden',
-          animationDelay: 'var(--card-delay, 0s)',
           '&:hover': {
-            borderColor: 'rgba(0, 229, 255, 0.15)',
-            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 229, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+            borderColor: 'rgba(0, 229, 255, 0.25)',
           },
         },
       },
@@ -191,108 +192,59 @@ export const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          background: 'rgba(20, 22, 31, 0.65)',
-          backdropFilter: 'blur(20px) saturate(150%)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          borderRadius: 20,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03)',
-          transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          background: '#14161f',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 0,
+          boxShadow: 'none',
+          transition: 'all 0.15s ease',
           position: 'relative',
           overflow: 'hidden',
+          '&.MuiDrawer-paper': {
+            background: 'transparent !important',
+            backgroundColor: 'transparent !important',
+            backgroundImage: 'none !important',
+            border: 'none !important',
+          },
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: 'rgba(13, 14, 18, 0.85)',
-          backdropFilter: 'blur(24px) saturate(150%)',
-          borderRight: '1px solid rgba(255, 255, 255, 0.06)',
-          borderRadius: '0 20px 20px 0',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 1px 0 0 rgba(0, 229, 255, 0.08)',
-          position: 'fixed',
-          height: '100vh',
-          overflowY: 'hidden',
-          overflowX: 'hidden',
-          transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          zIndex: 1200,
+          background: jellyfishColors.backgroundLight,
+          borderRight: '2px solid rgba(0, 229, 255, 0.2)',
+          borderRadius: 0,
+          boxShadow: 'none',
         },
       },
     },
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: `linear-gradient(180deg, ${jellyfishColors.backgroundPaper}E6, ${jellyfishColors.backgroundLight}E6)`,
-          backdropFilter: 'blur(30px) saturate(180%)',
-          borderBottom: 'none',
-          borderLeft: 'none',
-          borderRadius: '16px',
-          boxShadow: `
-            0 4px 16px rgba(236, 64, 122, 0.2),
-            0 2px 8px rgba(171, 71, 188, 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.8),
-            0 0 0 1px ${jellyfishColors.frameViolet}
-          `,
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `linear-gradient(180deg, ${jellyfishColors.violetMedium}22 0%, transparent 30%, transparent 70%, ${jellyfishColors.magenta}18 100%)`,
-            animation: 'etherealGlow 8s ease-in-out infinite',
-            pointerEvents: 'none',
-            zIndex: 0,
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            borderRadius: '16px',
-            background: `linear-gradient(135deg, rgba(236, 64, 122, 0.15) 0%, transparent 50%, rgba(171, 71, 188, 0.12) 100%)`,
-            pointerEvents: 'none',
-            zIndex: 0,
-          },
+          background: jellyfishColors.backgroundLight,
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          borderRadius: 0,
+          boxShadow: 'none',
         },
       },
     },
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-          margin: '2px 8px',
-          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          borderRadius: 0,
+          margin: '0',
+          padding: '12px 16px',
+          transition: 'all 0.2s ease',
           '&:hover': {
-            background: `linear-gradient(90deg, ${jellyfishColors.cyanSubtle}, ${jellyfishColors.violetSubtle})`,
+            background: 'rgba(0, 229, 255, 0.08)',
           },
           '&.Mui-selected': {
-            background: `linear-gradient(90deg, ${jellyfishColors.magenta}35, ${jellyfishColors.violetMedium}30)`,
-            borderRadius: 12,
-            boxShadow: `
-              0 0 16px rgba(236, 64, 122, 0.35),
-              0 0 8px rgba(171, 71, 188, 0.25),
-              inset 0 0 20px rgba(236, 64, 122, 0.08)
-            `,
-            position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: '3px',
-              background: `linear-gradient(180deg, ${jellyfishColors.magenta}, ${jellyfishColors.cyanSoft})`,
-              borderRadius: '12px 0 0 12px',
-              zIndex: 1,
-            },
+            background: 'rgba(0, 229, 255, 0.15)',
+            borderLeft: '4px solid',
+            borderLeftColor: jellyfishColors.cyanSoft,
+            paddingLeft: '12px',
             '&:hover': {
-              background: `linear-gradient(90deg, ${jellyfishColors.magenta}45, ${jellyfishColors.violetMedium}40)`,
+              background: 'rgba(0, 229, 255, 0.2)',
             },
           },
         },
@@ -314,19 +266,13 @@ export const theme = createTheme({
       styleOverrides: {
         primary: {
           fontWeight: 500,
-          // Dégradé logo (cyan → magenta) pour les items non sélectionnés
+          // Items non sélectionnés : texte gris
           '.MuiListItemButton-root:not(.Mui-selected) &': {
-            background: 'linear-gradient(135deg, #00E5FF, #EC407A) !important',
-            backgroundClip: 'text !important',
-            WebkitBackgroundClip: 'text !important',
-            WebkitTextFillColor: 'transparent !important',
-            color: 'transparent !important',
+            color: '#b8b8b8 !important',
           },
-          // Item sélectionné : texte clair pour lisibilité sur fond magenta/violet
+          // Item sélectionné : texte clair
           '.MuiListItemButton-root.Mui-selected &': {
             color: '#f0f0f0 !important',
-            background: 'none !important',
-            WebkitTextFillColor: '#f0f0f0 !important',
           },
         },
       },
@@ -334,81 +280,40 @@ export const theme = createTheme({
     MuiAlert: {
       styleOverrides: {
         root: {
-          background: `linear-gradient(135deg, ${jellyfishColors.backgroundPaper}CC, ${jellyfishColors.backgroundLight}CC)`,
-          backdropFilter: 'blur(35px) saturate(200%)',
-          border: `1px solid ${jellyfishColors.frameViolet}`,
-          borderRadius: 24,
-          boxShadow: `
-            0 8px 32px rgba(236, 64, 122, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.8)
-          `,
-          padding: '24px 28px',
-          transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          animation: 'jellyfishFloat 12s ease-in-out infinite',
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: '-50%',
-            left: '-50%',
-            width: '200%',
-            height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}15 0%, ${jellyfishColors.violetSoft}10 50%, transparent 70%)`,
-            animation: 'etherealGlow 8s ease-in-out infinite',
-            pointerEvents: 'none',
-            zIndex: 0,
-          },
+          background: jellyfishColors.backgroundPaper,
+          border: `1px solid rgba(255, 255, 255, 0.08)`,
+          borderRadius: 0,
+          boxShadow: 'none',
+          padding: '16px 20px',
         },
         standardInfo: {
-          background: `linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(236, 64, 122, 0.1))`,
+          borderLeftColor: jellyfishColors.cyanSoft,
+          borderLeftWidth: '4px',
           '& .MuiAlert-icon': {
             color: jellyfishColors.cyanSoft,
-            filter: `drop-shadow(0 0 12px ${jellyfishColors.cyanSoft})`,
-            animation: 'breathingGlow 3s ease-in-out infinite',
-            position: 'relative',
-            zIndex: 1,
           },
         },
         standardSuccess: {
-          borderColor: `${jellyfishColors.successSoft}40`,
+          borderLeftColor: jellyfishColors.successSoft,
+          borderLeftWidth: '4px',
         },
         standardWarning: {
-          borderColor: `${jellyfishColors.warningSoft}40`,
+          borderLeftColor: jellyfishColors.warningSoft,
+          borderLeftWidth: '4px',
         },
         standardError: {
-          borderColor: `${jellyfishColors.errorSoft}40`,
+          borderLeftColor: jellyfishColors.errorSoft,
+          borderLeftWidth: '4px',
         },
       },
     },
     MuiDialog: {
       styleOverrides: {
         paper: {
-          background: `linear-gradient(135deg, ${jellyfishColors.backgroundPaper}CC, ${jellyfishColors.backgroundLight}CC)`,
-          backdropFilter: 'blur(40px) saturate(180%)',
-          borderRadius: 28,
-          border: `1px solid ${jellyfishColors.frameViolet}`,
-          boxShadow: `
-            0 24px 80px rgba(236, 64, 122, 0.22),
-            0 8px 24px rgba(171, 71, 188, 0.18),
-            inset 0 1px 0 rgba(255, 255, 255, 0.8)
-          `,
-          transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          animation: 'depthPulse 12s ease-in-out infinite',
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: '-50%',
-            left: '-50%',
-            width: '200%',
-            height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}12 0%, ${jellyfishColors.violetSoft}08 50%, transparent 100%)`,
-            animation: 'etherealGlow 10s ease-in-out infinite',
-            pointerEvents: 'none',
-            zIndex: 0,
-          },
+          background: jellyfishColors.backgroundPaper,
+          borderRadius: 0,
+          border: `1px solid rgba(255, 255, 255, 0.08)`,
+          boxShadow: 'none',
         },
       },
     },
@@ -416,9 +321,11 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           background: 'transparent',
-          borderBottom: 'none',
-          padding: '24px 28px 20px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          padding: '20px 24px',
           color: '#f0f0f0',
+          fontWeight: 700,
+          fontSize: '1.25rem',
         },
       },
     },
@@ -426,7 +333,7 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           background: 'transparent',
-          padding: '0 28px 24px',
+          padding: '24px',
         },
       },
     },
@@ -434,8 +341,8 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           background: 'transparent',
-          borderTop: 'none',
-          padding: '20px 28px 24px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          padding: '20px 24px',
           gap: 12,
         },
       },
@@ -444,31 +351,18 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 16,
-            background: `linear-gradient(135deg, ${jellyfishColors.backgroundPaper}CC, ${jellyfishColors.backgroundLight}CC)`,
-            backdropFilter: 'blur(20px) saturate(180%)',
-            border: `1px solid ${jellyfishColors.frameViolet}`,
-            boxShadow: `
-              0 4px 16px rgba(236, 64, 122, 0.12),
-              inset 0 1px 0 rgba(255, 255, 255, 0.8)
-            `,
-            transition: 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            borderRadius: 0,
+            background: jellyfishColors.backgroundPaper,
             '& fieldset': {
-              border: 'none',
+              borderColor: 'rgba(255, 255, 255, 0.08)',
+              borderWidth: '1px',
             },
-            '&:hover': {
-              boxShadow: `
-                0 6px 20px rgba(236, 64, 122, 0.2),
-                0 0 0 1px rgba(171, 71, 188, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9)
-              `,
+            '&:hover fieldset': {
+              borderColor: 'rgba(0, 229, 255, 0.3)',
             },
-            '&.Mui-focused': {
-              boxShadow: `
-                0 8px 24px rgba(236, 64, 122, 0.25),
-                0 0 0 2px rgba(171, 71, 188, 0.35),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9)
-              `,
+            '&.Mui-focused fieldset': {
+              borderColor: jellyfishColors.cyanSoft,
+              borderWidth: '2px',
             },
           },
         },
@@ -477,20 +371,19 @@ export const theme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          fontWeight: 500,
-          fontSize: '0.8125rem',
-          backdropFilter: 'blur(10px)',
-          border: 'none',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          borderRadius: 0,
+          fontWeight: 600,
+          fontSize: '0.75rem',
+          border: '1px solid',
         },
         colorPrimary: {
-          background: `linear-gradient(135deg, ${jellyfishColors.cyanSubtle}, ${jellyfishColors.violetSubtle})`,
+          backgroundColor: 'transparent',
+          borderColor: jellyfishColors.cyanSoft,
           color: jellyfishColors.cyanSoft,
-          boxShadow: '0 4px 12px rgba(0, 229, 255, 0.2)',
         },
         colorSecondary: {
-          backgroundColor: jellyfishColors.violetSubtle,
+          backgroundColor: 'transparent',
+          borderColor: jellyfishColors.violetSoft,
           color: jellyfishColors.violetSoft,
         },
       },
@@ -498,28 +391,11 @@ export const theme = createTheme({
     MuiTabs: {
       styleOverrides: {
         root: {
-          borderBottom: 'none',
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '1px',
-            background: `linear-gradient(90deg, transparent, ${jellyfishColors.cyanSoft}30, ${jellyfishColors.magenta}30, transparent)`,
-            opacity: 0.5,
-          },
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         },
         indicator: {
-          background: `linear-gradient(90deg, ${jellyfishColors.cyanSoft}, ${jellyfishColors.magenta})`,
+          background: jellyfishColors.cyanSoft,
           height: 3,
-          borderRadius: '3px 3px 0 0',
-          boxShadow: `
-            0 0 12px ${jellyfishColors.cyanSoft}70,
-            0 0 8px ${jellyfishColors.magenta}60,
-            0 0 4px ${jellyfishColors.cyanSoft}40
-          `,
         },
       },
     },
@@ -538,16 +414,13 @@ export const theme = createTheme({
           fontWeight: 500,
           fontSize: '0.9375rem',
           color: '#b8b8b8',
-          transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          padding: '12px 20px',
           '&:hover': {
             color: jellyfishColors.cyanSoft,
           },
           '&.Mui-selected': {
-            background: `linear-gradient(135deg, ${jellyfishColors.cyanSoft}25, ${jellyfishColors.magenta}22)`,
             color: '#f0f0f0',
-            fontWeight: 600,
-            textShadow: 'none',
-            borderRadius: '8px 8px 0 0',
+            fontWeight: 700,
           },
         },
       },
@@ -555,30 +428,11 @@ export const theme = createTheme({
     MuiTableContainer: {
       styleOverrides: {
         root: {
-          borderRadius: 28,
-          border: `1px solid ${jellyfishColors.frameViolet}`,
-          background: `linear-gradient(135deg, ${jellyfishColors.backgroundPaper}CC, ${jellyfishColors.backgroundLight}CC)`,
-          backdropFilter: 'blur(35px) saturate(200%)',
-          boxShadow: `
-            0 8px 32px rgba(236, 64, 122, 0.18),
-            inset 0 1px 0 rgba(255, 255, 255, 0.8)
-          `,
+          borderRadius: 0,
+          border: `1px solid rgba(255, 255, 255, 0.08)`,
+          background: jellyfishColors.backgroundPaper,
+          boxShadow: 'none',
           overflow: 'hidden',
-          transition: 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          animation: 'depthPulse 12s ease-in-out infinite',
-          position: 'relative',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: '-50%',
-            left: '-50%',
-            width: '200%',
-            height: '200%',
-            background: `radial-gradient(circle, ${jellyfishColors.cyanSoft}12 0%, ${jellyfishColors.violetSoft}08 50%, transparent 70%)`,
-            animation: 'etherealGlow 10s ease-in-out infinite',
-            pointerEvents: 'none',
-            zIndex: 0,
-          },
         },
       },
     },
@@ -586,11 +440,11 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiTableCell-head': {
-            background: `linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(171, 71, 188, 0.12))`,
+            background: 'rgba(0, 229, 255, 0.08)',
             color: '#e8e8e8',
-            fontWeight: 600,
+            fontWeight: 700,
             fontSize: '0.875rem',
-            borderBottom: 'none',
+            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
             padding: '16px 20px',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
@@ -601,17 +455,12 @@ export const theme = createTheme({
     MuiTableRow: {
       styleOverrides: {
         root: {
-          transition: 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-          position: 'relative',
-          zIndex: 1,
           '&:hover': {
-            background: `linear-gradient(135deg, ${jellyfishColors.cyanSubtle}, ${jellyfishColors.violetSubtle})`,
-            boxShadow: '0 2px 8px rgba(0, 229, 255, 0.08)',
+            background: 'rgba(0, 229, 255, 0.05)',
           },
           '& .MuiTableCell-body': {
-            borderBottom: 'none',
-            padding: '20px 24px',
-            transition: 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+            padding: '16px 20px',
           },
         },
       },

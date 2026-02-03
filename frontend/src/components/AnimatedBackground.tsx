@@ -1,7 +1,7 @@
 import { Box } from '@mui/material'
 
-/** Fond charbon fixe (DA KURA) */
-const BACKGROUND_DARK = '#0d0e12'
+/** Fond gris-bleu CLAIR (DA KURA) */
+const BACKGROUND_DARK = '#2c2f3f'
 
 /**
  * Fond sombre fixe, cohérent avec le thème inversé
@@ -18,7 +18,7 @@ export default function AnimatedBackground() {
         height: '100%',
         background: BACKGROUND_DARK,
         pointerEvents: 'none',
-        zIndex: 0,
+        zIndex: -1,
       }}
     />
   )

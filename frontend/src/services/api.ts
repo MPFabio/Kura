@@ -18,6 +18,11 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+const authBaseURL =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_AUTH_URL
+    ? String(import.meta.env.VITE_AUTH_URL).replace(/\/$/, '')
+    : baseURL
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -27,7 +32,7 @@ apiClient.interceptors.response.use(
       const refreshToken = localStorage.getItem('refreshToken')
       if (refreshToken) {
         try {
-          const { data } = await axios.post(baseURL + '/api/v1/auth/refresh', {
+          const { data } = await axios.post(authBaseURL + '/api/v1/auth/refresh', {
             refresh_token: refreshToken,
           })
           localStorage.setItem('token', data.token)
@@ -37,7 +42,12 @@ apiClient.interceptors.response.use(
         } catch (_) {
           localStorage.removeItem('token')
           localStorage.removeItem('refreshToken')
+          window.dispatchEvent(new CustomEvent('auth:session-expired'))
         }
+      } else {
+        localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
+        window.dispatchEvent(new CustomEvent('auth:session-expired'))
       }
     }
     return Promise.reject(error)
@@ -112,6 +122,20 @@ export interface K8sSecretsResponse {
 
 export interface K8sNodesResponse {
   items: { name: string; [key: string]: unknown }[]
+}
+
+export interface K8sPodDetail {
+  metadata?: { name?: string; namespace?: string }
+  spec?: { containers?: { name: string }[] }
+  status?: { phase?: string; containerStatuses?: { name: string; ready: boolean }[] }
+  [key: string]: unknown
+}
+
+export interface K8sDeploymentDetail {
+  metadata?: { name?: string; namespace?: string }
+  spec?: { replicas?: number; selector?: { matchLabels?: Record<string, string> } }
+  status?: { replicas?: number; readyReplicas?: number; availableReplicas?: number; updatedReplicas?: number; conditions?: { type: string; status: string; message?: string }[] }
+  [key: string]: unknown
 }
 
 export interface Event {

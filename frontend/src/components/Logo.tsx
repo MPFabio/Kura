@@ -3,26 +3,11 @@ import jellyfishLogo from '../assets/jellyfish_logo.png'
 
 export const kuraWordmarkSx = {
   fontFamily: '"Inter", sans-serif',
-  fontWeight: 600,
+  fontWeight: 700,
   letterSpacing: '0.15em',
-  background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
-  backgroundClip: 'text',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
+  color: '#00E5FF',
   textShadow: 'none',
   position: 'relative' as const,
-  '&::before': {
-    content: '""',
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.4), rgba(236, 64, 122, 0.4))',
-    filter: 'blur(12px)',
-    zIndex: -1,
-    borderRadius: '4px',
-  },
 }
 
 interface LogoProps {
@@ -33,9 +18,9 @@ interface LogoProps {
 
 export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProps) {
   const sizes = {
-    small: { jellyfish: 40, text: '1rem', spacing: 1 },
-    medium: { jellyfish: 60, text: '1.5rem', spacing: 1.5 },
-    large: { jellyfish: 100, text: '2.5rem', spacing: 2 },
+    small: { jellyfish: 40, text: '1rem', spacing: 0.5 },
+    medium: { jellyfish: 60, text: '1.5rem', spacing: 0.75 },
+    large: { jellyfish: 100, text: '2.5rem', spacing: 1 },
   }
 
   const currentSize = sizes[size]
@@ -48,51 +33,76 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
-        minWidth: 'fit-content',
+        margin: '0 auto',
+        background: 'transparent !important',
         ...sx,
       }}
     >
-      {/* Particules en arrière-plan */}
-      {variant === 'full' && (
-        <>
-          {[...Array(12)].map((_, i) => (
-            <Box
-              key={i}
-              sx={{
-                position: 'absolute',
-                width: 2,
-                height: 2,
-                borderRadius: '50%',
-                background: i % 2 === 0 ? 'rgba(0, 229, 255, 0.7)' : 'rgba(236, 64, 122, 0.7)',
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 60}%`,
-                animation: 'particleFloat 8s ease-in-out infinite',
-                animationDelay: `${i * 0.4}s`,
-                boxShadow: `0 0 8px ${i % 2 === 0 ? 'rgba(0, 229, 255, 0.9)' : 'rgba(236, 64, 122, 0.9)'}`,
-              }}
-            />
-          ))}
-        </>
-      )}
-
-      {/* Cercles orbitaux autour de la méduse */}
+      {/* Bloc logo : zone fixe pour contenir méduse + orbites et tout centrer */}
       <Box
         sx={{
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          width: currentSize.jellyfish + 50,
+          height: currentSize.jellyfish + 50,
+          margin: '0 auto',
           mb: variant === 'full' ? currentSize.spacing : 0,
+          flexShrink: 0,
         }}
       >
-        {/* Cercles orbitaux */}
+        {/* Particules qui tournent autour de la méduse */}
+        {variant === 'full' && (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              width: 0,
+              height: 0,
+              animation: 'constructAnimation 15s linear infinite',
+              pointerEvents: 'none',
+            }}
+          >
+            {[...Array(12)].map((_, i) => {
+              const angle = (i / 12) * 2 * Math.PI
+              const radius = Math.min(25, (currentSize.jellyfish + 50) / 2 - 10)
+              const x = Math.cos(angle) * radius
+              const y = Math.sin(angle) * radius
+              return (
+                <Box
+                  key={i}
+                  sx={{
+                    position: 'absolute',
+                    width: 3,
+                    height: 3,
+                    borderRadius: '50%',
+                    background: i % 2 === 0 ? 'rgba(0, 229, 255, 0.9)' : 'rgba(236, 64, 122, 0.9)',
+                    left: 0,
+                    top: 0,
+                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                    boxShadow: `0 0 10px ${i % 2 === 0 ? 'rgba(0, 229, 255, 1)' : 'rgba(236, 64, 122, 1)'}`,
+                  }}
+                />
+              )
+            })}
+          </Box>
+        )}
+
+        {/* Cercles orbitaux - cercles complets centrés autour de la méduse (left/right/top/bottom + margin auto) */}
         {variant === 'full' && (
           <>
             <Box
               sx={{
                 position: 'absolute',
-                width: currentSize.jellyfish + 30,
-                height: currentSize.jellyfish + 30,
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                margin: 'auto',
+                width: currentSize.jellyfish + 20,
+                height: currentSize.jellyfish + 20,
                 border: '1px solid rgba(0, 229, 255, 0.4)',
                 borderRadius: '50%',
                 animation: 'constructAnimation 10s linear infinite',
@@ -101,11 +111,14 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
             <Box
               sx={{
                 position: 'absolute',
-                width: currentSize.jellyfish + 40,
-                height: currentSize.jellyfish + 40,
-                border: '1px solid transparent',
-                borderTop: '1px solid rgba(0, 229, 255, 0.5)',
-                borderRight: '1px solid rgba(179, 136, 255, 0.4)',
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                margin: 'auto',
+                width: currentSize.jellyfish + 28,
+                height: currentSize.jellyfish + 28,
+                border: '1px solid rgba(179, 136, 255, 0.35)',
                 borderRadius: '50%',
                 animation: 'constructAnimation 8s linear infinite reverse',
               }}
@@ -113,7 +126,7 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
           </>
         )}
 
-        {/* Logo méduse PNG avec effets de lueur et flottement naturel */}
+        {/* Logo méduse PNG - centré */}
         <Box
           component="img"
           src={jellyfishLogo}
@@ -123,21 +136,25 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
             height: 'auto',
             maxHeight: currentSize.jellyfish * 1.25,
             objectFit: 'contain',
-            filter: 'drop-shadow(0 0 20px rgba(0, 229, 255, 0.9)) drop-shadow(0 0 40px rgba(179, 136, 255, 0.6))',
-            animation: 'jellyfishFloat 8s ease-in-out infinite, breathingGlow 4s ease-in-out infinite',
+            objectPosition: 'center',
             position: 'relative',
             zIndex: 1,
+            display: 'block',
+            margin: '0 auto',
           }}
         />
       </Box>
 
-      {/* Texte "KURA" et "DevOps Treasury" */}
+      {/* Texte "KURA" - sans décalage pour équilibrer l'espace au-dessus / en-dessous */}
       {variant === 'full' && (
         <Box
           sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            width: '100%',
             gap: 0.5,
           }}
         >
@@ -146,6 +163,8 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
             sx={{
               ...kuraWordmarkSx,
               fontSize: currentSize.text,
+              margin: 0,
+              lineHeight: 1.2,
             }}
           >
             KURA

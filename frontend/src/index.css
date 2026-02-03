@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Polices hébergées localement (évite CORS avec fonts.gstatic.com) */
+/* Importées via main.tsx : @fontsource/inter, @fontsource/jetbrains-mono */
 
 * {
   margin: 0;
@@ -15,8 +16,8 @@ html, body {
 }
 
 :root {
-  --background-light: #0d0e12;
-  --background-paper: #14161f;
+  --background-light: #2c2f3f;
+  --background-paper: #32364a;
   --cyan-soft: #00E5FF;
   --cyan-medium: #00B8D4;
   --cyan-light: #4DD0E1;
@@ -55,6 +56,24 @@ body {
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  background: #2c2f3f;
+  color: #f0f0f0;
+}
+
+#root > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Forcer visibilité page Projets (éviter écran noir) */
+[data-page="projects"] {
+  min-height: 100vh !important;
+  background: #32364a !important;
+  position: relative !important;
+  z-index: 1 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 code {
@@ -62,78 +81,39 @@ code {
     monospace;
 }
 
-/* Animations douces et subtiles */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jellyfishFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
 @keyframes breathingGlow {
-  0%, 100% {
-    opacity: 0.8;
-    filter: brightness(1);
-  }
-  50% {
-    opacity: 1;
-    filter: brightness(1.1);
-  }
+  0%, 100% { filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.8)) drop-shadow(0 0 30px rgba(171, 71, 188, 0.5)); }
+  50% { filter: drop-shadow(0 0 25px rgba(0, 229, 255, 1)) drop-shadow(0 0 50px rgba(171, 71, 188, 0.7)); }
 }
 
 @keyframes constructAnimation {
-  0% {
-    transform: rotate(0deg);
-    opacity: 0.7;
-  }
-  50% {
-    transform: rotate(180deg);
-    opacity: 1;
-  }
-  100% {
-    transform: rotate(360deg);
-    opacity: 0.7;
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 100%;
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes particleFloat {
-  0%, 100% {
-    transform: translateY(0) translateX(0);
-    opacity: 0;
-  }
-  50% {
-    transform: translateY(-20px) translateX(10px);
-    opacity: 1;
-  }
+  0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.7; }
+  50% { transform: translateY(-10px) translateX(5px); opacity: 1; }
 }
 
-@keyframes gentleFlow {
-  0%, 100% {
-    background-position: 0% 0%, 100% 100%, 50% 50%, 30% 80%;
-  }
-  50% {
-    background-position: 100% 100%, 0% 0%, 50% 50%, 70% 20%;
-  }
+/* Transitions minimales */
+button, a, [role="button"], .MuiListItemButton-root {
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
-/* Transitions fluides et organiques comme une méduse */
-* {
-  transition: 
-    background-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
-    border-color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
-    color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    box-shadow 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    opacity 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    filter 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-/* Scrollbar minimaliste et élégante */
+/* Scrollbar minimale */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -141,26 +121,19 @@ code {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(171, 71, 188, 0.65), rgba(236, 64, 122, 0.5));
-  border-radius: 4px;
-  border: 1px solid var(--background-paper);
+  background: rgba(0, 229, 255, 0.4);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(0, 229, 255, 0.8), rgba(179, 136, 255, 0.8));
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+  background: rgba(0, 229, 255, 0.6);
 }
 
 /* Styles globaux pour forcer l'application des styles ModuleText et ModuleTitle */
 .module-title {
-  font-weight: 600 !important;
-  background: linear-gradient(135deg, #00E5FF, #EC407A) !important;
-  background-clip: text !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  color: transparent !important; /* Forcer color transparent pour que le dégradé soit visible */
+  font-weight: 700 !important;
+  color: #f0f0f0 !important;
   font-family: 'Inter', sans-serif !important;
-  letter-spacing: 0.02em !important;
+  letter-spacing: -0.02em !important;
   font-size: 2.5rem !important;
   line-height: 1.2 !important;
 }

@@ -23,6 +23,9 @@ from internal.metrics.prometheus import (
 
 logger = logging.getLogger(__name__)
 
+# Réponse paginée vide lorsque Tower n'est pas configuré (ANSIBLE_TOWER_URL manquant)
+EMPTY_PAGINATED = {"count": 0, "results": [], "next": None, "previous": None}
+
 
 class AnsibleHandler:
     """Handlers HTTP pour les endpoints Ansible."""
@@ -45,10 +48,7 @@ class AnsibleHandler:
         try:
             result = self.service.get_jobs(page, page_size)
             if result is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Service Ansible Tower non disponible. Vérifiez la configuration."
-                )
+                return EMPTY_PAGINATED
             return result
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des jobs: {e}")
@@ -80,10 +80,7 @@ class AnsibleHandler:
         try:
             result = self.service.get_inventories(page, page_size)
             if result is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Service Ansible Tower non disponible. Vérifiez la configuration."
-                )
+                return EMPTY_PAGINATED
             return result
         except HTTPException:
             raise
@@ -117,7 +114,7 @@ class AnsibleHandler:
         try:
             result = self.service.get_inventory_hosts(inventory_id, page, page_size)
             if result is None:
-                raise HTTPException(status_code=404, detail=f"Inventaire {inventory_id} non trouvé")
+                return EMPTY_PAGINATED
             return result
         except HTTPException:
             raise
@@ -134,10 +131,7 @@ class AnsibleHandler:
         try:
             result = self.service.get_job_templates(page, page_size)
             if result is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Service Ansible Tower non disponible. Vérifiez la configuration."
-                )
+                return EMPTY_PAGINATED
             return result
         except HTTPException:
             raise
@@ -228,10 +222,7 @@ class AnsibleHandler:
         try:
             history = self.service.get_job_history(template_id, page, page_size)
             if history is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Service Ansible Tower non disponible. Vérifiez la configuration."
-                )
+                return {"count": 0, "results": [], "next": None, "previous": None}
             return history
         except HTTPException:
             raise
@@ -249,10 +240,7 @@ class AnsibleHandler:
         try:
             result = self.service.get_credentials(page, page_size)
             if result is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Service Ansible Tower non disponible. Vérifiez la configuration."
-                )
+                return EMPTY_PAGINATED
             return result
         except HTTPException:
             raise
@@ -335,10 +323,7 @@ class AnsibleHandler:
         try:
             result = self.service.get_organizations(page, page_size)
             if result is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Service Ansible Tower non disponible. Vérifiez la configuration."
-                )
+                return EMPTY_PAGINATED
             return result
         except HTTPException:
             raise

@@ -14,7 +14,9 @@ import (
 	"github.com/modulops/terraform-service/internal/cache"
 	"github.com/modulops/terraform-service/internal/config"
 	"github.com/modulops/terraform-service/internal/handler"
+	"github.com/modulops/terraform-service/internal/s3"
 	"github.com/modulops/terraform-service/internal/service"
+	"github.com/modulops/terraform-service/internal/storage"
 )
 
 func main() {
@@ -31,11 +33,22 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	// Note: La migration des terraform states existants vers un projet par défaut
-	// doit être effectuée manuellement ou via l'API, pas automatiquement au démarrage
+	// Backend tfstate S3 : si configuré, chaque état uploadé est persisté dans le bucket
+	var backendWriter storage.BackendWriter
+	if cfg.StateBackend == "s3" {
+		s3Client, err := s3.NewClient(cfg.S3Region, cfg.S3Endpoint, cfg.S3AccessKeyID, cfg.S3SecretKey)
+		if err != nil {
+			log.Fatalf("Erreur lors de l'initialisation du backend S3 pour le tfstate: %v", err)
+		}
+		if err := s3Client.EnsureBucketExists(context.Background(), cfg.S3Bucket); err != nil {
+			log.Printf("⚠️  Bucket tfstate (création si absent): %v", err)
+		}
+		backendWriter = s3Client
+		log.Printf("Backend tfstate S3 activé: bucket=%s prefix=%s", cfg.S3Bucket, cfg.S3KeyPrefix)
+	}
 
 	// Initialiser le service métier
-	terraformService := service.NewTerraformService(redisClient, cfg)
+	terraformService := service.NewTerraformService(redisClient, cfg, backendWriter)
 
 	// Initialiser le service de synchronisation
 	syncService := service.NewSyncService(terraformService, redisClient, cfg)
@@ -80,7 +93,6 @@ func main() {
 
 	log.Println("Service Terraform arrêté")
 }
-
 
 func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *handler.SourceHandler, webhookHandler *handler.WebhookHandler, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {

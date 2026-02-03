@@ -44,9 +44,8 @@ export default function LandingPage() {
           justifyContent: 'space-between',
           px: { xs: 2, md: 4 },
           py: 2,
-          background: 'rgba(13, 14, 18, 0.7)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          background: '#2c2f3f',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.15)',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -64,12 +63,12 @@ export default function LandingPage() {
           variant="outlined"
           onClick={() => navigate('/login')}
           sx={{
-            borderColor: 'rgba(0, 229, 255, 0.6)',
-            color: '#f0f0f0',
+            borderColor: '#00E5FF',
+            borderWidth: 2,
+            color: '#00E5FF',
+            fontWeight: 600,
             '&:hover': {
-              borderColor: '#00E5FF',
               background: 'rgba(0, 229, 255, 0.08)',
-              boxShadow: '0 0 20px rgba(0, 229, 255, 0.2)',
             },
           }}
         >
@@ -95,12 +94,12 @@ export default function LandingPage() {
             <Typography
               component="h1"
               sx={{
-                fontSize: { xs: '2rem', md: '3rem' },
+                fontSize: { xs: '2.5rem', md: '4rem' },
                 fontWeight: 700,
                 color: '#f0f0f0',
-                lineHeight: 1.2,
-                mb: 4,
-                letterSpacing: '-0.02em',
+                lineHeight: 1.1,
+                mb: 5,
+                letterSpacing: '-0.04em',
               }}
             >
               L'orchestration aussi fluide qu'une méduse.
@@ -108,18 +107,19 @@ export default function LandingPage() {
             <Box
               sx={{
                 p: 2.5,
-                borderRadius: 2,
-                background: 'rgba(20, 22, 31, 0.8)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                mb: 4,
+                borderLeft: '4px solid #66BB6A',
+                background: '#1f2235',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderLeftWidth: 4,
+                mb: 5,
                 fontFamily: '"JetBrains Mono", monospace',
-                fontSize: '0.875rem',
+                fontSize: '0.9375rem',
               }}
             >
-              <Box component="span" sx={{ color: '#66BB6A' }}>
-                $ kura deploy -environment production
+              <Box component="span" sx={{ color: '#66BB6A', fontWeight: 600 }}>
+                $ kura deploy --environment production
               </Box>
-              <Box component="div" sx={{ color: '#b8b8b8', mt: 1 }}>
+              <Box component="div" sx={{ color: '#a0a0a0', mt: 1.5, fontSize: '0.875rem' }}>
                 ✓ Infrastructure synchronisée en 42ms.
               </Box>
             </Box>
@@ -128,16 +128,14 @@ export default function LandingPage() {
                 variant="contained"
                 onClick={() => navigate('/login')}
                 sx={{
-                  background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  px: 3,
+                  background: '#00E5FF',
+                  color: '#0d0e12',
+                  fontWeight: 700,
+                  px: 4,
                   py: 1.5,
-                  borderRadius: 2,
-                  boxShadow: '0 4px 24px rgba(0, 229, 255, 0.25)',
+                  fontSize: '1rem',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #26C6DA, #E91E63)',
-                    boxShadow: '0 6px 28px rgba(0, 229, 255, 0.35)',
+                    background: '#26C6DA',
                   },
                 }}
               >
@@ -146,11 +144,14 @@ export default function LandingPage() {
               <Button
                 variant="outlined"
                 sx={{
-                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                  borderColor: '#f0f0f0',
+                  borderWidth: 2,
                   color: '#f0f0f0',
+                  fontWeight: 600,
+                  px: 4,
+                  py: 1.5,
                   '&:hover': {
-                    borderColor: 'rgba(255, 255, 255, 0.35)',
-                    background: 'rgba(255, 255, 255, 0.04)',
+                    background: 'rgba(255, 255, 255, 0.08)',
                   },
                 }}
               >
@@ -161,15 +162,15 @@ export default function LandingPage() {
           <Grid item xs={12} md={5} sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center' }}>
             <Box
               sx={{
-                width: 320,
-                height: 320,
-                background: 'radial-gradient(circle at 50% 30%, rgba(0, 229, 255, 0.15) 0%, transparent 50%), radial-gradient(circle at 50% 80%, rgba(236, 64, 122, 0.12) 0%, transparent 45%)',
-                borderRadius: '50%',
+                width: 280,
+                height: 280,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
-                boxShadow: '0 0 80px rgba(0, 229, 255, 0.15), 0 0 120px rgba(236, 64, 122, 0.1)',
+                border: '4px solid',
+                borderColor: '#00E5FF',
+                borderLeftColor: '#EC407A',
+                borderBottomColor: '#AB47BC',
               }}
             >
               <Box
@@ -177,9 +178,11 @@ export default function LandingPage() {
                 src={jellyfishLogo}
                 alt="KURA"
                 sx={{
-                  width: 200,
+                  width: 180,
                   height: 'auto',
-                  filter: 'drop-shadow(0 0 30px rgba(0, 229, 255, 0.5)) drop-shadow(0 0 50px rgba(236, 64, 122, 0.3))',
+                  opacity: 0.95,
+                  objectFit: 'contain',
+                  objectPosition: 'center',
                 }}
               />
             </Box>
@@ -188,26 +191,27 @@ export default function LandingPage() {
         <Box
           sx={{
             position: 'absolute',
-            bottom: 24,
+            bottom: 32,
             left: '50%',
             transform: 'translateX(-50%)',
-            color: 'rgba(255, 255, 255, 0.5)',
-            animation: 'breathingGlow 2s ease-in-out infinite',
+            color: 'rgba(255, 255, 255, 0.3)',
           }}
         >
-          <ChevronUpIcon sx={{ fontSize: 32, transform: 'rotate(180deg)' }} />
+          <ChevronUpIcon sx={{ fontSize: 24, transform: 'rotate(180deg)' }} />
         </Box>
       </Box>
 
       {/* Dashboard Preview */}
-      <Box sx={{ position: 'relative', zIndex: 1, px: { xs: 2, md: 6 }, py: 8, pb: 10 }}>
+      <Box sx={{ position: 'relative', zIndex: 1, px: { xs: 2, md: 6 }, py: 10, pb: 12, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
         <Typography
           component="h2"
           sx={{
-            fontSize: '1.5rem',
+            fontSize: '1.125rem',
             fontWeight: 700,
-            color: '#f0f0f0',
-            mb: 4,
+            color: '#808080',
+            mb: 6,
+            textTransform: 'uppercase',
+            letterSpacing: '0.15em',
           }}
         >
           Dashboard Preview
@@ -215,25 +219,25 @@ export default function LandingPage() {
         <Grid container spacing={3}>
           {/* System Health */}
           <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 600, mb: 2, fontSize: '1rem' }}>
+            <Card sx={{ height: '100%', borderLeft: '4px solid #EC407A' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
                   System Health
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-around', gap: 1 }}>
-                  {[0.7, 0.9, 0.6].map((value, i) => (
-                    <Box
-                      key={i}
-                      sx={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: '50%',
-                        border: '3px solid',
-                        borderColor: i === 0 ? 'rgba(236, 64, 122, 0.6)' : i === 1 ? 'rgba(0, 229, 255, 0.6)' : 'rgba(171, 71, 188, 0.6)',
-                        background: `conic-gradient(${i === 0 ? '#EC407A' : i === 1 ? '#00E5FF' : '#AB47BC'} ${value * 360}deg, rgba(255,255,255,0.06) 0deg)`,
-                        boxShadow: `0 0 16px ${i === 0 ? 'rgba(236, 64, 122, 0.3)' : i === 1 ? 'rgba(0, 229, 255, 0.3)' : 'rgba(171, 71, 188, 0.3)'}`,
-                      }}
-                    />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                  {[
+                    { value: 70, color: '#EC407A', label: 'CPU' },
+                    { value: 90, color: '#00E5FF', label: 'MEM' },
+                    { value: 60, color: '#AB47BC', label: 'DISK' }
+                  ].map((item, i) => (
+                    <Box key={i} sx={{ flex: 1, textAlign: 'center' }}>
+                      <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '1.5rem', fontWeight: 700, color: item.color, mb: 0.5 }}>
+                        {item.value}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.6875rem', color: '#606060', fontWeight: 700, letterSpacing: '0.1em' }}>
+                        {item.label}
+                      </Typography>
+                    </Box>
                   ))}
                 </Box>
               </CardContent>
@@ -241,44 +245,37 @@ export default function LandingPage() {
           </Grid>
           {/* Deployment Timeline */}
           <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 600, mb: 2, fontSize: '1rem' }}>
+            <Card sx={{ height: '100%', borderLeft: '4px solid #00E5FF' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
                   Deployment Timeline
                 </Typography>
-                <Box
-                  sx={{
-                    height: 120,
-                    background: 'linear-gradient(180deg, transparent 0%, rgba(0, 229, 255, 0.05) 50%, transparent 100%)',
-                    borderRadius: 1,
-                    border: '1px solid rgba(0, 229, 255, 0.15)',
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: '60%',
-                      background: 'linear-gradient(90deg, transparent 0%, rgba(0, 229, 255, 0.4) 20%, rgba(0, 229, 255, 0.6) 50%, rgba(236, 64, 122, 0.4) 80%, transparent 100%)',
-                      clipPath: 'polygon(0% 100%, 10% 60%, 25% 80%, 40% 40%, 55% 70%, 70% 30%, 85% 50%, 100% 20%, 100% 100%)',
-                    }}
-                  />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 80 }}>
+                  {[40, 70, 50, 90, 60, 80, 45].map((h, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        flex: 1,
+                        height: `${h}%`,
+                        background: i % 2 === 0 ? '#00E5FF' : '#EC407A',
+                        opacity: 0.8,
+                        transition: 'all 0.2s ease',
+                        '&:hover': { opacity: 1 },
+                      }}
+                    />
+                  ))}
                 </Box>
               </CardContent>
             </Card>
           </Grid>
           {/* kura.yaml */}
           <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 600, mb: 2, fontSize: '1rem' }}>
+            <Card sx={{ height: '100%', borderLeft: '4px solid #AB47BC' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
                   kura.yaml
                 </Typography>
-                <Box sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem', color: '#b8b8b8', whiteSpace: 'pre-wrap' }}>
+                <Box sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8125rem', color: '#b8b8b8', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
                   {kuraYamlSnippet.split('\n').map((line, i) => (
                     <Box key={i}>
                       {line.split(/(version|environment|services|api|worker|build|depends_on|store|process|redis|celery|production|"1.0"|\/\w+)/g).map((part, j) => {
@@ -294,41 +291,51 @@ export default function LandingPage() {
               </CardContent>
             </Card>
           </Grid>
-          {/* Second row: repeat pattern */}
+          {/* Second row */}
           <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 600, mb: 2, fontSize: '1rem' }}>
-                  Deployment Timeline
+            <Card sx={{ height: '100%', borderLeft: '4px solid #AB47BC' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
+                  Metrics
                 </Typography>
-                <Box sx={{ height: 120, background: 'rgba(0,0,0,0.2)', borderRadius: 1, border: '1px solid rgba(255,255,255,0.06)' }} />
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 600, mb: 2, fontSize: '1rem' }}>
-                  kura.yaml
-                </Typography>
-                <Box sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.7rem', color: '#b8b8b8' }}>
-                  <span style={{ color: '#66BB6A' }}>username</span>: encode
-                  <br />
-                  <span style={{ color: '#66BB6A' }}>test</span>: <span style={{ color: '#EC407A' }}>build</span>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {['CPU', 'Memory', 'Network'].map((label, i) => (
+                    <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography sx={{ fontSize: '0.875rem', color: '#a0a0a0' }}>{label}</Typography>
+                      <Box sx={{ width: [60, 80, 50][i], height: 3, background: [60, 80, 50][i] > 70 ? '#EC407A' : '#00E5FF' }} />
+                    </Box>
+                  ))}
                 </Box>
               </CardContent>
             </Card>
           </Grid>
           <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 600, mb: 2, fontSize: '1rem' }}>
-                  kura.yaml
+            <Card sx={{ height: '100%', borderLeft: '4px solid #00E5FF' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
+                  Logs
                 </Typography>
-                <Box sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.7rem', color: '#b8b8b8' }}>
-                  <span style={{ color: '#00E5FF' }}>environment</span>: store
-                  <br />
-                  <span style={{ color: '#00E5FF' }}>process</span>: <span style={{ color: '#EC407A' }}>depends_on</span>
+                <Box sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem', color: '#606060', lineHeight: 1.6 }}>
+                  <Box sx={{ color: '#66BB6A' }}>[OK] Service started</Box>
+                  <Box sx={{ color: '#00E5FF' }}>[INFO] Port 8080</Box>
+                  <Box sx={{ color: '#606060' }}>[DEBUG] Connected</Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%', borderLeft: '4px solid #EC407A' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
+                  Status
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {['API', 'DB', 'Cache'].map((svc, i) => (
+                    <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography sx={{ fontSize: '0.875rem', color: '#a0a0a0', fontFamily: '"JetBrains Mono", monospace' }}>{svc}</Typography>
+                      <Box sx={{ width: 8, height: 8, background: '#66BB6A' }} />
+                    </Box>
+                  ))}
                 </Box>
               </CardContent>
             </Card>

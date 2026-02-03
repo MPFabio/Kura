@@ -1,4 +1,8 @@
 import { Box, SxProps, Theme } from '@mui/material'
+import ansibleLogo from '../../assets/ansible_logo.png'
+
+const ICON_COLOR_ACTIVE = '#00E5FF'
+const ICON_COLOR_INACTIVE = '#b8b8b8'
 
 interface AnsibleIconProps {
   sx?: SxProps<Theme>
@@ -8,37 +12,24 @@ interface AnsibleIconProps {
 export default function AnsibleIcon({ sx, active = false }: AnsibleIconProps) {
   return (
     <Box
-      component="svg"
-      viewBox="0 0 24 24"
+      aria-hidden
       sx={{
         width: 24,
         height: 24,
-        fill: active ? '#BF00FF' : '#A0A0A0',
-        filter: active ? 'drop-shadow(0 0 8px rgba(191, 0, 255, 0.8))' : 'none',
+        backgroundColor: active ? ICON_COLOR_ACTIVE : ICON_COLOR_INACTIVE,
+        mask: `url(${ansibleLogo}) center/contain no-repeat`,
+        WebkitMask: `url(${ansibleLogo}) center/contain no-repeat`,
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
+        filter: active ? 'drop-shadow(0 0 6px rgba(0, 229, 255, 0.6))' : 'none',
         transition: 'all 0.3s ease',
+        flexShrink: 0,
         ...sx,
       }}
-    >
-      {/* Ansible "A" stylisé */}
-      <path
-        d="M12 6L9 18H10.5L11.5 14H12.5L13.5 18H15L12 6Z"
-        fill="currentColor"
-      />
-      <path
-        d="M11.2 12L12 8.5L12.8 12H11.2Z"
-        fill={active ? '#BF00FF' : '#A0A0A0'}
-        opacity="0.3"
-      />
-      {/* Barre horizontale du A */}
-      <line
-        x1="10.5"
-        y1="11"
-        x2="13.5"
-        y2="11"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </Box>
+    />
   )
 }

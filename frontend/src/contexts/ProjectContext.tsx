@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { projectService, Project } from '../services/projectService'
+import { useAuth } from './AuthContext'
 
 interface ProjectContextType {
   currentProject: Project | null
@@ -25,6 +26,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
 
   const setCurrentProject = (project: Project | null) => {
     setCurrentProjectState(project)
@@ -63,21 +65,29 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   useEffect(() => {
     const initProject = async () => {
-      await refreshProjects()
+      // Ne charger les projets que si l'utilisateur est authentifié
+      if (!authLoading && user) {
+        await refreshProjects()
+      } else if (!authLoading && !user) {
+        // Si pas d'utilisateur, ne pas charger mais arrêter le loading
+        setLoading(false)
+      }
     }
 
     initProject()
-  }, [])
+  }, [authLoading, user])
 
-  // Rediriger vers /projects si aucun projet n'est sélectionné et qu'on n'est pas déjà sur /projects
+  // Rediriger vers /projects si utilisateur connecté, aucun projet sélectionné, et pas déjà sur /projects
   useEffect(() => {
+    if (!user) return
     if (!loading && !currentProject) {
       const currentPath = window.location.pathname
-      if (currentPath !== '/projects' && !currentPath.startsWith('/login') && !currentPath.startsWith('/register')) {
+      const willRedirect = currentPath !== '/projects' && !currentPath.startsWith('/login') && !currentPath.startsWith('/register')
+      if (willRedirect) {
         navigate('/projects', { replace: true })
       }
     }
-  }, [loading, currentProject, navigate])
+  }, [user, loading, currentProject, navigate])
 
   return (
     <ProjectContext.Provider

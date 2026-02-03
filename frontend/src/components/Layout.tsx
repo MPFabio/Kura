@@ -80,12 +80,11 @@ export default function Layout() {
   }
 
   const drawer = (
-    <div>
+    <div style={{ background: 'transparent' }}>
       <Box
         sx={{
-          background: 'rgba(0, 0, 0, 0.2)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          background: 'rgba(0, 229, 255, 0.05)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
           px: 2,
           py: 2,
         }}
@@ -136,26 +135,30 @@ export default function Layout() {
         </Box>
       </Box>
       <Toolbar
+        disableGutters
         sx={{
+          display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          py: 3,
-          px: 2,
-          minHeight: 'auto',
-          overflow: 'visible',
-          position: 'relative',
+          padding: 0,
+          height: 120,
+          minHeight: 120,
+          overflow: 'hidden',
           background: 'rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(30px) saturate(180%)',
-          borderBottom: '1px solid rgba(176, 190, 197, 0.1)',
+          borderTop: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+          boxSizing: 'border-box',
+          '&.MuiToolbar-root': { minHeight: 120, padding: 0 },
         }}
       >
-        <Box sx={{ overflow: 'visible', width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <Logo variant="full" size="small" />
+        <Box sx={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          {/* Marge au-dessus du logo (en px) pour l’équilibre vertical ; augmenter pour descendre le bloc */}
+          <Logo variant="full" size="small" sx={{ margin: 0 }} />
         </Box>
       </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(0, 184, 212, 0.2)', mb: 1 }} />
-      <Box sx={{ px: 2, py: 2, background: 'rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(30px) saturate(180%)' }}>
+      <Divider sx={{ borderColor: 'rgba(0, 184, 212, 0.2)' }} />
+      <Box sx={{ px: 2, py: 2, background: 'rgba(171, 71, 188, 0.05)', borderBottom: '2px solid rgba(171, 71, 188, 0.3)' }}>
         <FormControl fullWidth size="small">
           <Select
             value={currentProject?.id || ''}
@@ -257,10 +260,12 @@ export default function Layout() {
                       size="small"
                       sx={{
                         ml: 'auto',
-                        background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.35), rgba(179, 136, 255, 0.35))',
-                        color: '#f0f0f0',
+                        background: 'transparent',
+                        border: '1px solid #66BB6A',
+                        color: '#66BB6A',
                         fontSize: '0.65rem',
                         height: '20px',
+                        fontWeight: 700,
                       }}
                     />
                   )}
@@ -270,8 +275,7 @@ export default function Layout() {
           </Select>
         </FormControl>
       </Box>
-      <Divider sx={{ borderColor: 'rgba(0, 184, 212, 0.2)', mb: 1 }} />
-      <List>
+      <List sx={{ px: 1, py: 2, background: 'rgba(0, 0, 0, 0.2)' }}>
         {menuItems.map((item) => {
           const isSelected = location.pathname === item.path || 
             (item.path === '/k8s' && location.pathname.startsWith('/k8s'))
@@ -297,11 +301,7 @@ export default function Layout() {
                     sx: isSelected
                       ? { color: '#f0f0f0', fontWeight: 600 }
                       : {
-                          background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
-                          backgroundClip: 'text',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          color: 'transparent',
+                          color: '#b8b8b8',
                           fontWeight: 500,
                         },
                   }}
@@ -319,7 +319,13 @@ export default function Layout() {
       <AnimatedBackground />
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 }, position: 'relative', zIndex: 1 }}
+        sx={{ 
+          width: { sm: drawerWidth }, 
+          flexShrink: { sm: 0 }, 
+          position: 'relative', 
+          zIndex: 1,
+          background: 'transparent',
+        }}
         aria-label="navigation"
       >
         <Drawer
@@ -331,7 +337,12 @@ export default function Layout() {
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              background: 'transparent !important',
+              backgroundColor: 'transparent !important',
+            },
           }}
         >
           {drawer}
@@ -340,7 +351,12 @@ export default function Layout() {
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              background: 'transparent !important',
+              backgroundColor: 'transparent !important',
+            },
           }}
           open
         >
@@ -352,6 +368,7 @@ export default function Layout() {
         sx={{
           flexGrow: 1,
           p: 4,
+          pt: 5,
           width: '100%',
           backgroundColor: 'transparent',
           minHeight: '100vh',

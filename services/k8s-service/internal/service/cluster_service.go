@@ -25,6 +25,7 @@ type ClusterCache interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key, value string, ttl time.Duration) error
 	Delete(ctx context.Context, key string) error
+	Keys(ctx context.Context, pattern string) ([]string, error)
 }
 
 // ClusterService gère les clusters Kubernetes.
@@ -58,6 +59,9 @@ func NewClusterService(cache ClusterCache, cfg *config.Config) *ClusterService {
 func (s *ClusterService) CreateCluster(ctx context.Context, cluster *models.Cluster) (*models.Cluster, error) {
 	// Générer un ID unique
 	cluster.ID = fmt.Sprintf("cluster-%d", time.Now().UnixNano())
+	if cluster.ClusterType == "" {
+		cluster.ClusterType = models.ClusterTypeGeneric
+	}
 	cluster.CreatedAt = time.Now()
 	cluster.UpdatedAt = time.Now()
 
@@ -107,11 +111,11 @@ func (s *ClusterService) GetCluster(ctx context.Context, id string) (*models.Clu
 func (s *ClusterService) ListClusters(ctx context.Context) ([]*models.Cluster, error) {
 	result := make([]*models.Cluster, 0, len(s.clusters))
 	for _, cluster := range s.clusters {
-		// Ne pas exposer le kubeconfig complet dans la liste
 		clusterCopy := *cluster
 		if len(clusterCopy.Kubeconfig) > 100 {
 			clusterCopy.Kubeconfig = clusterCopy.Kubeconfig[:100] + "..."
 		}
+		clusterCopy.CloudCredentials = "" // Ne pas exposer en liste
 		result = append(result, &clusterCopy)
 	}
 	return result, nil
@@ -122,11 +126,11 @@ func (s *ClusterService) ListClustersByProject(ctx context.Context, projectID st
 	result := make([]*models.Cluster, 0)
 	for _, cluster := range s.clusters {
 		if cluster.ProjectID == projectID {
-			// Ne pas exposer le kubeconfig complet dans la liste
 			clusterCopy := *cluster
 			if len(clusterCopy.Kubeconfig) > 100 {
 				clusterCopy.Kubeconfig = clusterCopy.Kubeconfig[:100] + "..."
 			}
+			clusterCopy.CloudCredentials = "" // Ne pas exposer en liste
 			result = append(result, &clusterCopy)
 		}
 	}
@@ -146,6 +150,12 @@ func (s *ClusterService) UpdateCluster(ctx context.Context, id string, cluster *
 	existing.Endpoint = cluster.Endpoint
 	if cluster.Kubeconfig != "" {
 		existing.Kubeconfig = cluster.Kubeconfig
+	}
+	if cluster.ClusterType != "" {
+		existing.ClusterType = cluster.ClusterType
+	}
+	if cluster.CloudCredentials != "" {
+		existing.CloudCredentials = cluster.CloudCredentials
 	}
 	existing.UpdatedAt = time.Now()
 
@@ -228,6 +238,21 @@ func (s *ClusterService) GetActiveCluster(ctx context.Context) (*models.Cluster,
 	}
 
 	return s.GetCluster(ctx, s.activeClusterID)
+}
+
+// WriteGCPCredentialsToTempFile écrit les credentials GCP du cluster dans un fichier temporaire
+// pour que le plugin gke-gcloud-auth-plugin puisse s'authentifier. Retourne le chemin ou "" si non GKE/sans creds.
+func (s *ClusterService) WriteGCPCredentialsToTempFile(cluster *models.Cluster) (string, error) {
+	if cluster.ClusterType != models.ClusterTypeGKE || cluster.CloudCredentials == "" {
+		return "", nil
+	}
+	tmpDir := "/tmp/kubeconfigs"
+	os.MkdirAll(tmpDir, 0755)
+	filePath := filepath.Join(tmpDir, fmt.Sprintf("gcp-sa-%s.json", cluster.ID))
+	if err := os.WriteFile(filePath, []byte(cluster.CloudCredentials), 0600); err != nil {
+		return "", fmt.Errorf("écriture des credentials GCP: %w", err)
+	}
+	return filePath, nil
 }
 
 // SaveKubeconfigToFile sauvegarde un kubeconfig dans un fichier temporaire.
@@ -367,6 +392,15 @@ func (s *ClusterService) saveKubeconfigToTempFile(cluster *models.Cluster) (stri
 		}
 	}
 
+	// Rejeter un kubeconfig vide pour éviter l'erreur client-go "no configuration has been provided"
+	if strings.TrimSpace(kubeconfigContent) == "" {
+		return "", fmt.Errorf("kubeconfig manquant ou vide pour le cluster %q: ajoutez ou collez le contenu du fichier kubeconfig (YAML) dans l'onglet Clusters", cluster.Name)
+	}
+	// Détecter un kubeconfig tronqué (ex. sortie de "kubectl config view" sans --raw : DATA+OMITTED)
+	if strings.Contains(kubeconfigContent, "DATA+OMITTED") {
+		return "", fmt.Errorf("kubeconfig invalide: les certificats sont masqués (DATA+OMITTED). Utilisez le contenu brut du fichier (Get-Content $env:USERPROFILE\\.kube\\config -Raw) ou kubectl config view --raw, puis collez-le dans l'onglet Clusters")
+	}
+
 	// En dev/Docker : réécrire localhost/127.0.0.1 -> host.docker.internal pour que
 	// le conteneur puisse joindre un cluster tournant sur l'hôte (minikube, k3d, etc.)
 	if s.cfg.Environment != "production" && kubeconfigContent != "" {
@@ -384,53 +418,61 @@ func (s *ClusterService) saveKubeconfigToTempFile(cluster *models.Cluster) (stri
 
 // loadClustersFromCache charge les clusters depuis le cache Redis.
 func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
-	// Charger la liste des IDs de clusters
 	listKey := "k8s:clusters:list"
-	idsJSON, err := s.cache.Get(ctx, listKey)
-	if err != nil || idsJSON == "" {
+	raw, err := s.cache.Get(ctx, listKey)
+	if err != nil || raw == "" {
 		log.Printf("⚠️  Aucun cluster trouvé dans le cache Redis")
-		return // Pas de clusters en cache
+		return
 	}
 
-	var ids []string
-	if err := json.Unmarshal([]byte(idsJSON), &ids); err != nil {
+	var entries []string
+	if err := json.Unmarshal([]byte(raw), &entries); err != nil {
 		log.Printf("⚠️  Erreur lors du parsing de la liste des clusters: %v", err)
 		return
 	}
 
-	log.Printf("📦 Chargement de %d cluster(s) depuis Redis...", len(ids))
+	log.Printf("📦 Chargement de %d cluster(s) depuis Redis...", len(entries))
 
-	// Charger chaque cluster depuis le cache
-	// Note: Le cache utilise maintenant project_id, donc on doit scanner tous les projets
-	// Pour l'instant, on charge depuis la liste des IDs (ancien format)
-	for _, id := range ids {
-		// Essayer l'ancien format (sans project_id) pour compatibilité
-		cacheKey := fmt.Sprintf("k8s:cluster:%s", id)
-		cached, err := s.cache.Get(ctx, cacheKey)
-		if err != nil || cached == "" {
-			// Si pas trouvé, essayer de scanner par projet (nécessiterait une liste de projets)
-			log.Printf("⚠️  Cluster %s non trouvé dans le cache (ancien format)", id)
+	for _, entry := range entries {
+		var cached string
+		if idx := strings.Index(entry, ":"); idx >= 0 {
+			projectID, clusterID := entry[:idx], entry[idx+1:]
+			cacheKey := fmt.Sprintf("k8s:cluster:%s:%s", projectID, clusterID)
+			cached, _ = s.cache.Get(ctx, cacheKey)
+		} else {
+			// Ancien format : liste d'IDs ; la clé peut être k8s:cluster:id ou k8s:cluster:projectID:id
+			keysToTry := []string{
+				fmt.Sprintf("k8s:cluster:%s", entry),
+				fmt.Sprintf("k8s:cluster::%s", entry),
+			}
+			if keys, _ := s.cache.Keys(ctx, "k8s:cluster:*:"+entry); len(keys) > 0 {
+				keysToTry = append(keysToTry, keys[0])
+			}
+			for _, k := range keysToTry {
+				cached, err = s.cache.Get(ctx, k)
+				if err == nil && cached != "" {
+					break
+				}
+			}
+		}
+		if cached == "" {
+			log.Printf("⚠️  Cluster non trouvé pour l'entrée %q", entry)
 			continue
 		}
 
 		var cluster models.Cluster
 		if err := json.Unmarshal([]byte(cached), &cluster); err != nil {
-			log.Printf("⚠️  Erreur lors du parsing du cluster %s: %v", id, err)
+			log.Printf("⚠️  Erreur lors du parsing du cluster: %v", err)
 			continue
 		}
-
-		// Si le cluster n'a pas de project_id, on le laisse vide
-		// Il sera assigné lors de la création via l'API avec le project_id de l'utilisateur
 
 		s.clusters[cluster.ID] = &cluster
 		log.Printf("✅ Cluster chargé: %s (%s) - Projet: %s", cluster.ID, cluster.Name, cluster.ProjectID)
 	}
 
-	// Charger l'ID du cluster actif
 	activeID, err := s.cache.Get(ctx, "k8s:clusters:active")
 	if err == nil && activeID != "" {
 		s.activeClusterID = activeID
-		// S'assurer que le cluster actif est marqué comme actif
 		if cluster, exists := s.clusters[activeID]; exists {
 			cluster.IsActive = true
 			log.Printf("✅ Cluster actif restauré: %s (%s)", cluster.ID, cluster.Name)
@@ -441,13 +483,13 @@ func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 }
 
 // saveClustersList sauvegarde la liste des clusters dans le cache.
+// On stocke "projectID:clusterID" pour pouvoir recharger avec la bonne clé k8s:cluster:projectID:clusterID.
 func (s *ClusterService) saveClustersList(ctx context.Context) {
-	ids := make([]string, 0, len(s.clusters))
-	for id := range s.clusters {
-		ids = append(ids, id)
+	entries := make([]string, 0, len(s.clusters))
+	for _, c := range s.clusters {
+		entries = append(entries, c.ProjectID+":"+c.ID)
 	}
-	idsJSON, _ := json.Marshal(ids)
-	// Pas d'expiration pour les configurations critiques
-	_ = s.cache.Set(ctx, "k8s:clusters:list", string(idsJSON), 0)     // 0 = pas d'expiration
-	_ = s.cache.Set(ctx, "k8s:clusters:active", s.activeClusterID, 0) // 0 = pas d'expiration
+	entriesJSON, _ := json.Marshal(entries)
+	_ = s.cache.Set(ctx, "k8s:clusters:list", string(entriesJSON), 0)
+	_ = s.cache.Set(ctx, "k8s:clusters:active", s.activeClusterID, 0)
 }

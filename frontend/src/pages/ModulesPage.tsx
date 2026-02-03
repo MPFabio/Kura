@@ -11,10 +11,12 @@ import { ModuleBodyText, ModuleSecondaryText, ModuleSubtitle, ModuleCaption } fr
 import TerraformIcon from '../components/icons/TerraformIcon'
 import KubernetesIcon from '../components/icons/KubernetesIcon'
 import AnsibleIcon from '../components/icons/AnsibleIcon'
+import PipelinesIcon from '../components/icons/PipelinesIcon'
 import MonitoringIcon from '../components/icons/MonitoringIcon'
 import { useProject } from '../contexts/ProjectContext'
 import { terraformService } from '../services/terraformService'
 import { clusterService } from '../services/clusterService'
+import { ansibleService } from '../services/ansibleService'
 
 interface Module {
   id: string
@@ -51,9 +53,30 @@ export default function ModulesPage() {
     enabled: !!currentProject?.id,
   })
 
+  const { data: ansibleJobsData } = useQuery({
+    queryKey: ['ansible-jobs-summary'],
+    queryFn: () => ansibleService.getJobs(),
+    retry: false,
+  })
+
+  const { data: ansibleInventoriesData } = useQuery({
+    queryKey: ['ansible-inventories-summary'],
+    queryFn: () => ansibleService.getInventories(),
+    retry: false,
+  })
+
+  const { data: ansibleTemplatesData } = useQuery({
+    queryKey: ['ansible-templates-summary'],
+    queryFn: () => ansibleService.getJobTemplates(),
+    retry: false,
+  })
+
   const hasProject = !!currentProject?.id
   const statesCount = hasProject ? (terraformStatesData?.items?.length ?? 0) : null
   const clustersCount = hasProject ? (clustersData?.items?.length ?? 0) : null
+  const ansibleJobsCount = ansibleJobsData?.items?.length ?? 0
+  const ansibleInventoriesCount = ansibleInventoriesData?.items?.length ?? 0
+  const ansibleTemplatesCount = ansibleTemplatesData?.items?.length ?? 0
   const formatStat = (n: number | null) => (n === null ? '—' : String(n))
 
   const modules: Module[] = [
@@ -101,17 +124,41 @@ export default function ModulesPage() {
     {
       id: 'ansible',
       name: 'Ansible',
-      icon: <AnsibleIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={false} />,
+      icon: <AnsibleIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/ansible',
-      active: false,
-      inactive: true,
-      status: 'available',
-      subtitle: 'Bientôt disponible',
-      description: 'Automatisation de vos déploiements avec Ansible Tower. Configuration et exécution de playbooks.',
+      active: true,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'Automatisation de vos déploiements avec Ansible Tower. Gestion des jobs, inventaires, templates et exécution de playbooks.',
+      stats: [
+        { label: 'Jobs', value: formatStat(ansibleJobsCount) },
+        { label: 'Inventaires', value: formatStat(ansibleInventoriesCount) },
+        { label: 'Templates', value: formatStat(ansibleTemplatesCount) },
+      ],
       features: [
-        'Intégration Ansible Tower',
-        'Gestion des inventaires',
-        'Exécution de playbooks',
+        'Intégration Ansible Tower / AWX',
+        'Gestion des inventaires et hôtes',
+        'Exécution de playbooks et templates',
+      ],
+    },
+    {
+      id: 'pipelines',
+      name: 'Pipelines',
+      icon: <PipelinesIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
+      path: '/pipelines',
+      active: true,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'CI/CD et pipelines de déploiement. Déclenchement, suivi des runs et intégration avec vos dépôts.',
+      stats: [
+        { label: 'Pipelines', value: '0' },
+        { label: 'Runs', value: '0' },
+        { label: 'Dernier run', value: '—' },
+      ],
+      features: [
+        'Workflows GitHub Actions / GitLab CI',
+        'Déploiement Terraform et K8s',
+        'Historique et statut des runs',
       ],
     },
     {
@@ -134,22 +181,25 @@ export default function ModulesPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 6, pb: 3, borderBottom: '2px solid rgba(0, 229, 255, 0.15)' }}>
         <ModuleTitle>
           Modules
         </ModuleTitle>
-        <Chip
-          label={`${modules.filter(m => m.active).length} actif${modules.filter(m => m.active).length > 1 ? 's' : ''} sur ${modules.length}`}
+        <Box
           sx={{
-            backgroundColor: 'rgba(0, 229, 255, 0.18)',
+            px: 2,
+            py: 0.75,
+            backgroundColor: '#2c2f3f',
             color: '#00E5FF',
-            border: '1px solid rgba(0, 229, 255, 0.4)',
+            border: '2px solid #00E5FF',
             fontFamily: '"JetBrains Mono", monospace',
-            fontSize: '0.9375rem',
+            fontSize: '0.8125rem',
             fontWeight: 700,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            letterSpacing: '0.05em',
           }}
-        />
+        >
+          {modules.filter(m => m.active).length} / {modules.length}
+        </Box>
       </Box>
 
       <Grid container spacing={4}>
@@ -172,89 +222,47 @@ export default function ModulesPage() {
               {module.active ? (
                 <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
                   {/* Header avec icône et statut */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 4 }}>
+                    <Box sx={{ color: '#00E5FF' }}>
+                      {module.icon}
+                    </Box>
                     <Box
                       sx={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 100,
-                        height: 100,
+                        px: 1.5,
+                        py: 0.5,
+                        backgroundColor: 'transparent',
+                        color: '#81C784',
+                        border: '1px solid #81C784',
+                        fontFamily: '"JetBrains Mono", monospace',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
                       }}
                     >
-                      {/* Cercles orbitaux */}
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          width: 100,
-                          height: 100,
-                          border: '1px solid rgba(0, 229, 255, 0.3)',
-                          borderRadius: '50%',
-                          animation: 'constructAnimation 8s linear infinite',
-                        }}
-                      />
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          width: 120,
-                          height: 120,
-                          border: '1px solid transparent',
-                          borderTop: '1px solid rgba(0, 229, 255, 0.5)',
-                          borderRight: '1px solid rgba(179, 136, 255, 0.5)',
-                          borderBottom: '1px solid rgba(179, 136, 255, 0.3)',
-                          borderLeft: '1px solid rgba(0, 229, 255, 0.3)',
-                          borderRadius: '50%',
-                          animation: 'constructAnimation 6s linear infinite reverse',
-                        }}
-                      />
-                      {/* Icône principale */}
-                      <Box
-                        sx={{
-                          position: 'relative',
-                          zIndex: 1,
-                          color: '#00E5FF',
-                          filter: 'drop-shadow(0 0 20px rgba(0, 229, 255, 0.8)) drop-shadow(0 0 40px rgba(179, 136, 255, 0.5))',
-                          animation: 'breathingGlow 3s ease-in-out infinite',
-                        }}
-                      >
-                        {module.icon}
-                      </Box>
+                      ACTIF
                     </Box>
-                    <Chip
-                      icon={<CheckCircleIcon />}
-                      label={module.statusText}
-                      color="success"
-                      size="small"
-                      sx={{
-                        backgroundColor: 'rgba(102, 187, 106, 0.2)',
-                        color: '#81C784',
-                        border: '1px solid rgba(102, 187, 106, 0.4)',
-                        fontWeight: 600,
-                        fontSize: '0.8125rem',
-                      }}
-                    />
                   </Box>
 
                   {/* Nom du module */}
-                  <ModuleSubtitle
+                  <Typography
+                    variant="h4"
                     sx={{
-                      mb: 2.5,
-                      background: 'linear-gradient(135deg, #00E5FF, #EC407A)',
-                      backgroundClip: 'text',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      fontSize: '1.5rem',
+                      mb: 3,
+                      color: '#f0f0f0',
+                      fontSize: '2rem',
+                      fontWeight: 700,
+                      letterSpacing: '-0.02em',
                     }}
                   >
                     {module.name}
-                  </ModuleSubtitle>
+                  </Typography>
 
                   {/* Description */}
                   {module.description && (
-                    <ModuleSecondaryText sx={{ mb: 3, color: '#b8b8b8', fontSize: '1rem' }}>
+                    <Typography sx={{ mb: 4, color: '#a0a0a0', fontSize: '0.9375rem', lineHeight: 1.6 }}>
                       {module.description}
-                    </ModuleSecondaryText>
+                    </Typography>
                   )}
 
                   {/* Statistiques - ordre logo : cyan (gauche) → violet → magenta (droite) */}
@@ -271,55 +279,40 @@ export default function ModulesPage() {
                             flex: 1,
                             textAlign: 'center',
                             p: 2.5,
-                            borderRadius: 3,
-                            background: isCyan
-                              ? 'linear-gradient(135deg, rgba(0, 30, 40, 0.95) 0%, rgba(0, 50, 60, 0.95) 100%)'
-                              : isViolet
-                              ? 'linear-gradient(135deg, rgba(30, 20, 40, 0.95) 0%, rgba(50, 30, 60, 0.95) 100%)'
-                              : 'linear-gradient(135deg, rgba(40, 20, 35, 0.95) 0%, rgba(60, 25, 50, 0.95) 100%)',
-                            backdropFilter: 'blur(10px)',
-                            border: isCyan
-                              ? '1px solid rgba(0, 229, 255, 0.35)'
-                              : isViolet
-                              ? '1px solid rgba(171, 71, 188, 0.35)'
-                              : '1px solid rgba(236, 64, 122, 0.35)',
-                            boxShadow: isCyan
-                              ? '0 4px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 229, 255, 0.08)'
-                              : isViolet
-                              ? '0 4px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(171, 71, 188, 0.08)'
-                              : '0 4px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(236, 64, 122, 0.08)',
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            borderRadius: 0,
+                            background: '#2c2f3f',
+                            borderLeft: isCyan ? '4px solid #00E5FF' : isViolet ? '4px solid #AB47BC' : '4px solid #EC407A',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                            transition: 'all 0.15s ease',
                             '&:hover': {
-                              boxShadow: isCyan
-                                ? '0 6px 20px rgba(0, 0, 0, 0.35), 0 0 24px rgba(0, 229, 255, 0.12)'
-                                : isViolet
-                                ? '0 6px 20px rgba(0, 0, 0, 0.35), 0 0 24px rgba(171, 71, 188, 0.12)'
-                                : '0 6px 20px rgba(0, 0, 0, 0.35), 0 0 24px rgba(236, 64, 122, 0.12)',
+                              borderLeftWidth: '5px',
                             },
                           }}
                         >
                           <Typography
-                            variant="h4"
                             sx={{
                               fontFamily: '"JetBrains Mono", monospace',
                               color: '#f0f0f0',
                               fontWeight: 700,
-                              mb: 0.75,
-                              fontSize: '1.75rem',
+                              mb: 0.5,
+                              fontSize: '2rem',
                             }}
                           >
                             {stat.value}
                           </Typography>
-                          <ModuleCaption
+                          <Typography
                             sx={{
                               textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
-                              fontWeight: 700,
-                              color: '#e0e0e0',
+                              letterSpacing: '0.1em',
+                              fontWeight: 600,
+                              color: '#808080',
+                              fontSize: '0.75rem',
                             }}
                           >
                             {stat.label}
-                          </ModuleCaption>
+                          </Typography>
                         </Box>
                         )
                       })}
@@ -328,21 +321,20 @@ export default function ModulesPage() {
 
                   {/* Features */}
                   {module.features && (
-                    <Box sx={{ mt: 'auto', pt: 4 }}>
-                        <ModuleCaption
+                    <Box sx={{ mt: 'auto', pt: 4, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                      <Typography
                         sx={{
                           textTransform: 'uppercase',
-                          letterSpacing: '0.12em',
-                          mb: 2.5,
-                          display: 'block',
+                          letterSpacing: '0.15em',
+                          mb: 3,
                           fontWeight: 700,
-                          color: '#e0e0e0',
-                          fontSize: '0.875rem',
+                          color: '#808080',
+                          fontSize: '0.75rem',
                         }}
                       >
                         Fonctionnalités
-                      </ModuleCaption>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                         {module.features.map((feature, idx) => (
                           <Box
                             key={idx}
@@ -350,33 +342,21 @@ export default function ModulesPage() {
                               display: 'flex',
                               alignItems: 'center',
                               gap: 2,
-                              p: 1.5,
-                              borderRadius: 2,
-                              background: 'rgba(30, 42, 61, 0.8)',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
-                              backdropFilter: 'blur(10px)',
-                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                              '&:hover': {
-                                background: 'rgba(40, 55, 80, 0.9)',
-                                boxShadow: '0 2px 8px rgba(0, 229, 255, 0.1)',
-                              },
+                              py: 1,
+                              px: 0,
                             }}
                           >
                             <Box
                               sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                backgroundColor: idx % 2 === 0 ? '#00E5FF' : '#EC407A',
-                                boxShadow: idx % 2 === 0 
-                                  ? '0 0 10px rgba(0, 229, 255, 0.7)' 
-                                  : '0 0 10px rgba(236, 64, 122, 0.7)',
+                                width: idx === 0 ? 24 : idx === 1 ? 20 : 16,
+                                height: 2,
                                 flexShrink: 0,
+                                backgroundColor: idx % 2 === 0 ? '#00E5FF' : '#EC407A',
                               }}
                             />
-                            <ModuleBodyText>
+                            <Typography sx={{ color: '#f0f0f0', fontSize: '0.9375rem', fontWeight: 400 }}>
                               {feature}
-                            </ModuleBodyText>
+                            </Typography>
                           </Box>
                         ))}
                       </Box>
@@ -385,135 +365,86 @@ export default function ModulesPage() {
                 </Box>
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center', textAlign: 'center', p: 4 }}>
-                  {/* Icône avec effet subtil amélioré */}
-                  <Box
-                    sx={{
-                      mb: 4,
-                      position: 'relative',
-                      width: 100,
-                      height: 100,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        background: 'radial-gradient(circle, rgba(179, 136, 255, 0.15) 0%, transparent 70%)',
-                        zIndex: 0,
-                        animation: 'breathingGlow 4s ease-in-out infinite',
-                      },
-                      '&::after': {
-                        content: '""',
-                        position: 'absolute',
-                        width: '120%',
-                        height: '120%',
-                        borderRadius: '50%',
-                        border: '1px solid rgba(179, 136, 255, 0.3)',
-                        zIndex: 0,
-                        animation: 'constructAnimation 10s linear infinite',
-                      },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        position: 'relative',
-                        zIndex: 1,
-                        color: '#EC407A',
-                        filter: 'drop-shadow(0 0 12px rgba(236, 64, 122, 0.5))',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          color: '#E91E63',
-                          filter: 'drop-shadow(0 0 18px rgba(236, 64, 122, 0.6))',
-                        },
-                      }}
-                    >
-                      {module.icon}
-                    </Box>
+                  {/* Icône simple */}
+                  <Box sx={{ mb: 4, color: '#AB47BC', opacity: 0.6 }}>
+                    {module.icon}
                   </Box>
 
                   {/* Nom du module */}
-                  <ModuleSubtitle
+                  <Typography
                     sx={{
-                      mb: 1,
-                      fontSize: '1.25rem',
-                      fontWeight: 500,
+                      mb: 2,
+                      fontSize: '1.5rem',
+                      fontWeight: 700,
+                      color: '#f0f0f0',
                     }}
                   >
                     {module.name}
-                  </ModuleSubtitle>
+                  </Typography>
 
                   {/* Subtitle */}
                   {module.subtitle && (
-                    <Chip
-                      label={module.subtitle}
-                      size="small"
-                      icon={<ScheduleIcon />}
+                    <Box
                       sx={{
-                        mb: 2,
-                        backgroundColor: 'rgba(236, 64, 122, 0.2)',
-                        color: '#F48FB1',
-                        border: '1px solid rgba(236, 64, 122, 0.4)',
+                        mb: 3,
+                        px: 2,
+                        py: 0.5,
+                        border: '1px solid #AB47BC',
+                        color: '#AB47BC',
                         fontSize: '0.75rem',
-                        fontWeight: 500,
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
                       }}
-                    />
+                    >
+                      {module.subtitle}
+                    </Box>
                   )}
 
                   {/* Description */}
                   {module.description && (
-                    <ModuleSecondaryText
+                    <Typography
                       sx={{
                         mb: 4,
                         maxWidth: '320px',
                         mx: 'auto',
+                        color: '#a0a0a0',
+                        fontSize: '0.875rem',
+                        lineHeight: 1.6,
                       }}
                     >
                       {module.description}
-                    </ModuleSecondaryText>
+                    </Typography>
                   )}
 
                   {/* Features */}
                   {module.features && (
-                    <Box sx={{ width: '100%', mt: 'auto' }}>
-                      <ModuleCaption
+                    <Box sx={{ width: '100%', mt: 'auto', pt: 3, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <Typography
                         sx={{
-                          fontSize: '0.875rem',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.1em',
-                          mb: 1.5,
-                          display: 'block',
-                          color: '#e0e0e0',
-                          fontWeight: 600,
+                          letterSpacing: '0.15em',
+                          mb: 2,
+                          fontWeight: 700,
+                          color: '#606060',
+                          fontSize: '0.6875rem',
                         }}
                       >
-                        Fonctionnalités prévues
-                      </ModuleCaption>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        À venir
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                         {module.features.map((feature, idx) => (
-                          <Box
+                          <Typography
                             key={idx}
                             sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1,
-                              justifyContent: 'center',
+                              color: '#909090',
+                              fontSize: '0.875rem',
+                              fontWeight: 400,
+                              textAlign: 'center',
                             }}
                           >
-                            <Box
-                              sx={{
-                                width: 4,
-                                height: 4,
-                                borderRadius: '50%',
-                                backgroundColor: '#EC407A',
-                              }}
-                            />
-                            <ModuleSecondaryText sx={{ fontSize: '0.9375rem', color: '#b8b8b8' }}>
-                              {feature}
-                            </ModuleSecondaryText>
-                          </Box>
+                            {feature}
+                          </Typography>
                         ))}
                       </Box>
                     </Box>

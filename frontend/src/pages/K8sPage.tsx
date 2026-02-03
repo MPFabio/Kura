@@ -41,7 +41,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProject } from '../contexts/ProjectContext'
 import { k8sService } from '../services/k8sService'
-import { clusterService, KubernetesCluster } from '../services/clusterService'
+import { clusterService, KubernetesCluster, ClusterType } from '../services/clusterService'
 import { Deployment } from '../services/api'
 import ResourceDetailDialog from '../components/ResourceDetailDialog'
 import {
@@ -82,7 +82,7 @@ export default function K8sPage() {
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [detailDialog, setDetailDialog] = useState<{
     open: boolean
-    type: 'pod' | 'deployment' | 'service'
+    type: 'pod' | 'deployment' | 'service' | 'configmap' | 'secret' | 'node'
     namespace: string
     name: string
   }>({
@@ -105,11 +105,21 @@ export default function K8sPage() {
   // États pour la gestion des clusters
   const [clusterDialogOpen, setClusterDialogOpen] = useState(false)
   const [editingCluster, setEditingCluster] = useState<KubernetesCluster | null>(null)
-  const [clusterForm, setClusterForm] = useState({
+  const [clusterForm, setClusterForm] = useState<{
+    name: string
+    description: string
+    endpoint: string
+    kubeconfig: string
+    cluster_type: ClusterType
+    cloud_credentials: string
+    is_active: boolean
+  }>({
     name: '',
     description: '',
     endpoint: '',
     kubeconfig: '',
+    cluster_type: 'generic',
+    cloud_credentials: '',
     is_active: false,
   })
   const [kubeconfigFile, setKubeconfigFile] = useState<File | null>(null)
@@ -396,6 +406,8 @@ export default function K8sPage() {
       description: '',
       endpoint: '',
       kubeconfig: '',
+      cluster_type: 'generic',
+      cloud_credentials: '',
       is_active: false,
     })
     setEditingCluster(null)
@@ -409,7 +421,9 @@ export default function K8sPage() {
         name: cluster.name,
         description: cluster.description || '',
         endpoint: cluster.endpoint || '',
-        kubeconfig: '', // Ne pas pré-remplir pour la sécurité
+        kubeconfig: '',
+        cluster_type: (cluster.cluster_type as ClusterType) || 'generic',
+        cloud_credentials: '', // Ne pas pré-remplir pour la sécurité
         is_active: cluster.is_active,
       })
     } else {
@@ -442,10 +456,15 @@ export default function K8sPage() {
       return
     }
 
+    const payload = {
+      ...clusterForm,
+      ...(editingCluster ? {} : { project_id: currentProject!.id }),
+      cloud_credentials: clusterForm.cloud_credentials?.trim() || undefined,
+    }
     if (editingCluster) {
-      updateClusterMutation.mutate({ id: editingCluster.id, cluster: clusterForm })
+      updateClusterMutation.mutate({ id: editingCluster.id, cluster: payload })
     } else {
-      createClusterMutation.mutate({ ...clusterForm, project_id: currentProject.id })
+      createClusterMutation.mutate(payload as any)
     }
   }
 
@@ -957,7 +976,12 @@ export default function K8sPage() {
           </TableHead>
           <TableBody>
             {filteredConfigMaps.map((cm) => (
-              <TableRow key={cm.name}>
+              <TableRow
+                key={cm.name}
+                hover
+                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                onClick={() => setDetailDialog({ open: true, type: 'configmap', namespace: selectedNamespace, name: cm.name })}
+              >
                 <TableCell>
                   <ModuleBodyText>{cm.name}</ModuleBodyText>
                 </TableCell>
@@ -1027,7 +1051,12 @@ export default function K8sPage() {
           </TableHead>
           <TableBody>
             {filteredSecrets.map((secret) => (
-              <TableRow key={secret.name}>
+              <TableRow
+                key={secret.name}
+                hover
+                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                onClick={() => setDetailDialog({ open: true, type: 'secret', namespace: selectedNamespace, name: secret.name })}
+              >
                 <TableCell>
                   <ModuleBodyText>{secret.name}</ModuleBodyText>
                 </TableCell>
@@ -1085,6 +1114,9 @@ export default function K8sPage() {
                   <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
                 </TableCell>
                 <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Type</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
                   <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Description</ModuleSubtitle>
                 </TableCell>
                 <TableCell>
@@ -1119,6 +1151,14 @@ export default function K8sPage() {
                         />
                       )}
                     </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={cluster.cluster_type === 'gke' ? 'GKE' : cluster.cluster_type === 'aks' ? 'AKS' : cluster.cluster_type === 'eks' ? 'EKS' : cluster.cluster_type === 'proxmox' ? 'Proxmox' : 'Generic'}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.75rem' }}
+                    />
                   </TableCell>
                   <TableCell>
                     <ModuleBodyText>{cluster.description || '-'}</ModuleBodyText>
@@ -1187,9 +1227,14 @@ export default function K8sPage() {
       )
     }
     if (nodesError) {
+      const err = nodesError as any
+      const status = err?.response?.status
+      const msg = status === 502 || status === 503
+        ? 'Service K8s indisponible ou timeout (auth GKE lente ?). Vérifiez la clé GCP en Docker ou réessayez.'
+        : (err?.response?.data?.error || err?.message || 'Erreur inconnue')
       return (
         <Alert severity="error">
-          Erreur: {(nodesError as any)?.response?.data?.error || (nodesError as any)?.message || 'Erreur inconnue'}
+          Erreur: {msg}
         </Alert>
       )
     }
@@ -1227,7 +1272,12 @@ export default function K8sPage() {
           </TableHead>
           <TableBody>
             {filteredNodes.map((node) => (
-              <TableRow key={node.name}>
+              <TableRow
+                key={node.name}
+                hover
+                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                onClick={() => setDetailDialog({ open: true, type: 'node', namespace: '', name: node.name })}
+              >
                 <TableCell>
                   <ModuleBodyText>{node.name}</ModuleBodyText>
                 </TableCell>
@@ -1642,6 +1692,64 @@ export default function K8sPage() {
             required
             placeholder="Ex: Production, Staging, Minikube"
           />
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Type de cluster</InputLabel>
+            <Select
+              value={clusterForm.cluster_type}
+              label="Type de cluster"
+              onChange={(e) => setClusterForm({ ...clusterForm, cluster_type: e.target.value as ClusterType })}
+            >
+              <MenuItem value="generic">Generic / Autre</MenuItem>
+              <MenuItem value="gke">GKE (Google)</MenuItem>
+              <MenuItem value="aks">AKS (Azure)</MenuItem>
+              <MenuItem value="eks">EKS (AWS)</MenuItem>
+              <MenuItem value="proxmox">Proxmox (on‑prem)</MenuItem>
+            </Select>
+          </FormControl>
+          {clusterForm.cluster_type === 'gke' && (
+            <TextField
+              fullWidth
+              label="Clé compte de service GCP (JSON)"
+              value={clusterForm.cloud_credentials}
+              onChange={(e) => setClusterForm({ ...clusterForm, cloud_credentials: e.target.value })}
+              margin="normal"
+              multiline
+              rows={4}
+              placeholder='Collez le contenu du fichier JSON (clé du compte de service). Requis en Docker/SaaS.'
+              helperText="Requis pour l’authentification GKE depuis Docker ou Kura hébergé."
+            />
+          )}
+          {clusterForm.cluster_type === 'aks' && (
+            <TextField
+              fullWidth
+              label="Credentials Azure (optionnel)"
+              value={clusterForm.cloud_credentials}
+              onChange={(e) => setClusterForm({ ...clusterForm, cloud_credentials: e.target.value })}
+              margin="normal"
+              multiline
+              rows={3}
+              placeholder='{"tenant_id": "...", "client_id": "...", "client_secret": "..."} ou contenu du fichier de clé'
+              helperText="Si votre kubeconfig utilise une auth exec Azure, collez les credentials (JSON)."
+            />
+          )}
+          {clusterForm.cluster_type === 'eks' && (
+            <TextField
+              fullWidth
+              label="Credentials AWS (optionnel)"
+              value={clusterForm.cloud_credentials}
+              onChange={(e) => setClusterForm({ ...clusterForm, cloud_credentials: e.target.value })}
+              margin="normal"
+              multiline
+              rows={3}
+              placeholder='{"access_key_id": "...", "secret_access_key": "..."}'
+              helperText="Si votre kubeconfig utilise une auth exec AWS, collez les credentials (JSON)."
+            />
+          )}
+          {clusterForm.cluster_type === 'proxmox' && (
+            <ModuleCaption sx={{ display: 'block', mb: 1 }}>
+              Cluster K8s hébergé sur Proxmox : collez le kubeconfig (le serveur API doit être joignable depuis Kura).
+            </ModuleCaption>
+          )}
           <TextField
             fullWidth
             label="Description (optionnel)"

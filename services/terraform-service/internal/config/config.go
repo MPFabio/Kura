@@ -25,6 +25,15 @@ type Config struct {
 
 	// Chiffrement des credentials
 	EncryptionKey string
+
+	// Backend tfstate (S3 / MinIO) : persistance des états dans un bucket
+	StateBackend  string // "s3" pour activer
+	S3Bucket      string
+	S3KeyPrefix   string
+	S3Region      string
+	S3Endpoint    string // ex. http://minio:9000 pour MinIO
+	S3AccessKeyID string
+	S3SecretKey   string
 }
 
 func Load() (*Config, error) {
@@ -61,6 +70,15 @@ func Load() (*Config, error) {
 
 	// Clé de chiffrement (pour les credentials sensibles)
 	cfg.EncryptionKey = getEnv("TERRAFORM_ENCRYPTION_KEY", "")
+
+	// Backend tfstate S3 / MinIO
+	cfg.StateBackend = getEnv("TERRAFORM_STATE_BACKEND", "")
+	cfg.S3Bucket = getEnv("AWS_S3_BUCKET", "kura-tfstate")
+	cfg.S3KeyPrefix = getEnv("AWS_S3_KEY_PREFIX", "tfstate")
+	cfg.S3Region = getEnv("AWS_S3_REGION", "us-east-1")
+	cfg.S3Endpoint = getEnv("S3_ENDPOINT", "")
+	cfg.S3AccessKeyID = getEnv("AWS_ACCESS_KEY_ID", "")
+	cfg.S3SecretKey = getEnv("AWS_SECRET_ACCESS_KEY", "")
 
 	return cfg, nil
 }
