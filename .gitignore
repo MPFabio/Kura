@@ -8,6 +8,7 @@
 *.out
 bin/
 dist/
+Dossier_Certification/
 
 # Go
 vendor/
