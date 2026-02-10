@@ -95,7 +95,7 @@ func main() {
 	if cfg.KubeconfigPath != "" {
 		// #region agent log
 		func() {
-			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\ModulOps\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if f != nil {
 				defer f.Close()
 				f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"main.go:44","message":"Calling k8s.NewClient (KubeconfigPath not empty)","data":{"KubeconfigPath":"` + cfg.KubeconfigPath + `"},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
@@ -105,7 +105,7 @@ func main() {
 		k8sClient, err = k8s.NewClient(cfg)
 		// #region agent log
 		func() {
-			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\ModulOps\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if f != nil {
 				defer f.Close()
 				k8sData := map[string]interface{}{}
@@ -127,7 +127,7 @@ func main() {
 	} else {
 		// #region agent log
 		func() {
-			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\ModulOps\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if f != nil {
 				defer f.Close()
 				f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"main.go:52","message":"Skipping k8s.NewClient (KubeconfigPath empty)","data":{},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
@@ -168,7 +168,7 @@ func main() {
 	go func() {
 		// #region agent log
 		func() {
-			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\ModulOps\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if f != nil {
 				defer f.Close()
 				f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"main.go:82","message":"Starting HTTP server","data":{"port":"` + cfg.ServerPort + `"},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
@@ -179,7 +179,7 @@ func main() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			// #region agent log
 			func() {
-				f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\ModulOps\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if f != nil {
 					defer f.Close()
 					f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"main.go:84","message":"HTTP server error","data":{"error":"` + err.Error() + `"},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")

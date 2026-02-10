@@ -6,7 +6,7 @@
 **Statut :** ✅ **COHÉRENT**
 
 - Tous les documents utilisent **"Kura"** de manière cohérente
-- Aucune référence à "ModulOps" restante
+- Toutes les références au produit utilisent « Kura »
 - Fichiers vérifiés : README.md, INDEX.md, tous les documents des 3 blocs
 
 ### 2. Budget et coûts
