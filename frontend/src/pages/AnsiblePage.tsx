@@ -38,7 +38,17 @@ import {
 } from '@mui/icons-material'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleCard from '../components/ModuleCard'
-import { ansibleService, AnsibleJobSummary, AnsibleInventorySummary, AnsibleJobTemplateSummary } from '../services/ansibleService'
+import {
+  ansibleService,
+  AnsibleJobSummary,
+  AnsibleInventorySummary,
+  AnsibleJobTemplateSummary,
+  AnsibleJobTemplateDetail,
+  AnsibleInventoryDetail,
+  AnsibleHost,
+} from '../services/ansibleService'
+import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText } from '../components/ModuleText'
+import CodeBlock from '../components/CodeBlock'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -59,6 +69,15 @@ export default function AnsiblePage() {
   const [tabValue, setTabValue] = useState(0)
   const [selectedJob, setSelectedJob] = useState<AnsibleJobSummary | null>(null)
   const [jobDetailDialogOpen, setJobDetailDialogOpen] = useState(false)
+  const [selectedInventory, setSelectedInventory] = useState<AnsibleInventorySummary | null>(null)
+  const [inventoryDetail, setInventoryDetail] = useState<AnsibleInventoryDetail | null>(null)
+  const [inventoryHosts, setInventoryHosts] = useState<AnsibleHost[]>([])
+  const [inventoryDetailDialogOpen, setInventoryDetailDialogOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<AnsibleJobTemplateSummary | null>(null)
+  const [templateDetail, setTemplateDetail] = useState<AnsibleJobTemplateDetail | null>(null)
+  const [templateDetailDialogOpen, setTemplateDetailDialogOpen] = useState(false)
+  const [jobStdout, setJobStdout] = useState<string | null>(null)
+  const [loadingStdout, setLoadingStdout] = useState(false)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -109,13 +128,53 @@ export default function AnsiblePage() {
     setTabValue(newValue)
   }
 
+  const handleViewInventory = async (inventory: AnsibleInventorySummary) => {
+    try {
+      setSelectedInventory(inventory)
+      setInventoryDetailDialogOpen(true)
+      const [detail, hostsResponse] = await Promise.all([
+        ansibleService.getInventory(inventory.id),
+        ansibleService.getInventoryHosts(inventory.id),
+      ])
+      setInventoryDetail(detail)
+      setInventoryHosts(hostsResponse?.items ?? [])
+    } catch (error) {
+      setSnackbar({ open: true, message: "Erreur lors de la récupération de l'inventaire", severity: 'error' })
+    }
+  }
+
   const handleViewJob = async (job: AnsibleJobSummary) => {
     try {
+      setJobStdout(null)
       const detail = await ansibleService.getJob(job.id)
       setSelectedJob({ ...job, ...detail } as AnsibleJobSummary)
       setJobDetailDialogOpen(true)
     } catch (error) {
       setSnackbar({ open: true, message: 'Erreur lors de la récupération des détails du job', severity: 'error' })
+    }
+  }
+
+  const handleLoadJobStdout = async () => {
+    if (!selectedJob) return
+    try {
+      setLoadingStdout(true)
+      const detail = await ansibleService.getJob(selectedJob.id, true)
+      setJobStdout(detail.stdout || null)
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Erreur lors du chargement de la sortie', severity: 'error' })
+    } finally {
+      setLoadingStdout(false)
+    }
+  }
+
+  const handleViewTemplate = async (template: AnsibleJobTemplateSummary) => {
+    try {
+      setSelectedTemplate(template)
+      setTemplateDetailDialogOpen(true)
+      const detail = await ansibleService.getJobTemplate(template.id)
+      setTemplateDetail(detail)
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Erreur lors de la récupération du template', severity: 'error' })
     }
   }
 
@@ -165,8 +224,27 @@ export default function AnsiblePage() {
     return `${mins}m ${secs}s`
   }
 
-  // Afficher un avertissement si l'API Ansible n'est pas joignable (Kong ou ansible-service)
-  const apiUnreachable = jobsError
+  // Afficher un avertissement si l'API Ansible n'est pas joignable
+  const apiUnreachable = jobsError && !templatesData?.items?.length
+
+  // Tri : jobs en cours en premier, puis plus récent en premier
+  const sortJobsByDate = (jobs: AnsibleJobSummary[]) =>
+    [...jobs].sort((a, b) => {
+      const runningA = ['running', 'pending'].includes((a.status || '').toLowerCase()) ? 1 : 0
+      const runningB = ['running', 'pending'].includes((b.status || '').toLowerCase()) ? 1 : 0
+      if (runningA !== runningB) return runningB - runningA
+      const dateA = new Date(a.finished || a.started || 0).getTime()
+      const dateB = new Date(b.finished || b.started || 0).getTime()
+      return dateB - dateA
+    })
+
+  // Jobs = uniquement running/pending | Historique = tous les jobs
+  const allJobs = jobHistoryData?.items ?? jobsData?.items ?? []
+  const sortedAll = sortJobsByDate(allJobs)
+  const runningJobs = sortedAll.filter((j) =>
+    ['running', 'pending'].includes((j.status || '').toLowerCase())
+  )
+  const sortedHistory = sortedAll
 
   return (
     <Box>
@@ -189,19 +267,19 @@ export default function AnsiblePage() {
             </Tabs>
           </Box>
 
-          {/* Onglet Jobs */}
+          {/* Onglet Jobs (en cours uniquement) */}
           <TabPanel value={tabValue} index={0}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Jobs en cours</Typography>
-              <IconButton onClick={() => refetchJobs()} color="primary">
+              <ModuleSubtitle>Jobs en cours</ModuleSubtitle>
+              <IconButton onClick={() => { refetchJobs(); refetchJobHistory() }} color="primary">
                 <RefreshIcon />
               </IconButton>
             </Box>
-            {jobsLoading ? (
+            {(jobHistoryLoading || jobsLoading) ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                 <CircularProgress />
               </Box>
-            ) : jobsData && jobsData.items.length > 0 ? (
+            ) : runningJobs.length > 0 ? (
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
@@ -217,8 +295,13 @@ export default function AnsiblePage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {jobsData.items.map((job) => (
-                      <TableRow key={job.id}>
+                    {runningJobs.map((job) => (
+                      <TableRow
+                        key={job.id}
+                        hover
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => handleViewJob(job)}
+                      >
                         <TableCell>{job.id}</TableCell>
                         <TableCell>{job.name}</TableCell>
                         <TableCell>
@@ -228,7 +311,7 @@ export default function AnsiblePage() {
                         <TableCell>{job.inventory_name || '-'}</TableCell>
                         <TableCell>{formatDate(job.started)}</TableCell>
                         <TableCell>{formatElapsed(job.elapsed)}</TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Tooltip title="Voir les détails">
                             <IconButton size="small" onClick={() => handleViewJob(job)}>
                               <ViewIcon />
@@ -241,14 +324,14 @@ export default function AnsiblePage() {
                 </Table>
               </TableContainer>
             ) : (
-              <Alert severity="info">Aucun job trouvé</Alert>
+              <Alert severity="info">Aucun job en cours. Les jobs terminés sont dans l&apos;onglet Historique.</Alert>
             )}
           </TabPanel>
 
           {/* Onglet Historique */}
           <TabPanel value={tabValue} index={1}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Historique des jobs</Typography>
+              <ModuleSubtitle>Historique des jobs</ModuleSubtitle>
               <IconButton onClick={() => refetchJobHistory()} color="primary">
                 <RefreshIcon />
               </IconButton>
@@ -257,7 +340,7 @@ export default function AnsiblePage() {
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                 <CircularProgress />
               </Box>
-            ) : jobHistoryData && jobHistoryData.items.length > 0 ? (
+            ) : sortedHistory.length > 0 ? (
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
@@ -266,6 +349,7 @@ export default function AnsiblePage() {
                       <TableCell>Nom</TableCell>
                       <TableCell>Statut</TableCell>
                       <TableCell>Template</TableCell>
+                      <TableCell>Inventaire</TableCell>
                       <TableCell>Démarré</TableCell>
                       <TableCell>Terminé</TableCell>
                       <TableCell>Durée</TableCell>
@@ -273,18 +357,24 @@ export default function AnsiblePage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {jobHistoryData.items.map((job) => (
-                      <TableRow key={job.id}>
+                    {sortedHistory.map((job) => (
+                      <TableRow
+                        key={job.id}
+                        hover
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => handleViewJob(job)}
+                      >
                         <TableCell>{job.id}</TableCell>
                         <TableCell>{job.name}</TableCell>
                         <TableCell>
                           <Chip label={job.status} color={getStatusColor(job.status) as any} size="small" />
                         </TableCell>
                         <TableCell>{job.job_template_name || '-'}</TableCell>
+                        <TableCell>{job.inventory_name || '-'}</TableCell>
                         <TableCell>{formatDate(job.started)}</TableCell>
                         <TableCell>{formatDate(job.finished)}</TableCell>
                         <TableCell>{formatElapsed(job.elapsed)}</TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Tooltip title="Voir les détails">
                             <IconButton size="small" onClick={() => handleViewJob(job)}>
                               <ViewIcon />
@@ -304,7 +394,7 @@ export default function AnsiblePage() {
           {/* Onglet Inventaires */}
           <TabPanel value={tabValue} index={2}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Inventaires</Typography>
+              <ModuleSubtitle>Inventaires</ModuleSubtitle>
               <IconButton onClick={() => refetchInventories()} color="primary">
                 <RefreshIcon />
               </IconButton>
@@ -317,7 +407,10 @@ export default function AnsiblePage() {
               <Grid container spacing={2}>
                 {inventoriesData.items.map((inventory) => (
                   <Grid item xs={12} md={6} lg={4} key={inventory.id}>
-                    <Card>
+                    <Card
+                      sx={{ cursor: 'pointer', '&:hover': { boxShadow: 4 } }}
+                      onClick={() => handleViewInventory(inventory)}
+                    >
                       <CardContent>
                         <Typography variant="h6">{inventory.name}</Typography>
                         {inventory.description && (
@@ -347,7 +440,7 @@ export default function AnsiblePage() {
           {/* Onglet Templates */}
           <TabPanel value={tabValue} index={3}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Templates de jobs</Typography>
+              <ModuleSubtitle>Templates de jobs</ModuleSubtitle>
               <IconButton onClick={() => refetchTemplates()} color="primary">
                 <RefreshIcon />
               </IconButton>
@@ -360,19 +453,35 @@ export default function AnsiblePage() {
               <Grid container spacing={2}>
                 {templatesData.items.map((template) => (
                   <Grid item xs={12} md={6} lg={4} key={template.id}>
-                    <Card>
-                      <CardContent>
+                    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <CardContent sx={{ flex: 1 }}>
                         <Typography variant="h6">{template.name}</Typography>
                         {template.description && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          <ModuleSecondaryText sx={{ mt: 1, display: 'block' }}>
                             {template.description}
-                          </Typography>
+                          </ModuleSecondaryText>
                         )}
                         <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                           {template.job_type && <Chip label={template.job_type} size="small" />}
                           {template.playbook && <Chip label={template.playbook} size="small" variant="outlined" />}
+                          {(template.inventory_name || template.summary_fields?.inventory?.name) && (
+                            <Chip
+                              label={template.inventory_name || template.summary_fields?.inventory?.name}
+                              size="small"
+                              variant="outlined"
+                              color="primary"
+                            />
+                          )}
                         </Box>
-                        <Box sx={{ mt: 2 }}>
+                        <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                          <Button
+                            variant="outlined"
+                            startIcon={<ViewIcon />}
+                            onClick={() => handleViewTemplate(template)}
+                            size="small"
+                          >
+                            Détails
+                          </Button>
                           <Button
                             variant="contained"
                             startIcon={<PlayIcon />}
@@ -394,44 +503,183 @@ export default function AnsiblePage() {
         </ModuleCard>
 
       {/* Dialog de détails du job */}
-      <Dialog open={jobDetailDialogOpen} onClose={() => setJobDetailDialogOpen(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={jobDetailDialogOpen}
+        onClose={() => { setJobDetailDialogOpen(false); setJobStdout(null) }}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Détails du job #{selectedJob?.id}</DialogTitle>
         <DialogContent>
           {selectedJob && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2">Nom</Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                {selectedJob.name}
-              </Typography>
-              <Typography variant="subtitle2">Statut</Typography>
-              <Chip label={selectedJob.status} color={getStatusColor(selectedJob.status) as any} sx={{ mb: 2 }} />
-              <Typography variant="subtitle2">Template</Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                {selectedJob.job_template_name || '-'}
-              </Typography>
-              <Typography variant="subtitle2">Inventaire</Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                {selectedJob.inventory_name || '-'}
-              </Typography>
-              <Typography variant="subtitle2">Démarré</Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                {formatDate(selectedJob.started)}
-              </Typography>
-              {selectedJob.finished && (
-                <>
-                  <Typography variant="subtitle2">Terminé</Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {formatDate(selectedJob.finished)}
-                  </Typography>
-                </>
+              <ModuleSubtitle sx={{ mb: 1 }}>Informations</ModuleSubtitle>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12} md={6}>
+                  <ModuleSecondaryText>Nom</ModuleSecondaryText>
+                  <ModuleBodyText>{selectedJob.name}</ModuleBodyText>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <ModuleSecondaryText>Statut</ModuleSecondaryText>
+                  <Chip label={selectedJob.status} color={getStatusColor(selectedJob.status) as any} size="small" />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <ModuleSecondaryText>Template</ModuleSecondaryText>
+                  <ModuleBodyText>{selectedJob.job_template_name || '-'}</ModuleBodyText>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <ModuleSecondaryText>Inventaire</ModuleSecondaryText>
+                  <ModuleBodyText>{selectedJob.inventory_name || '-'}</ModuleBodyText>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <ModuleSecondaryText>Démarré</ModuleSecondaryText>
+                  <ModuleBodyText>{formatDate(selectedJob.started)}</ModuleBodyText>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <ModuleSecondaryText>Durée</ModuleSecondaryText>
+                  <ModuleBodyText>{formatElapsed((selectedJob as any).elapsed)}</ModuleBodyText>
+                </Grid>
+              </Grid>
+              <ModuleSubtitle sx={{ mb: 1 }}>Sortie standard</ModuleSubtitle>
+              {jobStdout !== null ? (
+                <Box sx={{ bgcolor: 'grey.900', p: 2, borderRadius: 1, maxHeight: 400, overflow: 'auto' }}>
+                  <CodeBlock language="text" showLineNumbers={false}>{jobStdout}</CodeBlock>
+                </Box>
+              ) : (
+                <Button
+                  variant="outlined"
+                  onClick={handleLoadJobStdout}
+                  disabled={loadingStdout}
+                  startIcon={<ViewIcon />}
+                  size="small"
+                >
+                  {loadingStdout ? 'Chargement...' : 'Voir la sortie'}
+                </Button>
               )}
-              <Typography variant="subtitle2">Durée</Typography>
-              <Typography variant="body1">{formatElapsed(selectedJob.elapsed)}</Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setJobDetailDialogOpen(false)}>Fermer</Button>
+          <Button onClick={() => { setJobDetailDialogOpen(false); setJobStdout(null) }}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog détails inventaire */}
+      <Dialog
+        open={inventoryDetailDialogOpen}
+        onClose={() => setInventoryDetailDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Inventaire {selectedInventory?.name}</DialogTitle>
+        <DialogContent>
+          {inventoryDetail && (
+            <Box sx={{ mt: 2 }}>
+              {inventoryDetail.description && (
+                <>
+                  <Typography variant="subtitle2">Description</Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    {inventoryDetail.description}
+                  </Typography>
+                </>
+              )}
+              <Typography variant="subtitle2">Organisation</Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                {inventoryDetail.organization_name || '-'}
+              </Typography>
+              <Typography variant="subtitle2">Hôtes ({inventoryHosts.length})</Typography>
+              {inventoryHosts.length > 0 ? (
+                <TableContainer component={Paper} sx={{ mt: 1 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Nom</TableCell>
+                        <TableCell>Activé</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {inventoryHosts.map((host) => (
+                        <TableRow key={host.id}>
+                          <TableCell>{host.name}</TableCell>
+                          <TableCell>{host.enabled ? 'Oui' : 'Non'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Aucun hôte
+                </Typography>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInventoryDetailDialogOpen(false)}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog détails template */}
+      <Dialog
+        open={templateDetailDialogOpen}
+        onClose={() => { setTemplateDetailDialogOpen(false); setTemplateDetail(null) }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Template {selectedTemplate?.name}</DialogTitle>
+        <DialogContent>
+          {templateDetail && (
+            <Box sx={{ mt: 2 }}>
+              {templateDetail.description && (
+                <>
+                  <ModuleSubtitle sx={{ mb: 1 }}>Description</ModuleSubtitle>
+                  <ModuleBodyText sx={{ mb: 2 }}>{templateDetail.description}</ModuleBodyText>
+                </>
+              )}
+              <ModuleSubtitle sx={{ mb: 1 }}>Configuration</ModuleSubtitle>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Box>
+                  <ModuleSecondaryText>Type</ModuleSecondaryText>
+                  <ModuleBodyText>{templateDetail.job_type || 'run'}</ModuleBodyText>
+                </Box>
+                <Box>
+                  <ModuleSecondaryText>Playbook</ModuleSecondaryText>
+                  <ModuleBodyText>{templateDetail.playbook || '-'}</ModuleBodyText>
+                </Box>
+                <Box>
+                  <ModuleSecondaryText>Projet</ModuleSecondaryText>
+                  <ModuleBodyText>{templateDetail.project_name || '-'}</ModuleBodyText>
+                </Box>
+                <Box>
+                  <ModuleSecondaryText>Inventaire</ModuleSecondaryText>
+                  <ModuleBodyText>{templateDetail.inventory_name || '-'}</ModuleBodyText>
+                </Box>
+                {templateDetail.limit && (
+                  <Box>
+                    <ModuleSecondaryText>Limit</ModuleSecondaryText>
+                    <ModuleBodyText>{templateDetail.limit}</ModuleBodyText>
+                  </Box>
+                )}
+              </Box>
+              <Box sx={{ mt: 3 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<PlayIcon />}
+                  onClick={() => {
+                    if (selectedTemplate) handleLaunchTemplate(selectedTemplate.id)
+                    setTemplateDetailDialogOpen(false)
+                  }}
+                  fullWidth
+                >
+                  Lancer ce template
+                </Button>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setTemplateDetailDialogOpen(false); setTemplateDetail(null) }}>Fermer</Button>
         </DialogActions>
       </Dialog>
 

@@ -5,6 +5,31 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.2.0] - 2026-02-10
+
+### Ajouté
+- **Module Ansible** : Intégration AWX/Ansible Tower complète
+  - Authentification Basic Auth pour les versions récentes d'AWX (remplacement de /api/v2/authtoken/ obsolète)
+  - Bouton "Voir la sortie" dans les détails des jobs pour afficher le stdout
+  - Dialog de détails des templates (playbook, projet, inventaire, configuration)
+  - Bouton "Détails" sur chaque template avant lancement
+  - Inventaires cliquables avec dialog affichant les hôtes
+
+### Modifié
+- **Jobs vs Historique** : Distinction claire des onglets
+  - Jobs : uniquement les jobs en cours (running, pending)
+  - Historique : tous les jobs, triés du plus récent au plus ancien
+- **Templates** : Affichage de l'inventaire sur les cartes, ModuleSubtitle/ModuleBodyText pour la lisibilité
+- **Détails des jobs** : Grille structurée, chargement du stdout à la demande
+- **Lisibilité** : Harmonisation avec les modules Terraform et K8s (ModuleSubtitle, ModuleBodyText)
+- **Interactivité** : Lignes de jobs cliquables, inventaires cliquables
+
+### Corrigé
+- Route `/jobs/history` enregistrée avant `/jobs/{job_id}` pour éviter le conflit de matching
+- Parsing de `extra_vars` (string JSON) dans les détails des jobs
+- Format de réponse AWX (`results` vs `items`) pour templates, jobs, inventaires, historique
+- Sérialisation du cache (mode='json' pour les datetime)
+
 ## [1.1.1] - 2026-01-22
 
 ### Corrigé
@@ -126,5 +151,7 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
 - Documentation d'architecture
 - Guide d'accès aux services
 
-[1.1.0]: https://github.com/MPFabio/ModulOps/releases/tag/v1.1.0
-[1.0.0]: https://github.com/MPFabio/ModulOps/releases/tag/v1.0.0
+[1.2.0]: https://github.com/MPFabio/Kura/releases/tag/v1.2.0
+[1.1.1]: https://github.com/MPFabio/Kura/releases/tag/v1.1.1
+[1.1.0]: https://github.com/MPFabio/Kura/releases/tag/v1.1.0
+[1.0.0]: https://github.com/MPFabio/Kura/releases/tag/v1.0.0

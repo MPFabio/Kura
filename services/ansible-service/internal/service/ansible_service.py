@@ -88,15 +88,17 @@ class AnsibleService:
             playbook=job_data.get("playbook"),
             limit=job_data.get("limit"),
             verbosity=job_data.get("verbosity"),
-            extra_vars=job_data.get("extra_vars"),
+            extra_vars=self._parse_variables(job_data.get("extra_vars"))
+            if isinstance(job_data.get("extra_vars"), str)
+            else job_data.get("extra_vars"),
             created_by=job_data.get("created_by"),
             created_by_username=self._extract_name(job_data.get("summary_fields", {}).get("created_by")),
             stdout=stdout,
         )
 
-        # Mettre en cache (TTL plus court pour les détails)
+        # Mettre en cache (TTL plus court pour les détails) - mode='json' pour datetime
         if self.cache:
-            self.cache.set_json(cache_key, job_detail.model_dump(), ttl=60)
+            self.cache.set_json(cache_key, job_detail.model_dump(mode='json'), ttl=60)
         return job_detail
 
     def get_inventories(self, page: int = 1, page_size: int = 20) -> Optional[Dict[str, Any]]:

@@ -93,7 +93,7 @@ export interface AnsibleHostResponse {
   items: AnsibleHost[]
 }
 
-// Types pour les templates de jobs
+// Types pour les templates de jobs (AWX summary_fields optionnel)
 export interface AnsibleJobTemplateSummary {
   id: number
   name: string
@@ -106,6 +106,7 @@ export interface AnsibleJobTemplateSummary {
   playbook?: string
   created?: string
   modified?: string
+  summary_fields?: { inventory?: { name?: string }; project?: { name?: string } }
 }
 
 export interface AnsibleJobTemplateDetail {
@@ -343,20 +344,20 @@ export const ansibleService = {
   // Jobs
   getJobs: async (): Promise<AnsibleJobResponse> => {
     try {
-      const response = await apiClient.get<AnsibleJobResponse>('/api/v1/ansible/jobs')
-      if (!response.data || !response.data.items) {
-        return { items: [] }
-      }
-      return response.data
+      const response = await apiClient.get<AnsibleJobResponse & { results?: AnsibleJobSummary[] }>('/api/v1/ansible/jobs')
+      if (!response.data) return { items: [] }
+      const items = response.data.items ?? response.data.results ?? []
+      return { items }
     } catch (error) {
       console.error('Erreur lors de la récupération des jobs:', error)
       throw error
     }
   },
 
-  getJob: async (jobId: number): Promise<AnsibleJobDetail> => {
+  getJob: async (jobId: number, includeStdout = false): Promise<AnsibleJobDetail> => {
     try {
-      const response = await apiClient.get<AnsibleJobDetail>(`/api/v1/ansible/jobs/${jobId}`)
+      const params = includeStdout ? '?include_stdout=true' : ''
+      const response = await apiClient.get<AnsibleJobDetail>(`/api/v1/ansible/jobs/${jobId}${params}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du job ${jobId}:`, error)
@@ -364,14 +365,16 @@ export const ansibleService = {
     }
   },
 
-  getJobHistory: async (limit?: number): Promise<AnsibleJobHistoryResponse> => {
+  getJobHistory: async (pageSize?: number): Promise<AnsibleJobHistoryResponse> => {
     try {
-      const params = limit ? `?limit=${limit}` : ''
-      const response = await apiClient.get<AnsibleJobHistoryResponse>(`/api/v1/ansible/jobs/history${params}`)
-      if (!response.data || !response.data.items) {
-        return { items: [], total: 0 }
-      }
-      return response.data
+      const params = pageSize ? `?page_size=${pageSize}` : ''
+      const response = await apiClient.get<
+        AnsibleJobHistoryResponse & { results?: AnsibleJobSummary[]; count?: number }
+      >(`/api/v1/ansible/jobs/history${params}`)
+      if (!response.data) return { items: [], total: 0 }
+      const items = response.data.items ?? response.data.results ?? []
+      const total = response.data.total ?? response.data.count ?? items.length
+      return { items, total }
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'historique des jobs:', error)
       throw error
@@ -381,11 +384,12 @@ export const ansibleService = {
   // Inventaires
   getInventories: async (): Promise<AnsibleInventoryResponse> => {
     try {
-      const response = await apiClient.get<AnsibleInventoryResponse>('/api/v1/ansible/inventories')
-      if (!response.data || !response.data.items) {
-        return { items: [] }
-      }
-      return response.data
+      const response = await apiClient.get<
+        AnsibleInventoryResponse & { results?: AnsibleInventorySummary[] }
+      >('/api/v1/ansible/inventories')
+      if (!response.data) return { items: [] }
+      const items = response.data.items ?? response.data.results ?? []
+      return { items }
     } catch (error) {
       console.error('Erreur lors de la récupération des inventaires:', error)
       throw error
@@ -404,11 +408,12 @@ export const ansibleService = {
 
   getInventoryHosts: async (inventoryId: number): Promise<AnsibleHostResponse> => {
     try {
-      const response = await apiClient.get<AnsibleHostResponse>(`/api/v1/ansible/inventories/${inventoryId}/hosts`)
-      if (!response.data || !response.data.items) {
-        return { items: [] }
-      }
-      return response.data
+      const response = await apiClient.get<AnsibleHostResponse & { results?: AnsibleHost[] }>(
+        `/api/v1/ansible/inventories/${inventoryId}/hosts`
+      )
+      if (!response.data) return { items: [] }
+      const items = response.data.items ?? response.data.results ?? []
+      return { items }
     } catch (error) {
       console.error(`Erreur lors de la récupération des hosts de l'inventaire ${inventoryId}:`, error)
       throw error
@@ -418,11 +423,13 @@ export const ansibleService = {
   // Templates de jobs
   getJobTemplates: async (): Promise<AnsibleJobTemplateResponse> => {
     try {
-      const response = await apiClient.get<AnsibleJobTemplateResponse>('/api/v1/ansible/job-templates')
-      if (!response.data || !response.data.items) {
-        return { items: [] }
-      }
-      return response.data
+      const response = await apiClient.get<AnsibleJobTemplateResponse & { results?: AnsibleJobTemplateSummary[] }>(
+        '/api/v1/ansible/job-templates'
+      )
+      if (!response.data) return { items: [] }
+      // AWX retourne "results", le frontend attend "items"
+      const items = response.data.items ?? response.data.results ?? []
+      return { items }
     } catch (error) {
       console.error('Erreur lors de la récupération des templates de jobs:', error)
       throw error
@@ -455,11 +462,12 @@ export const ansibleService = {
   // Projets
   getProjects: async (): Promise<AnsibleProjectResponse> => {
     try {
-      const response = await apiClient.get<AnsibleProjectResponse>('/api/v1/ansible/projects')
-      if (!response.data || !response.data.items) {
-        return { items: [] }
-      }
-      return response.data
+      const response = await apiClient.get<AnsibleProjectResponse & { results?: AnsibleProjectSummary[] }>(
+        '/api/v1/ansible/projects'
+      )
+      if (!response.data) return { items: [] }
+      const items = response.data.items ?? response.data.results ?? []
+      return { items }
     } catch (error) {
       console.error('Erreur lors de la récupération des projets:', error)
       throw error
@@ -478,11 +486,12 @@ export const ansibleService = {
 
   getProjectPlaybooks: async (projectId: number): Promise<AnsiblePlaybookResponse> => {
     try {
-      const response = await apiClient.get<AnsiblePlaybookResponse>(`/api/v1/ansible/projects/${projectId}/playbooks`)
-      if (!response.data || !response.data.items) {
-        return { items: [] }
-      }
-      return response.data
+      const response = await apiClient.get<AnsiblePlaybookResponse & { results?: string[] }>(
+        `/api/v1/ansible/projects/${projectId}/playbooks`
+      )
+      if (!response.data) return { items: [] }
+      const items = response.data.items ?? response.data.results ?? []
+      return { items }
     } catch (error) {
       console.error(`Erreur lors de la récupération des playbooks du projet ${projectId}:`, error)
       throw error
@@ -492,11 +501,12 @@ export const ansibleService = {
   // Credentials
   getCredentials: async (): Promise<AnsibleCredentialResponse> => {
     try {
-      const response = await apiClient.get<AnsibleCredentialResponse>('/api/v1/ansible/credentials')
-      if (!response.data || !response.data.items) {
-        return { items: [] }
-      }
-      return response.data
+      const response = await apiClient.get<
+        AnsibleCredentialResponse & { results?: AnsibleCredentialSummary[] }
+      >('/api/v1/ansible/credentials')
+      if (!response.data) return { items: [] }
+      const items = response.data.items ?? response.data.results ?? []
+      return { items }
     } catch (error) {
       console.error('Erreur lors de la récupération des credentials:', error)
       throw error
@@ -545,11 +555,12 @@ export const ansibleService = {
   // Organizations
   getOrganizations: async (): Promise<AnsibleOrganizationResponse> => {
     try {
-      const response = await apiClient.get<AnsibleOrganizationResponse>('/api/v1/ansible/organizations')
-      if (!response.data || !response.data.items) {
-        return { items: [] }
-      }
-      return response.data
+      const response = await apiClient.get<
+        AnsibleOrganizationResponse & { results?: AnsibleOrganizationSummary[] }
+      >('/api/v1/ansible/organizations')
+      if (!response.data) return { items: [] }
+      const items = response.data.items ?? response.data.results ?? []
+      return { items }
     } catch (error) {
       console.error('Erreur lors de la récupération des organisations:', error)
       throw error

@@ -24,38 +24,15 @@ class AnsibleTowerClient:
             logger.warning("ANSIBLE_TOWER_URL non configuré - le client ne pourra pas fonctionner")
 
         self.timeout = Timeout(30.0, connect=10.0)
-        self._auth_token: Optional[str] = None
-
-    def _get_auth_token(self) -> Optional[str]:
-        """Obtient un token d'authentification depuis Ansible Tower."""
-        if not self.base_url or not self.username or not self.password:
-            return None
-
-        if self._auth_token:
-            return self._auth_token
-
-        try:
-            url = f"{self.base_url}/api/v2/authtoken/"
-            with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
-                response = client.post(
-                    url,
-                    data={"username": self.username, "password": self.password},
-                )
-                response.raise_for_status()
-                data = response.json()
-                self._auth_token = data.get("token")
-                return self._auth_token
-        except httpx.HTTPError as e:
-            logger.error(f"Erreur lors de l'authentification Ansible Tower: {e}")
-            return None
+        self._auth = (
+            httpx.BasicAuth(self.username, self.password)
+            if self.username and self.password
+            else None
+        )
 
     def _get_headers(self) -> Dict[str, str]:
-        """Retourne les en-têtes HTTP avec authentification."""
-        token = self._get_auth_token()
-        headers = {"Content-Type": "application/json"}
-        if token:
-            headers["Authorization"] = f"Token {token}"
-        return headers
+        """Retourne les en-têtes HTTP de base."""
+        return {"Content-Type": "application/json"}
 
     def _request(self, method: str, endpoint: str, **kwargs) -> Optional[Dict[str, Any]]:
         """Effectue une requête HTTP vers l'API Ansible Tower."""
@@ -68,7 +45,9 @@ class AnsibleTowerClient:
 
         try:
             with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
-                response = client.request(method, url, headers=headers, **kwargs)
+                response = client.request(
+                    method, url, headers=headers, auth=self._auth, **kwargs
+                )
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError as e:
@@ -79,8 +58,8 @@ class AnsibleTowerClient:
             return None
 
     def get_jobs(self, page: int = 1, page_size: int = 20) -> Optional[Dict[str, Any]]:
-        """Récupère la liste des jobs."""
-        return self._request("GET", f"/jobs/?page={page}&page_size={page_size}")
+        """Récupère la liste des jobs (plus récents en premier)."""
+        return self._request("GET", f"/jobs/?page={page}&page_size={page_size}&order_by=-finished")
 
     def get_job(self, job_id: int) -> Optional[Dict[str, Any]]:
         """Récupère les détails d'un job spécifique."""
@@ -96,7 +75,9 @@ class AnsibleTowerClient:
 
         try:
             with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
-                response = client.get(url, headers=headers, params={"format": "txt"})
+                response = client.get(
+                    url, headers=headers, auth=self._auth, params={"format": "txt"}
+                )
                 response.raise_for_status()
                 return response.text
         except httpx.HTTPError as e:

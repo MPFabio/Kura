@@ -414,13 +414,20 @@ def create_router(handler: AnsibleHandler) -> APIRouter:
     """Crée le routeur FastAPI pour les endpoints Ansible."""
     router = APIRouter(prefix="/ansible", tags=["ansible"])
 
-    # Jobs
+    # Jobs (history avant {job_id} pour éviter que "history" soit pris pour un id)
     router.add_api_route(
         "/jobs",
         handler.get_jobs,
         methods=["GET"],
         summary="Liste des jobs",
         description="Récupère la liste paginée des jobs Ansible Tower",
+    )
+    router.add_api_route(
+        "/jobs/history",
+        handler.get_job_history,
+        methods=["GET"],
+        summary="Historique des jobs",
+        description="Récupère l'historique des jobs avec filtrage optionnel par template",
     )
     router.add_api_route(
         "/jobs/{job_id}",
@@ -490,15 +497,6 @@ def create_router(handler: AnsibleHandler) -> APIRouter:
         methods=["GET"],
         summary="Playbooks d'un projet",
         description="Récupère la liste des playbooks d'un projet",
-    )
-
-    # Historique
-    router.add_api_route(
-        "/jobs/history",
-        handler.get_job_history,
-        methods=["GET"],
-        summary="Historique des jobs",
-        description="Récupère l'historique des jobs avec filtrage optionnel par template",
     )
 
     # Credentials
