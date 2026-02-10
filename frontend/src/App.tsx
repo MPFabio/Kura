@@ -15,6 +15,7 @@ import PipelinePage from './pages/PipelinePage'
 import AlertsPage from './pages/AlertsPage'
 import MetricsPage from './pages/MetricsPage'
 import SettingsPage from './pages/SettingsPage'
+import DocumentationPage from './pages/DocumentationPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -113,6 +114,7 @@ function AppRoot() {
         <Route path="pipelines" element={<PipelinePage />} />
         <Route path="alerts" element={<AlertsPage />} />
         <Route path="metrics" element={<MetricsPage />} />
+        <Route path="documentation" element={<DocumentationPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
