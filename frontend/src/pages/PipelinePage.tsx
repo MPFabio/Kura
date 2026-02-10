@@ -184,7 +184,12 @@ export default function PipelinePage() {
     queryFn: () => pipelineService.getProviders(),
   })
 
-  const runs = runsData?.runs ?? []
+  const runsRaw = runsData?.runs ?? []
+  const runs = [...runsRaw].sort((a, b) => {
+    const dateB = new Date(b.finished_at ?? b.started_at ?? b.created_at).getTime()
+    const dateA = new Date(a.finished_at ?? a.started_at ?? a.created_at).getTime()
+    return dateB - dateA
+  })
   const providers = providersData?.providers ?? []
   const hasRuns = runs.length > 0
   const config = configData as PipelineConfig | undefined

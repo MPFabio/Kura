@@ -17,7 +17,7 @@ Le service stocke tout dans **PostgreSQL** et utilise **JWT** pour l'authentific
 ### Étape 1 : Démarrer PostgreSQL
 
 ```bash
-# Depuis la racine du projet ModulOps
+# Depuis la racine du projet Kura
 docker-compose up -d postgres
 
 # Attendre 10 secondes que PostgreSQL soit prêt

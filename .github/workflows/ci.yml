@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test
+        run: npm run test:ci
+
       - name: Lint
         run: npm run lint
 
@@ -33,7 +36,7 @@ jobs:
         run: npm run build
 
   services-go:
-    name: Services Go (${{ matrix.service }})
+    name: Services Go
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -45,14 +48,14 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-          cache-dependency-path: services/${{ matrix.service }}/go.mod
-
-      - name: Download dependencies
-        run: go mod download
-        working-directory: services/${{ matrix.service }}
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
 
       - name: Build ${{ matrix.service }}
         run: go build -v ./...
+        working-directory: services/${{ matrix.service }}
+
+      - name: Test ${{ matrix.service }}
+        run: go test ./... -v
         working-directory: services/${{ matrix.service }}
 
   ansible-service:
@@ -74,4 +77,8 @@ jobs:
 
       - name: Verify import
         run: python -c "from main import app; print('OK')"
+        working-directory: services/ansible-service
+
+      - name: Run unit tests
+        run: python -m pytest
         working-directory: services/ansible-service

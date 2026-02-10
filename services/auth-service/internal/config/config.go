@@ -41,11 +41,11 @@ func Load() (*Config, error) {
 
 		PostgresHost:     getEnv("POSTGRES_HOST", "localhost"),
 		PostgresPort:     getEnv("POSTGRES_PORT", "5432"),
-		PostgresUser:     getEnv("POSTGRES_USER", "modulops"),
-		PostgresPassword: getEnv("POSTGRES_PASSWORD", "modulops"),
-		PostgresDB:       getEnv("POSTGRES_DB", "modulops"),
+		PostgresUser:     getEnv("POSTGRES_USER", "kura"),
+		PostgresPassword: getEnv("POSTGRES_PASSWORD", "kura"),
+		PostgresDB:       getEnv("POSTGRES_DB", "kura"),
 
-		JWTIssuer: "modulops-auth-service",
+		JWTIssuer: "kura-auth-service",
 	}
 
 	// JWT Secret (obligatoire)

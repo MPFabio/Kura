@@ -115,7 +115,7 @@ go run main.go
 ## Build Docker
 
 ```bash
-docker build -t modulops-auth-service .
+docker build -t kura-auth-service .
 ```
 
 ## Déploiement

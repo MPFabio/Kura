@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
-	"cloud.google.com/go/compute/apiv1"
+	asset "cloud.google.com/go/asset/apiv1"
+	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
+	compute "cloud.google.com/go/compute/apiv1"
 	"cloud.google.com/go/compute/apiv1/computepb"
+	container "cloud.google.com/go/container/apiv1"
+	containerpb "cloud.google.com/go/container/apiv1/containerpb"
 	"github.com/modulops/terraform-service/internal/models"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
@@ -77,10 +83,15 @@ func (d *Detector) detectResourceDrift(ctx context.Context, resource *models.Res
 		return d.detectComputeFirewallDrift(ctx, resource, result)
 	case strings.HasPrefix(resource.Type, "google_compute_address"):
 		return d.detectComputeAddressDrift(ctx, resource, result)
+	case strings.HasPrefix(resource.Type, "google_compute_subnetwork"):
+		return d.detectComputeSubnetworkDrift(ctx, resource, result)
+	case strings.HasPrefix(resource.Type, "google_container_cluster"):
+		return d.detectContainerClusterDrift(ctx, resource, result)
+	case strings.HasPrefix(resource.Type, "google_container_node_pool"):
+		return d.detectContainerNodePoolDrift(ctx, resource, result)
 	default:
-		result.Status = "unknown"
-		result.Message = fmt.Sprintf("Type de ressource %s non supporté pour la détection de drift", resource.Type)
-		return result, nil
+		// Détection générique via l'API Cloud Asset Inventory pour toutes les ressources GCP
+		return d.detectGenericDriftViaAssetAPI(ctx, resource, result)
 	}
 }
 
@@ -90,7 +101,7 @@ func (d *Detector) detectComputeInstanceDrift(ctx context.Context, resource *mod
 	if d.credentialsJSON != "" {
 		opts = append(opts, option.WithCredentialsJSON([]byte(d.credentialsJSON)))
 	}
-	
+
 	instancesClient, err := compute.NewInstancesRESTClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la création du client Compute Instances: %w", err)
@@ -181,7 +192,7 @@ func (d *Detector) detectComputeNetworkDrift(ctx context.Context, resource *mode
 	if d.credentialsJSON != "" {
 		opts = append(opts, option.WithCredentialsJSON([]byte(d.credentialsJSON)))
 	}
-	
+
 	networksClient, err := compute.NewNetworksRESTClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la création du client Networks: %w", err)
@@ -234,7 +245,7 @@ func (d *Detector) detectComputeFirewallDrift(ctx context.Context, resource *mod
 	if d.credentialsJSON != "" {
 		opts = append(opts, option.WithCredentialsJSON([]byte(d.credentialsJSON)))
 	}
-	
+
 	firewallsClient, err := compute.NewFirewallsRESTClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la création du client Firewalls: %w", err)
@@ -287,7 +298,7 @@ func (d *Detector) detectComputeAddressDrift(ctx context.Context, resource *mode
 	if d.credentialsJSON != "" {
 		opts = append(opts, option.WithCredentialsJSON([]byte(d.credentialsJSON)))
 	}
-	
+
 	addressesClient, err := compute.NewAddressesRESTClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la création du client Addresses: %w", err)
@@ -352,6 +363,338 @@ func (d *Detector) detectComputeAddressDrift(ctx context.Context, resource *mode
 		result.Message = "Adresse IP synchronisée avec l'infrastructure GCP"
 	}
 
+	return result, nil
+}
+
+// detectComputeSubnetworkDrift détecte les dérives pour un sous-réseau Compute.
+func (d *Detector) detectComputeSubnetworkDrift(ctx context.Context, resource *models.Resource, result *models.DriftResult) (*models.DriftResult, error) {
+	var opts []option.ClientOption
+	if d.credentialsJSON != "" {
+		opts = append(opts, option.WithCredentialsJSON([]byte(d.credentialsJSON)))
+	}
+
+	subnetworksClient, err := compute.NewSubnetworksRESTClient(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors de la création du client Subnetworks: %w", err)
+	}
+	defer subnetworksClient.Close()
+
+	if len(resource.Instances) == 0 {
+		result.Status = "missing"
+		result.Message = "Aucune instance trouvée dans le tfstate"
+		return result, nil
+	}
+
+	instance := resource.Instances[0]
+	if instance.Attributes == nil {
+		result.Status = "unknown"
+		result.Message = "Attributs manquants dans le tfstate"
+		return result, nil
+	}
+
+	name, _ := instance.Attributes["name"].(string)
+	region, _ := instance.Attributes["region"].(string)
+	project, _ := instance.Attributes["project"].(string)
+
+	if name == "" || region == "" || project == "" {
+		result.Status = "unknown"
+		result.Message = "Informations incomplètes dans le tfstate (name, region, project requis)"
+		return result, nil
+	}
+
+	regionParts := strings.Split(region, "/")
+	regionName := regionParts[len(regionParts)-1]
+
+	req := &computepb.GetSubnetworkRequest{
+		Project:    project,
+		Region:     regionName,
+		Subnetwork: name,
+	}
+
+	_, err = subnetworksClient.Get(ctx, req)
+	if err != nil {
+		result.Status = "missing"
+		result.Message = fmt.Sprintf("Sous-réseau %s non trouvé dans GCP: %v", name, err)
+		return result, nil
+	}
+
+	result.Status = "in_sync"
+	result.Message = "Sous-réseau synchronisé avec l'infrastructure GCP"
+	return result, nil
+}
+
+// detectContainerClusterDrift détecte les dérives pour un cluster GKE.
+func (d *Detector) detectContainerClusterDrift(ctx context.Context, resource *models.Resource, result *models.DriftResult) (*models.DriftResult, error) {
+	var opts []option.ClientOption
+	if d.credentialsJSON != "" {
+		opts = append(opts, option.WithCredentialsJSON([]byte(d.credentialsJSON)))
+	}
+
+	clusterManagerClient, err := container.NewClusterManagerClient(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors de la création du client ClusterManager: %w", err)
+	}
+	defer clusterManagerClient.Close()
+
+	if len(resource.Instances) == 0 {
+		result.Status = "missing"
+		result.Message = "Aucune instance trouvée dans le tfstate"
+		return result, nil
+	}
+
+	instance := resource.Instances[0]
+	if instance.Attributes == nil {
+		result.Status = "unknown"
+		result.Message = "Attributs manquants dans le tfstate"
+		return result, nil
+	}
+
+	name, _ := instance.Attributes["name"].(string)
+	project, _ := instance.Attributes["project"].(string)
+	location, _ := instance.Attributes["location"].(string)
+	zone, _ := instance.Attributes["zone"].(string)
+	if location == "" {
+		location = zone
+	}
+	if location != "" {
+		locParts := strings.Split(location, "/")
+		location = locParts[len(locParts)-1]
+	}
+
+	if name == "" || project == "" || location == "" {
+		result.Status = "unknown"
+		result.Message = "Informations incomplètes dans le tfstate (name, project, location ou zone requis)"
+		return result, nil
+	}
+
+	parent := fmt.Sprintf("projects/%s/locations/%s/clusters/%s", project, location, name)
+	req := &containerpb.GetClusterRequest{
+		Name: parent,
+	}
+
+	_, err = clusterManagerClient.GetCluster(ctx, req)
+	if err != nil {
+		result.Status = "missing"
+		result.Message = fmt.Sprintf("Cluster GKE %s non trouvé dans GCP: %v", name, err)
+		return result, nil
+	}
+
+	result.Status = "in_sync"
+	result.Message = "Cluster GKE synchronisé avec l'infrastructure GCP"
+	return result, nil
+}
+
+// detectContainerNodePoolDrift détecte les dérives pour un node pool GKE.
+func (d *Detector) detectContainerNodePoolDrift(ctx context.Context, resource *models.Resource, result *models.DriftResult) (*models.DriftResult, error) {
+	var opts []option.ClientOption
+	if d.credentialsJSON != "" {
+		opts = append(opts, option.WithCredentialsJSON([]byte(d.credentialsJSON)))
+	}
+
+	clusterManagerClient, err := container.NewClusterManagerClient(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors de la création du client ClusterManager: %w", err)
+	}
+	defer clusterManagerClient.Close()
+
+	if len(resource.Instances) == 0 {
+		result.Status = "missing"
+		result.Message = "Aucune instance trouvée dans le tfstate"
+		return result, nil
+	}
+
+	instance := resource.Instances[0]
+	if instance.Attributes == nil {
+		result.Status = "unknown"
+		result.Message = "Attributs manquants dans le tfstate"
+		return result, nil
+	}
+
+	name, _ := instance.Attributes["name"].(string)
+	project, _ := instance.Attributes["project"].(string)
+	cluster, _ := instance.Attributes["cluster"].(string)
+	location, _ := instance.Attributes["location"].(string)
+	zone, _ := instance.Attributes["zone"].(string)
+	if location == "" {
+		location = zone
+	}
+	if location != "" {
+		locParts := strings.Split(location, "/")
+		location = locParts[len(locParts)-1]
+	}
+	if cluster != "" {
+		clusterParts := strings.Split(cluster, "/")
+		cluster = clusterParts[len(clusterParts)-1]
+	}
+
+	if name == "" || project == "" || location == "" || cluster == "" {
+		result.Status = "unknown"
+		result.Message = "Informations incomplètes dans le tfstate (name, project, location/zone, cluster requis)"
+		return result, nil
+	}
+
+	parent := fmt.Sprintf("projects/%s/locations/%s/clusters/%s/nodePools/%s", project, location, cluster, name)
+	req := &containerpb.GetNodePoolRequest{
+		Name: parent,
+	}
+
+	_, err = clusterManagerClient.GetNodePool(ctx, req)
+	if err != nil {
+		result.Status = "missing"
+		result.Message = fmt.Sprintf("Node pool %s non trouvé dans GCP: %v", name, err)
+		return result, nil
+	}
+
+	result.Status = "in_sync"
+	result.Message = "Node pool GKE synchronisé avec l'infrastructure GCP"
+	return result, nil
+}
+
+// terraformTypeToAssetType convertit un type de ressource Terraform (ex: google_compute_network)
+// en type d'asset GCP (ex: compute.googleapis.com/Network).
+func terraformTypeToAssetType(terraformType string) string {
+	parts := strings.Split(terraformType, "_")
+	if len(parts) < 3 {
+		return ""
+	}
+	// google_compute_network -> service=compute, typeName=Network
+	// google_container_node_pool -> service=container, typeName=NodePool
+	service := parts[1]
+	typeParts := parts[2:]
+	var b strings.Builder
+	for _, p := range typeParts {
+		if len(p) == 0 {
+			continue
+		}
+		r := []rune(p)
+		r[0] = unicode.ToUpper(r[0])
+		b.WriteString(string(r))
+	}
+	typeName := b.String()
+	if typeName == "" {
+		return ""
+	}
+	return service + ".googleapis.com/" + typeName
+}
+
+// getResourceNameFromInstance extrait le nom de la ressource côté GCP depuis les attributs tfstate.
+func getResourceNameFromInstance(attrs map[string]interface{}) string {
+	if name, ok := attrs["name"].(string); ok && name != "" {
+		return name
+	}
+	if id, ok := attrs["id"].(string); ok && id != "" {
+		return id
+	}
+	if selfLink, ok := attrs["self_link"].(string); ok && selfLink != "" {
+		parts := strings.Split(selfLink, "/")
+		if len(parts) > 0 {
+			return parts[len(parts)-1]
+		}
+	}
+	return ""
+}
+
+// getProjectFromResource extrait le projet GCP depuis la première instance de la ressource.
+func getProjectFromResource(resource *models.Resource) string {
+	for _, inst := range resource.Instances {
+		if inst.Attributes == nil {
+			continue
+		}
+		if p, ok := inst.Attributes["project"].(string); ok && p != "" {
+			return p
+		}
+	}
+	return ""
+}
+
+// lastSegment retourne le dernier segment d'un chemin (ex: //compute.../networks/foo -> foo).
+func lastSegment(path string) string {
+	path = strings.TrimPrefix(path, "//")
+	parts := strings.Split(path, "/")
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] != "" {
+			return parts[i]
+		}
+	}
+	return ""
+}
+
+// detectGenericDriftViaAssetAPI vérifie l'existence des ressources via l'API Cloud Asset Inventory.
+// Permet une détection de drift concrète pour tous les types de ressources GCP sans détecteur dédié.
+func (d *Detector) detectGenericDriftViaAssetAPI(ctx context.Context, resource *models.Resource, result *models.DriftResult) (*models.DriftResult, error) {
+	assetType := terraformTypeToAssetType(resource.Type)
+	if assetType == "" {
+		result.Status = "unknown"
+		result.Message = "Impossible de mapper le type Terraform vers un type d'asset GCP"
+		return result, nil
+	}
+
+	project := getProjectFromResource(resource)
+	if project == "" {
+		result.Status = "unknown"
+		result.Message = "Attribut project manquant dans le tfstate"
+		return result, nil
+	}
+
+	var opts []option.ClientOption
+	if d.credentialsJSON != "" {
+		opts = append(opts, option.WithCredentialsJSON([]byte(d.credentialsJSON)))
+	}
+
+	client, err := asset.NewClient(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("création du client Asset: %w", err)
+	}
+	defer client.Close()
+
+	parent := "projects/" + project
+	req := &assetpb.ListAssetsRequest{
+		Parent:      parent,
+		AssetTypes:  []string{assetType},
+		ContentType: assetpb.ContentType_RESOURCE,
+	}
+
+	it := client.ListAssets(ctx, req)
+	assetNames := make(map[string]bool)
+	for {
+		resp, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			result.Status = "unknown"
+			result.Message = fmt.Sprintf("Erreur API Asset Inventory: %v", err)
+			return result, nil
+		}
+		if resp != nil && resp.Name != "" {
+			assetNames[lastSegment(resp.Name)] = true
+			assetNames[resp.Name] = true
+		}
+	}
+
+	missing := make([]string, 0)
+	for _, instance := range resource.Instances {
+		if instance.Attributes == nil {
+			continue
+		}
+		expectedName := getResourceNameFromInstance(instance.Attributes)
+		if expectedName == "" {
+			missing = append(missing, "(nom non trouvé dans le tfstate)")
+			continue
+		}
+		if !assetNames[expectedName] {
+			missing = append(missing, expectedName)
+		}
+	}
+
+	if len(missing) > 0 {
+		result.Status = "missing"
+		result.Message = fmt.Sprintf("Ressource(s) absente(s) dans GCP (Asset Inventory): %s", strings.Join(missing, ", "))
+		return result, nil
+	}
+
+	result.Status = "in_sync"
+	result.Message = "Ressource synchronisée avec l'infrastructure GCP (vérification via Asset Inventory)"
 	return result, nil
 }
 
