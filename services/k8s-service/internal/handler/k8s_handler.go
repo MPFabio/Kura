@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/modulops/k8s-service/internal/config"
 	"github.com/modulops/k8s-service/internal/k8s"
@@ -646,6 +647,52 @@ func (h *K8sHandler) ScaleDeployment(c *gin.Context) {
 
 	log.Printf("ScaleDeployment réussi pour %s/%s", namespace, name)
 	c.JSON(http.StatusOK, gin.H{"message": "deployment mis à jour", "replicas": replicas})
+}
+
+// RestartDeployment déclenche un rollout restart.
+func (h *K8sHandler) RestartDeployment(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+
+	if err := h.svc.RestartDeployment(ctx, namespace, name); err != nil {
+		log.Printf("Erreur RestartDeployment pour %s/%s: %v", namespace, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "rollout restart déclenché"})
+}
+
+// PatchDeploymentEnvRequest représente la requête pour modifier les env vars.
+type PatchDeploymentEnvRequest struct {
+	Container string           `json:"container" binding:"required"`
+	Env       []corev1.EnvVar  `json:"env" binding:"required"`
+}
+
+// PatchDeploymentEnv met à jour les variables d'environnement d'un container.
+func (h *K8sHandler) PatchDeploymentEnv(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+
+	var req PatchDeploymentEnvRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.PatchDeploymentEnv(ctx, namespace, name, req.Container, req.Env); err != nil {
+		log.Printf("Erreur PatchDeploymentEnv pour %s/%s: %v", namespace, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "variables d'environnement mises à jour"})
 }
 
 // DeletePod supprime un pod.

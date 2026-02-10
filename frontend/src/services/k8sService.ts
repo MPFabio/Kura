@@ -260,6 +260,34 @@ export const k8sService = {
     }
   },
 
+  restartDeployment: async (namespace: string, name: string): Promise<void> => {
+    try {
+      await apiClient.post(
+        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/restart`
+      )
+    } catch (error) {
+      console.error(`Erreur lors du restart du deployment ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
+  patchDeploymentEnv: async (
+    namespace: string,
+    name: string,
+    container: string,
+    env: Array<{ name: string; value: string }>
+  ): Promise<void> => {
+    try {
+      await apiClient.patch(
+        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/env`,
+        { container, env }
+      )
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour des env vars de ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
   deletePod: async (namespace: string, name: string): Promise<void> => {
     try {
       await apiClient.delete(

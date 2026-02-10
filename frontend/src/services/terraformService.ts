@@ -124,11 +124,14 @@ export const terraformService = {
     }
   },
 
-  uploadState: async (name: string, stateFile: File): Promise<TerraformState> => {
+  uploadState: async (name: string, stateFile: File, projectId?: string): Promise<TerraformState> => {
     try {
       const formData = new FormData()
       formData.append('file', stateFile)
       formData.append('name', name)
+      if (projectId) {
+        formData.append('project_id', projectId)
+      }
       const response = await apiClient.post<TerraformState>('/api/v1/terraform/states/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',

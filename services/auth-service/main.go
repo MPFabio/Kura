@@ -36,7 +36,7 @@ func main() {
 	projectService := service.NewProjectService(repo)
 
 	// Initialiser les handlers
-	authHandler := handler.NewAuthHandler(authService, cfg)
+	authHandler := handler.NewAuthHandler(authService, projectService, cfg)
 	projectHandler := handler.NewProjectHandler(projectService, cfg)
 
 	// Configurer le routeur
@@ -99,6 +99,7 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 			auth.POST("/refresh", authHandler.RefreshToken)
 			auth.POST("/logout", authHandler.Logout)
 			auth.GET("/me", authHandler.RequireAuth(), authHandler.GetCurrentUser)
+			auth.GET("/permissions", authHandler.RequireAuth(), authHandler.GetPermissions)
 			auth.PUT("/me", authHandler.RequireAuth(), authHandler.UpdateCurrentUser)
 			auth.PUT("/password", authHandler.RequireAuth(), authHandler.ChangePassword)
 		}
@@ -116,6 +117,11 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 			projects.GET("/:id/members", projectHandler.ListProjectMembers)
 			projects.PUT("/:id/members/:user_id", projectHandler.UpdateProjectMember)
 			projects.DELETE("/:id/members/:user_id", projectHandler.RemoveProjectMember)
+			projects.GET("/:id/mappings", projectHandler.ListProjectMappings)
+			projects.POST("/:id/mappings", projectHandler.CreateProjectMapping)
+			projects.DELETE("/:id/mappings/:mapping_id", projectHandler.DeleteProjectMapping)
+			projects.GET("/:id/permissions", projectHandler.ListProjectPermissions)
+			projects.POST("/:id/permissions", projectHandler.CreateProjectPermission)
 		}
 
 		// Routes d'administration (nécessitent le rôle admin)

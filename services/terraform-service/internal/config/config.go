@@ -23,6 +23,9 @@ type Config struct {
 	KafkaBrokers string
 	KafkaGroupID string
 
+	// Drift worker : intervalle entre chaque vérification (ex. 1h)
+	DriftWorkerInterval time.Duration
+
 	// Chiffrement des credentials
 	EncryptionKey string
 
@@ -67,6 +70,12 @@ func Load() (*Config, error) {
 	// Kafka
 	cfg.KafkaBrokers = getEnv("KAFKA_BROKERS", "localhost:9092")
 	cfg.KafkaGroupID = getEnv("KAFKA_GROUP_ID", "terraform-service")
+
+	// Drift worker
+	driftIntervalStr := getEnv("TERRAFORM_DRIFT_WORKER_INTERVAL", "1h")
+	if d, err := time.ParseDuration(driftIntervalStr); err == nil && d > 0 {
+		cfg.DriftWorkerInterval = d
+	}
 
 	// Clé de chiffrement (pour les credentials sensibles)
 	cfg.EncryptionKey = getEnv("TERRAFORM_ENCRYPTION_KEY", "")

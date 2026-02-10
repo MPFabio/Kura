@@ -12,14 +12,16 @@ import (
 )
 
 type AuthHandler struct {
-	authService *service.AuthService
-	cfg         *config.Config
+	authService    *service.AuthService
+	projectService *service.ProjectService
+	cfg            *config.Config
 }
 
-func NewAuthHandler(authService *service.AuthService, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(authService *service.AuthService, projectService *service.ProjectService, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
-		cfg:         cfg,
+		authService:    authService,
+		projectService: projectService,
+		cfg:            cfg,
 	}
 }
 
@@ -132,6 +134,29 @@ func (h *AuthHandler) UpdateCurrentUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+// GetPermissions retourne les permissions d'un utilisateur pour un projet
+// GET /api/v1/auth/permissions?project_id=xxx
+// user_id est déduit du JWT ; project_id requis en query
+func (h *AuthHandler) GetPermissions(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+	projectID := c.Query("project_id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id requis"})
+		return
+	}
+
+	perms, err := h.projectService.GetProjectPermissions(userID.(string), projectID)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"permissions": perms})
 }
 
 // ChangePassword change le mot de passe de l'utilisateur actuel

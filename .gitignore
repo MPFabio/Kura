@@ -52,6 +52,15 @@ kubeconfig-*.yaml
 # Clé GCP (compte de service) pour GKE dans Kura
 secrets/gcp-sa.json
 
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+infrastructure/terraform/gcp/backend.tf
+deploy_key
+deploy_key.pub
+
 # Docker
 docker-compose.override.yml
 

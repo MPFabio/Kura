@@ -1,0 +1,101 @@
+name: Deploy on GCP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GCP_REGION: europe-west1
+
+jobs:
+  build-and-push:
+    name: Build & Push images
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Set image tag
+        id: meta
+        run: echo "version=sha-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Build & push auth-service
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/auth-service:${{ steps.meta.outputs.version }} ./services/auth-service
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/auth-service:${{ steps.meta.outputs.version }}
+
+      - name: Build & push terraform-service
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/terraform-service:${{ steps.meta.outputs.version }} ./services/terraform-service
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/terraform-service:${{ steps.meta.outputs.version }}
+
+      - name: Build & push k8s-service
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/k8s-service:${{ steps.meta.outputs.version }} ./services/k8s-service
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/k8s-service:${{ steps.meta.outputs.version }}
+
+      - name: Build & push ansible-service
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/ansible-service:${{ steps.meta.outputs.version }} ./services/ansible-service
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/ansible-service:${{ steps.meta.outputs.version }}
+
+      - name: Build & push pipeline-service
+        run: |
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/pipeline-service:${{ steps.meta.outputs.version }} ./services/pipeline-service
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/pipeline-service:${{ steps.meta.outputs.version }}
+
+      - name: Build & push frontend
+        env:
+          # Définir VITE_API_BASE_URL en variable de repo (ex: https://VOTRE_IP:8000) pour l'API en prod
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'http://localhost:8000' }}
+        run: |
+          docker build \
+            --build-arg VITE_API_BASE_URL="${{ vars.VITE_API_BASE_URL || 'http://localhost:8000' }}" \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/frontend:${{ steps.meta.outputs.version }} \
+            ./frontend
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/frontend:${{ steps.meta.outputs.version }}
+
+  deploy:
+    name: Deploy on VM
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.GCP_VM_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Copy files to VM
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.GCP_VM_IP }} "mkdir -p /opt/kura/infrastructure/docker"
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            docker-compose.prod.yml \
+            ubuntu@${{ secrets.GCP_VM_IP }}:/opt/kura/
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            infrastructure/docker/kong.yml \
+            ubuntu@${{ secrets.GCP_VM_IP }}:/opt/kura/infrastructure/docker/
+
+      - name: Deploy on VM
+        run: |
+          REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/kura/"
+          TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.GCP_VM_IP }} \
+            "cd /opt/kura && \
+             sudo gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet 2>/dev/null || true && \
+             sudo DOCKER_REGISTRY=\"$REGISTRY\" IMAGE_TAG=\"$TAG\" docker compose -f docker-compose.prod.yml pull && \
+             sudo DOCKER_REGISTRY=\"$REGISTRY\" IMAGE_TAG=\"$TAG\" docker compose -f docker-compose.prod.yml up -d"

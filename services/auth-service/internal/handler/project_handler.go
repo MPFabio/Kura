@@ -242,3 +242,113 @@ func (h *ProjectHandler) RemoveProjectMember(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "membre supprimé avec succès"})
 }
+
+// ListProjectMappings récupère les mappings d'un projet
+func (h *ProjectHandler) ListProjectMappings(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+	projectID := c.Param("id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet requis"})
+		return
+	}
+	mappings, err := h.projectService.ListProjectMappings(userID.(string), projectID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": mappings})
+}
+
+// CreateProjectMapping crée un mapping
+func (h *ProjectHandler) CreateProjectMapping(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+	projectID := c.Param("id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet requis"})
+		return
+	}
+	var req models.CreateProjectMappingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	mapping, err := h.projectService.CreateProjectMapping(userID.(string), projectID, &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, mapping)
+}
+
+// DeleteProjectMapping supprime un mapping
+func (h *ProjectHandler) DeleteProjectMapping(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+	projectID := c.Param("id")
+	mappingID := c.Param("mapping_id")
+	if projectID == "" || mappingID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet et du mapping requis"})
+		return
+	}
+	if err := h.projectService.DeleteProjectMapping(userID.(string), projectID, mappingID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "mapping supprimé avec succès"})
+}
+
+// ListProjectPermissions récupère les permissions granulaires d'un projet
+func (h *ProjectHandler) ListProjectPermissions(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+	projectID := c.Param("id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet requis"})
+		return
+	}
+	perms, err := h.projectService.GetProjectPermissions(userID.(string), projectID)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"permissions": perms})
+}
+
+// CreateProjectPermission crée une permission granulaire
+func (h *ProjectHandler) CreateProjectPermission(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+	projectID := c.Param("id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet requis"})
+		return
+	}
+	var req models.CreateProjectPermissionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	pp, err := h.projectService.CreateProjectPermission(userID.(string), projectID, &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, pp)
+}

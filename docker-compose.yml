@@ -396,6 +396,8 @@ services:
       ANSIBLE_TOWER_USERNAME: ${ANSIBLE_TOWER_USERNAME:-admin}
       ANSIBLE_TOWER_PASSWORD: ${ANSIBLE_TOWER_PASSWORD:-changeme}
       ANSIBLE_TOWER_VERIFY_SSL: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       redis:
         condition: service_healthy

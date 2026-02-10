@@ -1,0 +1,6 @@
+gcp_project = "votre-projet-gcp"
+gcp_region  = "europe-west1"
+gcp_zone    = "europe-west1-b"
+
+# e2-micro = gratuit (1GB RAM), e2-small = 2GB RAM (~15€/mois)
+machine_type = "e2-micro"

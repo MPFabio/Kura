@@ -45,6 +45,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material'
 import { terraformService, TerraformState, terraformSourceService, TerraformDriftResult } from '../services/terraformService'
+import { projectService } from '../services/projectService'
 import { useProject } from '../contexts/ProjectContext'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleButton from '../components/ModuleButton'
@@ -148,14 +149,21 @@ export default function TerraformPage() {
     mutationFn: async () => {
       if (!selectedFile) throw new Error('Aucun fichier sélectionné')
       const name = stateName || selectedFile.name
-      return await terraformService.uploadState(name, selectedFile)
+      return await terraformService.uploadState(name, selectedFile, currentProject?.id)
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['terraform-states'] })
       setUploadDialogOpen(false)
       setStateName('')
       setSelectedFile(null)
       setSnackbar({ open: true, message: 'État Terraform uploadé avec succès', severity: 'success' })
+      if (currentProject && data?.id) {
+        try {
+          await projectService.createProjectMapping(currentProject.id, { terraform_state_id: data.id })
+        } catch (_) {
+          // Ignorer si mapping déjà existant ou autre erreur
+        }
+      }
     },
     onError: (error: any) => {
       setSnackbar({

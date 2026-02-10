@@ -1,0 +1,9 @@
+# Copier ce fichier en backend.tf.
+# backend.tf est ignoré par git (contient la config sensible).
+
+terraform {
+  backend "gcs" {
+    bucket = "kura-ynov"
+    prefix = "projet-ynov/kura"
+  }
+}

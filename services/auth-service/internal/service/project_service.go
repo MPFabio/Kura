@@ -259,3 +259,163 @@ func (s *ProjectService) RemoveProjectMember(userID, projectID, targetUserID str
 
 	return s.repo.RemoveProjectMember(projectID, targetUserID)
 }
+
+// ListProjectMappings récupère les mappings d'un projet
+func (s *ProjectService) ListProjectMappings(userID, projectID string) ([]*models.ProjectMapping, error) {
+	hasAccess, err := s.repo.UserHasAccessToProject(userID, projectID)
+	if err != nil || !hasAccess {
+		return nil, errors.New("accès refusé à ce projet")
+	}
+	return s.repo.ListProjectMappings(projectID)
+}
+
+// CreateProjectMapping crée un mapping
+func (s *ProjectService) CreateProjectMapping(userID, projectID string, req *models.CreateProjectMappingRequest) (*models.ProjectMapping, error) {
+	hasAccess, err := s.repo.UserHasAccessToProject(userID, projectID)
+	if err != nil || !hasAccess {
+		return nil, errors.New("accès refusé à ce projet")
+	}
+	member, err := s.repo.GetProjectMember(projectID, userID)
+	if err != nil || (member.Role != "owner" && member.Role != "admin") {
+		return nil, errors.New("seuls les propriétaires et administrateurs peuvent gérer les mappings")
+	}
+
+	m := &models.ProjectMapping{
+		ID:        uuid.New().String(),
+		ProjectID: projectID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if req.GitHubRepository != nil {
+		m.GitHubRepository = *req.GitHubRepository
+	}
+	if req.TerraformStateID != nil {
+		m.TerraformStateID = *req.TerraformStateID
+	}
+	if req.TerraformSourceID != nil {
+		m.TerraformSourceID = *req.TerraformSourceID
+	}
+	if req.ClusterID != nil {
+		m.ClusterID = *req.ClusterID
+	}
+	if req.ClusterNamespace != nil {
+		m.ClusterNamespace = *req.ClusterNamespace
+	}
+
+	if m.GitHubRepository == "" && m.TerraformStateID == "" && m.ClusterID == "" {
+		return nil, errors.New("au moins un champ requis : github_repository, terraform_state_id ou cluster_id")
+	}
+
+	if err := s.repo.CreateProjectMapping(m); err != nil {
+		return nil, fmt.Errorf("erreur lors de la création du mapping: %w", err)
+	}
+	return m, nil
+}
+
+// DeleteProjectMapping supprime un mapping
+func (s *ProjectService) DeleteProjectMapping(userID, projectID, mappingID string) error {
+	hasAccess, err := s.repo.UserHasAccessToProject(userID, projectID)
+	if err != nil || !hasAccess {
+		return errors.New("accès refusé à ce projet")
+	}
+	member, err := s.repo.GetProjectMember(projectID, userID)
+	if err != nil || (member.Role != "owner" && member.Role != "admin") {
+		return errors.New("seuls les propriétaires et administrateurs peuvent gérer les mappings")
+	}
+	return s.repo.DeleteProjectMapping(projectID, mappingID)
+}
+
+// scopeLevel retourne un entier pour comparer les scopes (admin=3, write=2, read=1)
+func scopeLevel(scope string) int {
+	switch scope {
+	case "admin":
+		return 3
+	case "write":
+		return 2
+	case "read":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// UserHasPermission vérifie si un utilisateur a au moins le scope demandé pour un module dans un projet
+func (s *ProjectService) UserHasPermission(userID, projectID, module, requiredScope string) (bool, error) {
+	hasAccess, err := s.repo.UserHasAccessToProject(userID, projectID)
+	if err != nil || !hasAccess {
+		return false, nil
+	}
+
+	pp, err := s.repo.GetProjectPermission(projectID, userID, module)
+	if err != nil {
+		return false, err
+	}
+
+	if pp != nil {
+		return scopeLevel(pp.Scope) >= scopeLevel(requiredScope), nil
+	}
+
+	// Fallback sur project_members : owner/admin = admin, member = read
+	member, err := s.repo.GetProjectMember(projectID, userID)
+	if err != nil {
+		return false, nil
+	}
+	fallbackScope := "read"
+	if member.Role == "owner" || member.Role == "admin" {
+		fallbackScope = "admin"
+	}
+	return scopeLevel(fallbackScope) >= scopeLevel(requiredScope), nil
+}
+
+// GetProjectPermissions récupère les permissions pour un projet (pour un user ou toutes)
+func (s *ProjectService) GetProjectPermissions(userID, projectID string) (map[string]string, error) {
+	hasAccess, err := s.repo.UserHasAccessToProject(userID, projectID)
+	if err != nil || !hasAccess {
+		return nil, errors.New("accès refusé à ce projet")
+	}
+
+	perms := make(map[string]string)
+	for _, mod := range []string{"k8s", "terraform", "ansible", "pipeline"} {
+		pp, err := s.repo.GetProjectPermission(projectID, userID, mod)
+		if err != nil {
+			return nil, err
+		}
+		if pp != nil {
+			perms[mod] = pp.Scope
+		} else {
+			member, err := s.repo.GetProjectMember(projectID, userID)
+			if err == nil && (member.Role == "owner" || member.Role == "admin") {
+				perms[mod] = "admin"
+			} else {
+				perms[mod] = "read"
+			}
+		}
+	}
+	return perms, nil
+}
+
+// CreateProjectPermission crée une permission granulaire (réservé aux owners/admins du projet)
+func (s *ProjectService) CreateProjectPermission(requesterID, projectID string, req *models.CreateProjectPermissionRequest) (*models.ProjectPermission, error) {
+	hasAccess, err := s.repo.UserHasAccessToProject(requesterID, projectID)
+	if err != nil || !hasAccess {
+		return nil, errors.New("accès refusé à ce projet")
+	}
+	member, err := s.repo.GetProjectMember(projectID, requesterID)
+	if err != nil || (member.Role != "owner" && member.Role != "admin") {
+		return nil, errors.New("seuls les propriétaires et administrateurs peuvent gérer les permissions")
+	}
+
+	pp := &models.ProjectPermission{
+		ID:        uuid.New().String(),
+		ProjectID: projectID,
+		UserID:    req.UserID,
+		Module:    req.Module,
+		Scope:     req.Scope,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := s.repo.CreateProjectPermission(pp); err != nil {
+		return nil, fmt.Errorf("erreur lors de la création de la permission: %w", err)
+	}
+	return pp, nil
+}

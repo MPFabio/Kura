@@ -182,7 +182,7 @@ func (s *SyncService) AddSource(ctx context.Context, source *models.StateSource)
 				// Générer un ID permanent basé sur le nom
 				stateFileID := fmt.Sprintf("%s-%d", stateName, time.Now().Unix())
 				// Créer l'état
-				stateFile, err := s.terraformService.ParseStateFileWithID(ctx, stateFileID, stateName, stateData)
+				stateFile, err := s.terraformService.ParseStateFileWithID(ctx, stateFileID, stateName, stateData, "")
 				if err != nil {
 					log.Printf("⚠️  Erreur lors de la création initiale de l'état depuis %s: %v", source.Type, err)
 				} else {
@@ -250,7 +250,7 @@ func (s *SyncService) AddSource(ctx context.Context, source *models.StateSource)
 						fileName = "terraform.tfstate"
 					}
 					stateName := strings.TrimSuffix(fileName, ".tfstate")
-					_, err = s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, stateName, stateData)
+					_, err = s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, stateName, stateData, "")
 					if err != nil {
 						log.Printf("⚠️  Erreur lors de la création de l'état depuis %s: %v", source.Type, err)
 					} else {
@@ -567,7 +567,7 @@ func (s *SyncService) syncFromS3(ctx context.Context, source *models.StateSource
 	}
 
 	// Parser et mettre à jour l'état (utiliser l'ID existant pour la mise à jour)
-	stateFile, err := s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, "", stateData)
+	stateFile, err := s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, "", stateData, "")
 	if err != nil {
 		return fmt.Errorf("erreur lors du parsing: %w", err)
 	}
@@ -604,7 +604,7 @@ func (s *SyncService) syncFromAzure(ctx context.Context, source *models.StateSou
 	}
 
 	// Parser et mettre à jour l'état
-	stateFile, err := s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, "", stateData)
+	stateFile, err := s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, "", stateData, "")
 	if err != nil {
 		return fmt.Errorf("erreur lors du parsing: %w", err)
 	}
@@ -731,7 +731,7 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 		"sourceId": source.ID, "stateFileID": source.StateFileID, "stateName": stateName, "stateDataSize": len(stateData),
 	})
 	// #endregion
-	stateFile, err := s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, stateName, stateData)
+	stateFile, err := s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, stateName, stateData, "")
 	if err != nil {
 		// #region agent log
 		debugLog("sync_service.go:610", "ParseStateFileWithID failed", map[string]interface{}{

@@ -72,6 +72,26 @@ export interface UpdateProjectMemberRequest {
   role: 'admin' | 'member'
 }
 
+export interface ProjectMapping {
+  id: string
+  project_id: string
+  github_repository?: string
+  terraform_state_id?: string
+  terraform_source_id?: string
+  cluster_id?: string
+  cluster_namespace?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateProjectMappingRequest {
+  github_repository?: string
+  terraform_state_id?: string
+  terraform_source_id?: string
+  cluster_id?: string
+  cluster_namespace?: string
+}
+
 export const projectService = {
   getProjects: async (): Promise<ProjectResponse> => {
     try {
@@ -161,5 +181,19 @@ export const projectService = {
       console.error(`Erreur lors de la suppression du membre ${userId} du projet ${projectId}:`, error)
       throw error
     }
+  },
+
+  getProjectMappings: async (projectId: string): Promise<{ items: ProjectMapping[] }> => {
+    const response = await getProjectClient().get<{ items: ProjectMapping[] }>(`/api/v1/projects/${projectId}/mappings`)
+    return response.data
+  },
+
+  createProjectMapping: async (projectId: string, data: CreateProjectMappingRequest): Promise<ProjectMapping> => {
+    const response = await getProjectClient().post<ProjectMapping>(`/api/v1/projects/${projectId}/mappings`, data)
+    return response.data
+  },
+
+  deleteProjectMapping: async (projectId: string, mappingId: string): Promise<void> => {
+    await getProjectClient().delete(`/api/v1/projects/${projectId}/mappings/${mappingId}`)
   },
 }

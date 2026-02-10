@@ -39,6 +39,8 @@ type K8sClient interface {
 	GetSecretYAML(ctx context.Context, namespace, name string) (string, error)
 	GetNodeYAML(ctx context.Context, name string) (string, error)
 	ScaleDeployment(ctx context.Context, namespace, name string, replicas int32) error
+	RestartDeployment(ctx context.Context, namespace, name string) error
+	PatchDeploymentEnv(ctx context.Context, namespace, name, containerName string, envVars []corev1.EnvVar) error
 	DeletePod(ctx context.Context, namespace, name string) error
 	DeleteDeployment(ctx context.Context, namespace, name string) error
 	DeleteService(ctx context.Context, namespace, name string) error
@@ -511,6 +513,16 @@ func (s *K8sService) GetNodeYAML(ctx context.Context, name string) (string, erro
 // ScaleDeployment modifie le nombre de replicas d'un deployment.
 func (s *K8sService) ScaleDeployment(ctx context.Context, namespace, name string, replicas int32) error {
 	return s.k8sClient.ScaleDeployment(ctx, namespace, name, replicas)
+}
+
+// RestartDeployment déclenche un rollout restart.
+func (s *K8sService) RestartDeployment(ctx context.Context, namespace, name string) error {
+	return s.k8sClient.RestartDeployment(ctx, namespace, name)
+}
+
+// PatchDeploymentEnv met à jour les variables d'environnement d'un container.
+func (s *K8sService) PatchDeploymentEnv(ctx context.Context, namespace, name, containerName string, envVars []corev1.EnvVar) error {
+	return s.k8sClient.PatchDeploymentEnv(ctx, namespace, name, containerName, envVars)
 }
 
 // DeletePod supprime un pod.
