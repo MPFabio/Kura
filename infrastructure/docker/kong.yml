@@ -14,9 +14,21 @@ services:
     - POST
     - PUT
     - DELETE
+  - name: projects-route
+    paths:
+    - /api/v1/projects
+    strip_path: false
+    methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
 
 - name: k8s-service
   url: http://k8s-service:8081
+  connect_timeout: 15000   # 15s pour établir la connexion
+  read_timeout: 120000     # 120s (auth GKE + appel API peuvent être lents)
+  write_timeout: 60000     # 60s
   routes:
   - name: k8s-route
     paths:
@@ -45,30 +57,37 @@ services:
     - DELETE
 
 - name: ansible-service
-  url: http://ansible-service:8080
+  url: http://ansible-service:8083
   routes:
   - name: ansible-route
     paths:
-    - /api/ansible
+    - /api/v1/ansible
     strip_path: false
     methods:
     - GET
     - POST
     - PUT
     - DELETE
+  - name: ansible-webhooks-route
+    paths:
+    - /api/v1/webhooks/ansible-tower
+    strip_path: false
+    methods:
+    - POST
 
 - name: pipeline-service
-  url: http://pipeline-service:8080
+  url: http://pipeline-service:8084
   routes:
   - name: pipeline-route
     paths:
-    - /api/pipeline
+    - /api/v1/pipeline
     strip_path: false
     methods:
     - GET
     - POST
     - PUT
     - DELETE
+    - OPTIONS
 
 plugins:
 - name: rate-limiting

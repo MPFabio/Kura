@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,11 +29,14 @@ func NewClusterHandler(clusterService *service.ClusterService, cfg *config.Confi
 
 // CreateClusterRequest représente une requête de création de cluster.
 type CreateClusterRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description,omitempty"`
-	Endpoint    string `json:"endpoint,omitempty"`
-	Kubeconfig  string `json:"kubeconfig" binding:"required"`
-	IsActive    bool   `json:"is_active,omitempty"`
+	Name             string `json:"name" binding:"required"`
+	Description      string `json:"description,omitempty"`
+	Endpoint         string `json:"endpoint,omitempty"`
+	Kubeconfig       string `json:"kubeconfig" binding:"required"`
+	ProjectID        string `json:"project_id" binding:"required"`
+	ClusterType      string `json:"cluster_type,omitempty"`      // generic | gke | aks | eks | proxmox
+	CloudCredentials string `json:"cloud_credentials,omitempty"` // JSON : clé GCP (gcp_sa_key), Azure (tenant_id, client_id, client_secret), AWS (access_key_id, secret_access_key)
+	IsActive         bool   `json:"is_active,omitempty"`
 }
 
 // CreateCluster crée un nouveau cluster.
@@ -45,12 +49,32 @@ func (h *ClusterHandler) CreateCluster(c *gin.Context) {
 		return
 	}
 
+	// Validation des endpoints en production
+	isProduction := h.cfg.Environment == "production"
+	if isProduction && req.Endpoint != "" {
+		if strings.Contains(req.Endpoint, "127.0.0.1") ||
+			strings.Contains(req.Endpoint, "localhost") ||
+			strings.Contains(req.Endpoint, "host.docker.internal") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "endpoints locaux (127.0.0.1, localhost, host.docker.internal) interdits en production pour des raisons de sécurité",
+			})
+			return
+		}
+	}
+
+	clusterType := req.ClusterType
+	if clusterType == "" {
+		clusterType = models.ClusterTypeGeneric
+	}
 	cluster := &models.Cluster{
-		Name:        req.Name,
-		Description: req.Description,
-		Endpoint:    req.Endpoint,
-		Kubeconfig:  req.Kubeconfig,
-		IsActive:    req.IsActive,
+		Name:             req.Name,
+		Description:      req.Description,
+		Endpoint:         req.Endpoint,
+		Kubeconfig:       req.Kubeconfig,
+		ProjectID:        req.ProjectID,
+		ClusterType:      clusterType,
+		CloudCredentials: req.CloudCredentials,
+		IsActive:         req.IsActive,
 	}
 
 	created, err := h.clusterService.CreateCluster(ctx, cluster)
@@ -99,7 +123,14 @@ func (h *ClusterHandler) GetCluster(c *gin.Context) {
 func (h *ClusterHandler) ListClusters(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	clusters, err := h.clusterService.ListClusters(ctx)
+	// Récupérer project_id depuis les query params
+	projectID := c.Query("project_id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id requis"})
+		return
+	}
+
+	clusters, err := h.clusterService.ListClustersByProject(ctx, projectID)
 	if err != nil {
 		log.Printf("Erreur ListClusters: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -113,11 +144,13 @@ func (h *ClusterHandler) ListClusters(c *gin.Context) {
 
 // UpdateClusterRequest représente une requête de mise à jour de cluster.
 type UpdateClusterRequest struct {
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	Endpoint    string `json:"endpoint,omitempty"`
-	Kubeconfig  string `json:"kubeconfig,omitempty"`
-	IsActive    bool   `json:"is_active,omitempty"`
+	Name             string `json:"name,omitempty"`
+	Description      string `json:"description,omitempty"`
+	Endpoint         string `json:"endpoint,omitempty"`
+	Kubeconfig       string `json:"kubeconfig,omitempty"`
+	ClusterType      string `json:"cluster_type,omitempty"`
+	CloudCredentials string `json:"cloud_credentials,omitempty"`
+	IsActive         bool   `json:"is_active,omitempty"`
 }
 
 // UpdateCluster met à jour un cluster.
@@ -136,12 +169,27 @@ func (h *ClusterHandler) UpdateCluster(c *gin.Context) {
 		return
 	}
 
+	// Validation des endpoints en production
+	isProduction := h.cfg.Environment == "production"
+	if isProduction && req.Endpoint != "" {
+		if strings.Contains(req.Endpoint, "127.0.0.1") ||
+			strings.Contains(req.Endpoint, "localhost") ||
+			strings.Contains(req.Endpoint, "host.docker.internal") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "endpoints locaux (127.0.0.1, localhost, host.docker.internal) interdits en production pour des raisons de sécurité",
+			})
+			return
+		}
+	}
+
 	cluster := &models.Cluster{
-		Name:        req.Name,
-		Description: req.Description,
-		Endpoint:    req.Endpoint,
-		Kubeconfig:  req.Kubeconfig,
-		IsActive:    req.IsActive,
+		Name:             req.Name,
+		Description:      req.Description,
+		Endpoint:         req.Endpoint,
+		Kubeconfig:       req.Kubeconfig,
+		ClusterType:      req.ClusterType,
+		CloudCredentials: req.CloudCredentials,
+		IsActive:         req.IsActive,
 	}
 
 	updated, err := h.clusterService.UpdateCluster(ctx, id, cluster)

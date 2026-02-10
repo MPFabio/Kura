@@ -1,11 +1,15 @@
 import { apiClient } from './api'
 
+export type ClusterType = 'generic' | 'gke' | 'aks' | 'eks' | 'proxmox'
+
 export interface KubernetesCluster {
   id: string
   name: string
   description?: string
   endpoint?: string
   kubeconfig: string
+  cluster_type?: ClusterType
+  cloud_credentials?: string // JSON string: GCP key, or { tenant_id, client_id, client_secret } (AKS), or { access_key_id, secret_access_key } (EKS)
   is_active: boolean
   created_at: string
   updated_at: string
@@ -25,9 +29,9 @@ export interface ClusterResponse {
 }
 
 export const clusterService = {
-  getClusters: async (): Promise<ClusterResponse> => {
+  getClusters: async (projectId: string): Promise<ClusterResponse> => {
     try {
-      const response = await apiClient.get<ClusterResponse>('/api/v1/k8s/clusters')
+      const response = await apiClient.get<ClusterResponse>(`/api/v1/k8s/clusters?project_id=${projectId}`)
       if (!response.data || !response.data.items) {
         return { items: [] }
       }
@@ -66,6 +70,9 @@ export const clusterService = {
     description?: string
     endpoint?: string
     kubeconfig: string
+    project_id: string
+    cluster_type?: ClusterType
+    cloud_credentials?: string
     is_active?: boolean
   }): Promise<KubernetesCluster> => {
     try {
@@ -84,6 +91,8 @@ export const clusterService = {
       description?: string
       endpoint?: string
       kubeconfig?: string
+      cluster_type?: ClusterType
+      cloud_credentials?: string
       is_active?: boolean
     }
   ): Promise<KubernetesCluster> => {

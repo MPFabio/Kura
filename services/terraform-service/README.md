@@ -53,6 +53,19 @@ Le service utilise les variables d'environnement suivantes :
 - `ENV` : Environnement (development/production)
 - `LOG_LEVEL` : Niveau de log (info/debug)
 
+### Backend tfstate (S3 / MinIO)
+
+Pour **persister les tfstate dans un bucket** (au lieu du seul Redis/mémoire), définir :
+
+- `TERRAFORM_STATE_BACKEND=s3` : active la persistance dans un bucket S3-compatible
+- `AWS_S3_BUCKET` : nom du bucket (défaut: kura-tfstate)
+- `AWS_S3_KEY_PREFIX` : préfixe des clés (défaut: tfstate)
+- `AWS_S3_REGION` : région (défaut: us-east-1)
+- `S3_ENDPOINT` : endpoint S3 (pour MinIO : `http://minio:9000`)
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` : identifiants (pour MinIO : minioadmin/minioadmin)
+
+En stack ModulOps, lancer MinIO avec `docker compose --profile tfstate up` et définir les variables ci-dessus dans un fichier `.env` (voir `env.example` à la racine du projet).
+
 ## API
 
 ### Santé

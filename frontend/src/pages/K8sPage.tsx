@@ -2,10 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
   Select,
   MenuItem,
   FormControl,
@@ -43,8 +39,9 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useProject } from '../contexts/ProjectContext'
 import { k8sService } from '../services/k8sService'
-import { clusterService, KubernetesCluster } from '../services/clusterService'
+import { clusterService, KubernetesCluster, ClusterType } from '../services/clusterService'
 import { Deployment } from '../services/api'
 import ResourceDetailDialog from '../components/ResourceDetailDialog'
 import {
@@ -52,10 +49,15 @@ import {
   CheckCircle as CheckCircleIcon,
   CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material'
+import ModuleTitle from '../components/ModuleTitle'
+import ModuleButton from '../components/ModuleButton'
+import ModuleCard from '../components/ModuleCard'
+import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
 type ResourceTab = 'clusters' | 'pods' | 'deployments' | 'services' | 'configmaps' | 'secrets' | 'nodes'
 
 export default function K8sPage() {
+  const { currentProject } = useProject()
   const [selectedNamespace, setSelectedNamespace] = useState<string>('')
   const [activeTab, setActiveTab] = useState<ResourceTab>('clusters')
   const [searchTerm, setSearchTerm] = useState<string>('')
@@ -80,7 +82,7 @@ export default function K8sPage() {
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [detailDialog, setDetailDialog] = useState<{
     open: boolean
-    type: 'pod' | 'deployment' | 'service'
+    type: 'pod' | 'deployment' | 'service' | 'configmap' | 'secret' | 'node'
     namespace: string
     name: string
   }>({
@@ -103,19 +105,30 @@ export default function K8sPage() {
   // États pour la gestion des clusters
   const [clusterDialogOpen, setClusterDialogOpen] = useState(false)
   const [editingCluster, setEditingCluster] = useState<KubernetesCluster | null>(null)
-  const [clusterForm, setClusterForm] = useState({
+  const [clusterForm, setClusterForm] = useState<{
+    name: string
+    description: string
+    endpoint: string
+    kubeconfig: string
+    cluster_type: ClusterType
+    cloud_credentials: string
+    is_active: boolean
+  }>({
     name: '',
     description: '',
     endpoint: '',
     kubeconfig: '',
+    cluster_type: 'generic',
+    cloud_credentials: '',
     is_active: false,
   })
   const [kubeconfigFile, setKubeconfigFile] = useState<File | null>(null)
 
   // Queries pour les clusters
   const { data: clusters, isLoading: clustersLoading, error: clustersError } = useQuery({
-    queryKey: ['clusters'],
-    queryFn: () => clusterService.getClusters(),
+    queryKey: ['clusters', currentProject?.id],
+    queryFn: () => clusterService.getClusters(currentProject!.id),
+    enabled: !!currentProject,
   })
 
   // activeCluster non utilisé pour l'instant mais peut être utile plus tard
@@ -393,6 +406,8 @@ export default function K8sPage() {
       description: '',
       endpoint: '',
       kubeconfig: '',
+      cluster_type: 'generic',
+      cloud_credentials: '',
       is_active: false,
     })
     setEditingCluster(null)
@@ -406,7 +421,9 @@ export default function K8sPage() {
         name: cluster.name,
         description: cluster.description || '',
         endpoint: cluster.endpoint || '',
-        kubeconfig: '', // Ne pas pré-remplir pour la sécurité
+        kubeconfig: '',
+        cluster_type: (cluster.cluster_type as ClusterType) || 'generic',
+        cloud_credentials: '', // Ne pas pré-remplir pour la sécurité
         is_active: cluster.is_active,
       })
     } else {
@@ -434,10 +451,20 @@ export default function K8sPage() {
       return
     }
 
+    if (!currentProject) {
+      setSnackbar({ open: true, message: 'Aucun projet sélectionné', severity: 'error' })
+      return
+    }
+
+    const payload = {
+      ...clusterForm,
+      ...(editingCluster ? {} : { project_id: currentProject!.id }),
+      cloud_credentials: clusterForm.cloud_credentials?.trim() || undefined,
+    }
     if (editingCluster) {
-      updateClusterMutation.mutate({ id: editingCluster.id, cluster: clusterForm })
+      updateClusterMutation.mutate({ id: editingCluster.id, cluster: payload })
     } else {
-      createClusterMutation.mutate(clusterForm)
+      createClusterMutation.mutate(payload as any)
     }
   }
 
@@ -546,11 +573,21 @@ export default function K8sPage() {
                   onChange={() => handleSelectAll(podNames)}
                 />
               </TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell>Node</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Statut</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Node</ModuleSubtitle>
+              </TableCell>
+              <TableCell align="right">
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Actions</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -575,12 +612,18 @@ export default function K8sPage() {
                     onChange={() => handleSelectOne(pod.name)}
                   />
                 </TableCell>
-                <TableCell>{pod.name}</TableCell>
-                <TableCell>{pod.namespace}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{pod.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{pod.namespace}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip label={pod.status} color={getStatusColor(pod.status) as any} size="small" />
                 </TableCell>
-                <TableCell>{pod.node || '-'}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{pod.node || '-'}</ModuleBodyText>
+                </TableCell>
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                   <Tooltip title="Supprimer">
                     <IconButton
@@ -648,13 +691,27 @@ export default function K8sPage() {
                   onChange={() => handleSelectAll(deploymentNames)}
                 />
               </TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Replicas</TableCell>
-              <TableCell>Ready</TableCell>
-              <TableCell>Available</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Replicas</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Ready</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Available</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Statut</ModuleSubtitle>
+              </TableCell>
+              <TableCell align="right">
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Actions</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -679,9 +736,15 @@ export default function K8sPage() {
                     onChange={() => handleSelectOne(dep.name)}
                   />
                 </TableCell>
-                <TableCell>{dep.name}</TableCell>
-                <TableCell>{dep.namespace}</TableCell>
-                <TableCell>{dep.replicas}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{dep.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{dep.namespace}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{dep.replicas}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip
                     label={`${dep.readyReplicas}/${dep.replicas}`}
@@ -689,14 +752,16 @@ export default function K8sPage() {
                     size="small"
                   />
                 </TableCell>
-                <TableCell>{dep.availableReplicas}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{dep.availableReplicas}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   {dep.readyReplicas < dep.replicas ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <CircularProgress size={16} />
-                      <Typography variant="body2" color="text.secondary">
+                      <ModuleSecondaryText>
                         Scaling... {dep.readyReplicas}/{dep.replicas}
-                      </Typography>
+                      </ModuleSecondaryText>
                     </Box>
                   ) : dep.readyReplicas === dep.replicas && dep.replicas > 0 ? (
                     <Chip label="Ready" color="success" size="small" />
@@ -783,12 +848,24 @@ export default function K8sPage() {
                   onChange={() => handleSelectAll(serviceNames)}
                 />
               </TableCell>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Cluster IP</TableCell>
-              <TableCell>Ports</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Type</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Cluster IP</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Ports</ModuleSubtitle>
+              </TableCell>
+              <TableCell align="right">
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Actions</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -813,12 +890,18 @@ export default function K8sPage() {
                     onChange={() => handleSelectOne(svc.name)}
                   />
                 </TableCell>
-                <TableCell>{svc.name}</TableCell>
-                <TableCell>{svc.namespace}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{svc.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{svc.namespace}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip label={svc.type} size="small" />
                 </TableCell>
-                <TableCell>{svc.clusterIP || '-'}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{svc.clusterIP || '-'}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   {svc.ports?.map((p, idx) => (
                     <Chip key={idx} label={`${p.port}/${p.protocol}`} size="small" sx={{ mr: 0.5 }} />
@@ -880,16 +963,31 @@ export default function K8sPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Clés</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Clés</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredConfigMaps.map((cm) => (
-              <TableRow key={cm.name}>
-                <TableCell>{cm.name}</TableCell>
-                <TableCell>{cm.namespace}</TableCell>
+              <TableRow
+                key={cm.name}
+                hover
+                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                onClick={() => setDetailDialog({ open: true, type: 'configmap', namespace: selectedNamespace, name: cm.name })}
+              >
+                <TableCell>
+                  <ModuleBodyText>{cm.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{cm.namespace}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   {cm.dataKeys.map((key, idx) => (
                     <Chip key={idx} label={key} size="small" sx={{ mr: 0.5 }} />
@@ -937,17 +1035,34 @@ export default function K8sPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nom</TableCell>
-              <TableCell>Namespace</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Clés</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Namespace</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Type</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Clés</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredSecrets.map((secret) => (
-              <TableRow key={secret.name}>
-                <TableCell>{secret.name}</TableCell>
-                <TableCell>{secret.namespace}</TableCell>
+              <TableRow
+                key={secret.name}
+                hover
+                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                onClick={() => setDetailDialog({ open: true, type: 'secret', namespace: selectedNamespace, name: secret.name })}
+              >
+                <TableCell>
+                  <ModuleBodyText>{secret.name}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{secret.namespace}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip label={secret.type} size="small" />
                 </TableCell>
@@ -983,40 +1098,39 @@ export default function K8sPage() {
 
     if (!clusters || clusters.items.length === 0) {
       return (
-        <Card>
-          <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              Aucun cluster Kubernetes configuré
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Ajoutez un cluster Kubernetes pour commencer à gérer vos ressources.
-            </Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenClusterDialog()}>
-              Ajouter un cluster
-            </Button>
-          </CardContent>
-        </Card>
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Aucun cluster Kubernetes configuré. Utilisez le bouton "Ajouter un cluster" ci-dessus pour en ajouter un.
+        </Alert>
       )
     }
 
     return (
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Clusters Kubernetes</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenClusterDialog()}>
-            Ajouter un cluster
-          </Button>
-        </Box>
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Nom</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Endpoint</TableCell>
-                <TableCell>Statut</TableCell>
-                <TableCell>Créé le</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Type</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Description</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Endpoint</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Statut</ModuleSubtitle>
+                </TableCell>
+                <TableCell>
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Créé le</ModuleSubtitle>
+                </TableCell>
+                <TableCell align="right">
+                  <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Actions</ModuleSubtitle>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1024,30 +1138,45 @@ export default function K8sPage() {
                 <TableRow key={cluster.id}>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body1" fontWeight="medium">
+                      <ModuleBodyText sx={{ fontWeight: 600 }}>
                         {cluster.name}
-                      </Typography>
+                      </ModuleBodyText>
                       {cluster.is_active && (
                         <Chip
                           label="Actif"
                           color="success"
                           size="small"
                           icon={<CheckCircleIcon />}
+                          sx={{ fontSize: '0.75rem', fontWeight: 500 }}
                         />
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell>{cluster.description || '-'}</TableCell>
-                  <TableCell>{cluster.endpoint || '-'}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={cluster.cluster_type === 'gke' ? 'GKE' : cluster.cluster_type === 'aks' ? 'AKS' : cluster.cluster_type === 'eks' ? 'EKS' : cluster.cluster_type === 'proxmox' ? 'Proxmox' : 'Generic'}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.75rem' }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <ModuleBodyText>{cluster.description || '-'}</ModuleBodyText>
+                  </TableCell>
+                  <TableCell>
+                    <ModuleBodyText>{cluster.endpoint || '-'}</ModuleBodyText>
+                  </TableCell>
                   <TableCell>
                     {cluster.is_active ? (
-                      <Chip label="Actif" color="success" size="small" />
+                      <Chip label="Actif" color="success" size="small" sx={{ fontSize: '0.75rem', fontWeight: 500 }} />
                     ) : (
-                      <Chip label="Inactif" color="default" size="small" />
+                      <Chip label="Inactif" color="default" size="small" sx={{ fontSize: '0.75rem', fontWeight: 500 }} />
                     )}
                   </TableCell>
                   <TableCell>
-                    {new Date(cluster.created_at).toLocaleDateString('fr-FR')}
+                    <ModuleBodyText>
+                      {new Date(cluster.created_at).toLocaleDateString('fr-FR')}
+                    </ModuleBodyText>
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
@@ -1098,9 +1227,14 @@ export default function K8sPage() {
       )
     }
     if (nodesError) {
+      const err = nodesError as any
+      const status = err?.response?.status
+      const msg = status === 502 || status === 503
+        ? 'Service K8s indisponible ou timeout (auth GKE lente ?). Vérifiez la clé GCP en Docker ou réessayez.'
+        : (err?.response?.data?.error || err?.message || 'Erreur inconnue')
       return (
         <Alert severity="error">
-          Erreur: {(nodesError as any)?.response?.data?.error || (nodesError as any)?.message || 'Erreur inconnue'}
+          Erreur: {msg}
         </Alert>
       )
     }
@@ -1116,25 +1250,52 @@ export default function K8sPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nom</TableCell>
-              <TableCell>Statut</TableCell>
-              <TableCell>Version</TableCell>
-              <TableCell>CPU</TableCell>
-              <TableCell>Mémoire</TableCell>
-              <TableCell>Pods</TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Nom</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Statut</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Version</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>CPU</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Mémoire</ModuleSubtitle>
+              </TableCell>
+              <TableCell>
+                <ModuleSubtitle sx={{ fontSize: '0.875rem', mb: 0 }}>Pods</ModuleSubtitle>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredNodes.map((node) => (
-              <TableRow key={node.name}>
-                <TableCell>{node.name}</TableCell>
+              <TableRow
+                key={node.name}
+                hover
+                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                onClick={() => setDetailDialog({ open: true, type: 'node', namespace: '', name: node.name })}
+              >
+                <TableCell>
+                  <ModuleBodyText>{node.name}</ModuleBodyText>
+                </TableCell>
                 <TableCell>
                   <Chip label={node.status} color={getStatusColor(node.status) as any} size="small" />
                 </TableCell>
-                <TableCell>{node.kubeletVersion}</TableCell>
-                <TableCell>{node.cpu}</TableCell>
-                <TableCell>{node.memory}</TableCell>
-                <TableCell>{node.pods}</TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.kubeletVersion}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.cpu}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.memory}</ModuleBodyText>
+                </TableCell>
+                <TableCell>
+                  <ModuleBodyText>{node.pods}</ModuleBodyText>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -1145,88 +1306,87 @@ export default function K8sPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 600 }}>
-        Kubernetes
-      </Typography>
+      <ModuleTitle>Kubernetes</ModuleTitle>
 
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Namespaces
-              </Typography>
-              {namespacesLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                  <CircularProgress />
-                </Box>
-              ) : namespacesError ? (
-                <Alert 
-                  severity="error"
-                  action={
-                    <Button 
-                      color="inherit" 
-                      size="small" 
-                      onClick={() => setActiveTab('clusters')}
-                    >
-                      Configurer un cluster
-                    </Button>
-                  }
-                >
-                  {(namespacesError as any)?.response?.status === 503 || 
-                   (namespacesError as any)?.response?.data?.error?.includes('Aucun cluster') ? (
-                    <>
-                      Aucun cluster Kubernetes configuré. Veuillez ajouter un cluster pour commencer.
-                    </>
-                  ) : (
-                    <>
-                      Erreur: {(namespacesError as any)?.response?.data?.error || (namespacesError as any)?.message || 'Erreur inconnue'}
-                    </>
-                  )}
-                </Alert>
-              ) : namespaces?.items && namespaces.items.length > 0 ? (
-                <Box>
-                  {namespaces.items.map((ns) => (
-                    <Chip
-                      key={ns.name}
-                      label={ns.name}
-                      onClick={() => setSelectedNamespace(ns.name)}
-                      sx={{ m: 0.5 }}
-                      color={selectedNamespace === ns.name ? 'primary' : 'default'}
-                    />
-                  ))}
-                </Box>
-              ) : (
-                <Alert severity="info">Aucun namespace trouvé</Alert>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+      {activeTab !== 'clusters' && activeTab !== 'nodes' && (
+        <ModuleCard sx={{ mb: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, alignItems: { xs: 'stretch', md: 'center' } }}>
+              <Box sx={{ flex: 1 }}>
+                <ModuleSubtitle sx={{ mb: 2 }}>
+                  Namespaces
+                </ModuleSubtitle>
+                {namespacesLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : namespacesError ? (
+                  <Alert 
+                    severity="error"
+                    sx={{ fontSize: '0.875rem' }}
+                    action={
+                      <Button 
+                        color="inherit" 
+                        size="small" 
+                        onClick={() => setActiveTab('clusters')}
+                        sx={{ fontSize: '0.75rem' }}
+                      >
+                        Configurer
+                      </Button>
+                    }
+                  >
+                    {(namespacesError as any)?.response?.status === 503 || 
+                     (namespacesError as any)?.response?.data?.error?.includes('Aucun cluster') ? (
+                      <>
+                        Aucun cluster Kubernetes configuré
+                      </>
+                    ) : (
+                      <>
+                        Erreur: {(namespacesError as any)?.response?.data?.error || (namespacesError as any)?.message || 'Erreur inconnue'}
+                      </>
+                    )}
+                  </Alert>
+                ) : namespaces?.items && namespaces.items.length > 0 ? (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {namespaces.items.map((ns) => (
+                      <Chip
+                        key={ns.name}
+                        label={ns.name}
+                        onClick={() => setSelectedNamespace(ns.name)}
+                        sx={{ 
+                          fontSize: '0.8125rem',
+                          fontWeight: selectedNamespace === ns.name ? 600 : 400,
+                          height: 32,
+                        }}
+                        color={selectedNamespace === ns.name ? 'primary' : 'default'}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Alert severity="info" sx={{ fontSize: '0.875rem' }}>Aucun namespace trouvé</Alert>
+                )}
+              </Box>
+              <Box sx={{ minWidth: { xs: '100%', md: 280 } }}>
+                <FormControl fullWidth>
+                  <InputLabel sx={{ fontSize: '0.875rem' }}>Sélectionner un namespace</InputLabel>
+                  <Select
+                    value={selectedNamespace}
+                    label="Sélectionner un namespace"
+                    onChange={(e) => setSelectedNamespace(e.target.value)}
+                    sx={{ fontSize: '0.875rem' }}
+                  >
+                    {namespaces?.items?.map((ns) => (
+                      <MenuItem key={ns.name} value={ns.name} sx={{ fontSize: '0.875rem' }}>
+                        {ns.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+        </ModuleCard>
+      )}
 
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <FormControl fullWidth>
-                <InputLabel>Sélectionner un namespace</InputLabel>
-                <Select
-                  value={selectedNamespace}
-                  label="Sélectionner un namespace"
-                  onChange={(e) => setSelectedNamespace(e.target.value)}
-                >
-                  {namespaces?.items?.map((ns) => (
-                    <MenuItem key={ns.name} value={ns.name}>
-                      {ns.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Card>
-        <CardContent>
+      <ModuleCard>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider', flexGrow: 1 }}>
               <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
@@ -1241,14 +1401,13 @@ export default function K8sPage() {
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               {activeTab === 'clusters' && (
-                <Button
-                  variant="contained"
+                <ModuleButton
                   startIcon={<AddIcon />}
                   onClick={() => handleOpenClusterDialog()}
                   sx={{ ml: 2 }}
                 >
                   Ajouter un cluster
-                </Button>
+                </ModuleButton>
               )}
               <TextField
                 placeholder="Rechercher..."
@@ -1271,8 +1430,7 @@ export default function K8sPage() {
           {activeTab === 'secrets' && renderSecretsTable()}
           {activeTab === 'clusters' && renderClustersTable()}
           {activeTab === 'nodes' && renderNodesTable()}
-        </CardContent>
-      </Card>
+      </ModuleCard>
 
       <ResourceDetailDialog
         open={detailDialog.open}
@@ -1343,9 +1501,9 @@ export default function K8sPage() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
-            <Typography variant="body1" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
+            <ModuleBodyText sx={{ fontWeight: 600 }}>
               {selectedResources.size} ressource{selectedResources.size > 1 ? 's' : ''} sélectionnée{selectedResources.size > 1 ? 's' : ''}
-            </Typography>
+            </ModuleBodyText>
             <Box sx={{ display: 'flex', gap: 2 }}>
               {activeTab === 'pods' && (
                 <Tooltip title="Redémarrer les pods sélectionnés">
@@ -1433,7 +1591,7 @@ export default function K8sPage() {
           Confirmer l'action en masse
         </DialogTitle>
         <DialogContent>
-          <Typography>
+          <ModuleBodyText>
             {bulkActionDialog.action === 'delete' && (
               <>Êtes-vous sûr de vouloir supprimer {bulkActionDialog.count} ressource{bulkActionDialog.count > 1 ? 's' : ''} ? Cette action est irréversible.</>
             )}
@@ -1443,7 +1601,7 @@ export default function K8sPage() {
             {bulkActionDialog.action === 'scale' && (
               <>Vous allez modifier le nombre de replicas de {bulkActionDialog.count} deployment{bulkActionDialog.count > 1 ? 's' : ''}.</>
             )}
-          </Typography>
+          </ModuleBodyText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkActionDialog({ ...bulkActionDialog, open: false })}>
@@ -1534,6 +1692,64 @@ export default function K8sPage() {
             required
             placeholder="Ex: Production, Staging, Minikube"
           />
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Type de cluster</InputLabel>
+            <Select
+              value={clusterForm.cluster_type}
+              label="Type de cluster"
+              onChange={(e) => setClusterForm({ ...clusterForm, cluster_type: e.target.value as ClusterType })}
+            >
+              <MenuItem value="generic">Generic / Autre</MenuItem>
+              <MenuItem value="gke">GKE (Google)</MenuItem>
+              <MenuItem value="aks">AKS (Azure)</MenuItem>
+              <MenuItem value="eks">EKS (AWS)</MenuItem>
+              <MenuItem value="proxmox">Proxmox (on‑prem)</MenuItem>
+            </Select>
+          </FormControl>
+          {clusterForm.cluster_type === 'gke' && (
+            <TextField
+              fullWidth
+              label="Clé compte de service GCP (JSON)"
+              value={clusterForm.cloud_credentials}
+              onChange={(e) => setClusterForm({ ...clusterForm, cloud_credentials: e.target.value })}
+              margin="normal"
+              multiline
+              rows={4}
+              placeholder='Collez le contenu du fichier JSON (clé du compte de service). Requis en Docker/SaaS.'
+              helperText="Requis pour l’authentification GKE depuis Docker ou Kura hébergé."
+            />
+          )}
+          {clusterForm.cluster_type === 'aks' && (
+            <TextField
+              fullWidth
+              label="Credentials Azure (optionnel)"
+              value={clusterForm.cloud_credentials}
+              onChange={(e) => setClusterForm({ ...clusterForm, cloud_credentials: e.target.value })}
+              margin="normal"
+              multiline
+              rows={3}
+              placeholder='{"tenant_id": "...", "client_id": "...", "client_secret": "..."} ou contenu du fichier de clé'
+              helperText="Si votre kubeconfig utilise une auth exec Azure, collez les credentials (JSON)."
+            />
+          )}
+          {clusterForm.cluster_type === 'eks' && (
+            <TextField
+              fullWidth
+              label="Credentials AWS (optionnel)"
+              value={clusterForm.cloud_credentials}
+              onChange={(e) => setClusterForm({ ...clusterForm, cloud_credentials: e.target.value })}
+              margin="normal"
+              multiline
+              rows={3}
+              placeholder='{"access_key_id": "...", "secret_access_key": "..."}'
+              helperText="Si votre kubeconfig utilise une auth exec AWS, collez les credentials (JSON)."
+            />
+          )}
+          {clusterForm.cluster_type === 'proxmox' && (
+            <ModuleCaption sx={{ display: 'block', mb: 1 }}>
+              Cluster K8s hébergé sur Proxmox : collez le kubeconfig (le serveur API doit être joignable depuis Kura).
+            </ModuleCaption>
+          )}
           <TextField
             fullWidth
             label="Description (optionnel)"
@@ -1562,9 +1778,9 @@ export default function K8sPage() {
               <input type="file" hidden accept=".yaml,.yml" onChange={handleFileChange} />
             </Button>
             {kubeconfigFile && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              <ModuleCaption sx={{ mt: 1, display: 'block' }}>
                 Fichier sélectionné : {kubeconfigFile.name} ({(kubeconfigFile.size / 1024).toFixed(2)} KB)
-              </Typography>
+              </ModuleCaption>
             )}
           </Box>
           <TextField

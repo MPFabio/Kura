@@ -46,6 +46,10 @@ yarn-error.log*
 
 # Kubernetes
 *.kubeconfig
+kubeconfig-*.yaml
+
+# Clé GCP (compte de service) pour GKE dans ModulOps
+secrets/gcp-sa.json
 
 # Docker
 docker-compose.override.yml

@@ -197,10 +197,10 @@ func (h *SourceHandler) DeleteSource(c *gin.Context) {
 // TestS3Connection teste la connexion à S3.
 func (h *SourceHandler) TestS3Connection(c *gin.Context) {
 	var req struct {
-		Bucket            string `json:"bucket" binding:"required"`
-		Region            string `json:"region" binding:"required"`
-		Endpoint          string `json:"endpoint,omitempty"`
-		AWSAccessKeyID    string `json:"aws_access_key_id,omitempty"`
+		Bucket             string `json:"bucket" binding:"required"`
+		Region             string `json:"region" binding:"required"`
+		Endpoint           string `json:"endpoint,omitempty"`
+		AWSAccessKeyID     string `json:"aws_access_key_id,omitempty"`
 		AWSSecretAccessKey string `json:"aws_secret_access_key,omitempty"`
 	}
 

@@ -95,11 +95,18 @@ func (h *TerraformHandler) UploadStateFileJSON(c *gin.Context) {
 	c.JSON(http.StatusOK, stateFile)
 }
 
-// ListStateFiles retourne la liste de tous les fichiers d'état.
+// ListStateFiles retourne la liste des fichiers d'état, filtrés par project_id si fourni.
 func (h *TerraformHandler) ListStateFiles(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	stateFiles, err := h.svc.ListStateFiles(ctx)
+	// Récupérer project_id depuis les query params
+	projectID := c.Query("project_id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id requis"})
+		return
+	}
+
+	stateFiles, err := h.svc.ListStateFiles(ctx, projectID)
 	if err != nil {
 		log.Printf("Erreur ListStateFiles: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -227,7 +234,7 @@ func (h *TerraformHandler) DetectDrift(c *gin.Context) {
 	// Récupérer la source associée à cet état pour obtenir les credentials
 	var credentialsJSON string
 	var providerType string
-	
+
 	if h.syncService != nil {
 		sources, err := h.syncService.ListSources(ctx)
 		if err == nil {

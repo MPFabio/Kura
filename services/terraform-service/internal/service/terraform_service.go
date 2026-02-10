@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	gcpDrift "github.com/modulops/terraform-service/internal/drift/gcp"
 	"github.com/modulops/terraform-service/internal/models"
 	"github.com/modulops/terraform-service/internal/parser"
+	"github.com/modulops/terraform-service/internal/storage"
 )
 
 // Cache définit l'interface minimale du cache utilisée par le service.
@@ -23,19 +25,22 @@ type Cache interface {
 
 // TerraformService contient la logique métier autour de Terraform.
 type TerraformService struct {
-	parser   *parser.TFStateParser
-	cache    Cache
-	cfg      *config.Config
-	states   map[string]*models.StateFile // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
+	parser        *parser.TFStateParser
+	cache         Cache
+	cfg           *config.Config
+	states        map[string]*models.StateFile // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
+	backendWriter storage.BackendWriter        // optionnel : persistance tfstate dans un bucket S3
 }
 
 // NewTerraformService crée un nouveau service Terraform.
-func NewTerraformService(cache Cache, cfg *config.Config) *TerraformService {
+// Si backendWriter est non nil et cfg.StateBackend == "s3", chaque état uploadé est aussi persisté dans le bucket.
+func NewTerraformService(cache Cache, cfg *config.Config, backendWriter storage.BackendWriter) *TerraformService {
 	return &TerraformService{
-		parser: parser.NewTFStateParser(),
-		cache:  cache,
-		cfg:    cfg,
-		states: make(map[string]*models.StateFile),
+		parser:        parser.NewTFStateParser(),
+		cache:         cache,
+		cfg:           cfg,
+		states:        make(map[string]*models.StateFile),
+		backendWriter: backendWriter,
 	}
 }
 
@@ -83,6 +88,7 @@ func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID
 			ID:         stateFileID,
 			Name:       name,
 			State:      state,
+			ProjectID:  "", // Sera défini par le handler
 			UploadedAt: time.Now(),
 		}
 	} else {
@@ -99,12 +105,29 @@ func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID
 
 	// Mettre en cache avec un TTL très long (30 jours) pour les états Terraform
 	// Les états sont des données importantes qui ne doivent pas expirer rapidement
-	cacheKey := fmt.Sprintf("terraform:state:%s", stateFile.ID)
+	// Utiliser project_id dans la clé si disponible
+	var cacheKey string
+	if stateFile.ProjectID != "" {
+		cacheKey = fmt.Sprintf("terraform:state:%s:%s", stateFile.ProjectID, stateFile.ID)
+	} else {
+		cacheKey = fmt.Sprintf("terraform:state:%s", stateFile.ID)
+	}
 	stateJSON, err := json.Marshal(stateFile)
 	if err == nil {
 		// Utiliser un TTL de 30 jours pour les états Terraform (beaucoup plus long que le TTL par défaut)
 		stateTTL := 30 * 24 * time.Hour
 		_ = s.cache.Set(ctx, cacheKey, string(stateJSON), stateTTL)
+	}
+
+	// Persister dans le backend S3 si configuré (tfstate dans un bucket)
+	if s.backendWriter != nil && s.cfg.StateBackend == "s3" && len(stateData) > 0 {
+		key := s.cfg.S3KeyPrefix + "/" + stateFile.ID + ".tfstate"
+		if stateFile.ProjectID != "" {
+			key = s.cfg.S3KeyPrefix + "/" + stateFile.ProjectID + "/" + stateFile.ID + ".tfstate"
+		}
+		if err := s.backendWriter.PutStateFile(ctx, s.cfg.S3Bucket, key, stateData); err != nil {
+			log.Printf("⚠️  Persistance tfstate vers S3 ignorée: %v", err)
+		}
 	}
 
 	return stateFile, nil
@@ -129,16 +152,22 @@ func (s *TerraformService) GetStateFile(ctx context.Context, id string) (*models
 	return nil, fmt.Errorf("fichier d'état non trouvé: %s", id)
 }
 
-// ListStateFiles retourne la liste de tous les fichiers d'état.
-func (s *TerraformService) ListStateFiles(ctx context.Context) ([]*models.StateFile, error) {
+// ListStateFiles retourne la liste des fichiers d'état, filtrés par project_id si fourni.
+func (s *TerraformService) ListStateFiles(ctx context.Context, projectID string) ([]*models.StateFile, error) {
 	resultMap := make(map[string]*models.StateFile)
-	
+
 	// Charger depuis la mémoire
 	for _, stateFile := range s.states {
+		// Filtrer par project_id si fourni
+		if projectID != "" && stateFile.ProjectID != projectID {
+			continue
+		}
 		resultMap[stateFile.ID] = stateFile
 	}
-	
+
 	// Charger depuis Redis si l'interface Keys est disponible
+	// Toujours utiliser le pattern "terraform:state:*" pour trouver les états quel que soit le format de clé
+	// (terraform:state:id ou terraform:state:projectID:id), puis filtrer par project_id.
 	type KeysCache interface {
 		Keys(ctx context.Context, pattern string) ([]string, error)
 	}
@@ -150,21 +179,24 @@ func (s *TerraformService) ListStateFiles(ctx context.Context) ([]*models.StateF
 				if err == nil && cached != "" {
 					var stateFile models.StateFile
 					if err := json.Unmarshal([]byte(cached), &stateFile); err == nil {
+						// Filtrer par project_id si fourni : garder les états du projet ou sans project (ancien format)
+						if projectID != "" && stateFile.ProjectID != projectID && stateFile.ProjectID != "" {
+							continue
+						}
 						resultMap[stateFile.ID] = &stateFile
-						// Mettre aussi en mémoire pour éviter de recharger
 						s.states[stateFile.ID] = &stateFile
 					}
 				}
 			}
 		}
 	}
-	
+
 	// Convertir en slice
 	result := make([]*models.StateFile, 0, len(resultMap))
 	for _, stateFile := range resultMap {
 		result = append(result, stateFile)
 	}
-	
+
 	return result, nil
 }
 
@@ -272,7 +304,7 @@ func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string, 
 		stateTTL := 30 * 24 * time.Hour
 		_ = s.cache.Set(ctx, cacheKey, string(stateJSON), stateTTL)
 	}
-	
+
 	// Mettre à jour en mémoire
 	s.states[stateFile.ID] = stateFile
 
@@ -281,17 +313,51 @@ func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string, 
 
 // DeleteStateFile supprime un fichier d'état.
 func (s *TerraformService) DeleteStateFile(ctx context.Context, id string) error {
-	// Supprimer du cache
-	cacheKey := fmt.Sprintf("terraform:state:%s", id)
-	_ = s.cache.Delete(ctx, cacheKey)
-
-	// Supprimer du stockage
-	if _, exists := s.states[id]; !exists {
-		return fmt.Errorf("fichier d'état non trouvé: %s", id)
+	// Récupérer l'état pour connaître project_id (clé Redis peut être terraform:state:projectID:id)
+	stateFile, exists := s.states[id]
+	if exists {
+		// Supprimer les deux formes de clé cache (avec et sans project_id)
+		cacheKey := fmt.Sprintf("terraform:state:%s", id)
+		_ = s.cache.Delete(ctx, cacheKey)
+		if stateFile.ProjectID != "" {
+			projectCacheKey := fmt.Sprintf("terraform:state:%s:%s", stateFile.ProjectID, id)
+			_ = s.cache.Delete(ctx, projectCacheKey)
+		}
+		delete(s.states, id)
+		return nil
 	}
 
-	delete(s.states, id)
-	return nil
+	// État pas en mémoire : supprimer du cache Redis (clé avec project_id) pour qu’il disparaisse à la prochaine liste
+	if deleted := s.deleteStateFileFromCacheByID(ctx, id); deleted {
+		return nil
+	}
+	return fmt.Errorf("fichier d'état non trouvé: %s", id)
+}
+
+// deleteStateFileFromCacheByID supprime du cache toutes les clés correspondant à cet id.
+// Retourne true si au moins une clé a été supprimée.
+func (s *TerraformService) deleteStateFileFromCacheByID(ctx context.Context, id string) bool {
+	type KeysCache interface {
+		Keys(ctx context.Context, pattern string) ([]string, error)
+	}
+	cacheWithKeys, ok := s.cache.(KeysCache)
+	if !ok {
+		return false
+	}
+	keys, err := cacheWithKeys.Keys(ctx, "terraform:state:*")
+	if err != nil {
+		return false
+	}
+	// Ne supprimer que les clés qui correspondent exactement à cet id (éviter id sous-chaîne)
+	// Format: "terraform:state:id" ou "terraform:state:projectID:id" (exactement 3 ':' dans ce cas)
+	var deleted bool
+	for _, key := range keys {
+		if key == "terraform:state:"+id || (strings.HasSuffix(key, ":"+id) && strings.Count(key, ":") == 3) {
+			_ = s.cache.Delete(ctx, key)
+			deleted = true
+		}
+	}
+	return deleted
 }
 
 // GetResources retourne toutes les ressources d'un état.

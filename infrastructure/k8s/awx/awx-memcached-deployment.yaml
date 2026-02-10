@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: awx-memcached
+  namespace: kura
+  labels:
+    app: awx-memcached
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: awx-memcached
+  template:
+    metadata:
+      labels:
+        app: awx-memcached
+    spec:
+      containers:
+      - name: memcached
+        image: memcached:alpine
+        ports:
+        - containerPort: 11211
+          name: memcached
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: awx-memcached
+  namespace: kura
+  labels:
+    app: awx-memcached
+spec:
+  type: ClusterIP
+  ports:
+  - port: 11211
+    targetPort: 11211
+    protocol: TCP
+    name: memcached
+  selector:
+    app: awx-memcached

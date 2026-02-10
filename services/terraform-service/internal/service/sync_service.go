@@ -17,20 +17,20 @@ import (
 
 	"github.com/modulops/terraform-service/internal/config"
 	"github.com/modulops/terraform-service/internal/models"
+	"github.com/modulops/terraform-service/internal/s3"
 	azureStorage "github.com/modulops/terraform-service/internal/storage/azure"
 	gcpStorage "github.com/modulops/terraform-service/internal/storage/gcp"
-	"github.com/modulops/terraform-service/internal/s3"
 )
 
 // #region agent log
 func debugLog(location, message string, data map[string]interface{}) {
 	logEntry := map[string]interface{}{
-		"sessionId":    "debug-session",
-		"runId":        "run1",
-		"location":     location,
-		"message":      message,
-		"data":         data,
-		"timestamp":    time.Now().UnixMilli(),
+		"sessionId": "debug-session",
+		"runId":     "run1",
+		"location":  location,
+		"message":   message,
+		"data":      data,
+		"timestamp": time.Now().UnixMilli(),
 	}
 	if jsonData, err := json.Marshal(logEntry); err == nil {
 		// Écrire dans /tmp qui est accessible même dans distroless
@@ -42,6 +42,7 @@ func debugLog(location, message string, data map[string]interface{}) {
 		log.Printf("[DEBUG] %s: %s - %+v", location, message, data)
 	}
 }
+
 // #endregion
 
 // SyncService gère la synchronisation des états Terraform depuis différentes sources.
@@ -66,7 +67,7 @@ func NewSyncService(terraformService *TerraformService, cache Cache, cfg *config
 		encryptionKeyStr = "default-encryption-key-32-bytes!!" // ⚠️ Clé par défaut pour le développement
 		log.Printf("⚠️  Utilisation d'une clé de chiffrement par défaut. En production, définissez TERRAFORM_ENCRYPTION_KEY")
 	}
-	
+
 	// Convertir la clé en bytes (doit faire exactement 32 bytes pour AES-256)
 	key := []byte(encryptionKeyStr)
 	if len(key) < 32 {
@@ -177,7 +178,7 @@ func (s *SyncService) AddSource(ctx context.Context, source *models.StateSource)
 					// Fallback: utiliser le nom du fichier
 					stateName = strings.TrimSuffix(fileName, ".tfstate")
 				}
-				
+
 				// Générer un ID permanent basé sur le nom
 				stateFileID := fmt.Sprintf("%s-%d", stateName, time.Now().Unix())
 				// Créer l'état
@@ -571,7 +572,7 @@ func (s *SyncService) syncFromS3(ctx context.Context, source *models.StateSource
 		return fmt.Errorf("erreur lors du parsing: %w", err)
 	}
 
-	job.Message = fmt.Sprintf("État synchronisé: %s (version %d, %d ressources)", 
+	job.Message = fmt.Sprintf("État synchronisé: %s (version %d, %d ressources)",
 		stateFile.Name, stateFile.State.Version, len(stateFile.State.Resources))
 
 	return nil
@@ -608,7 +609,7 @@ func (s *SyncService) syncFromAzure(ctx context.Context, source *models.StateSou
 		return fmt.Errorf("erreur lors du parsing: %w", err)
 	}
 
-	job.Message = fmt.Sprintf("État synchronisé depuis Azure: %s (version %d, %d ressources)", 
+	job.Message = fmt.Sprintf("État synchronisé depuis Azure: %s (version %d, %d ressources)",
 		stateFile.Name, stateFile.State.Version, len(stateFile.State.Resources))
 
 	return nil
@@ -626,7 +627,7 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 	// Nettoyer les espaces dans le bucket et objectName
 	config.GCPBucket = strings.TrimSpace(config.GCPBucket)
 	config.GCPObjectName = strings.TrimSpace(config.GCPObjectName)
-	
+
 	// Si l'objectName commence par le nom du bucket, le retirer (correction d'erreur utilisateur)
 	if strings.HasPrefix(config.GCPObjectName, config.GCPBucket+"/") {
 		config.GCPObjectName = strings.TrimPrefix(config.GCPObjectName, config.GCPBucket+"/")
@@ -651,11 +652,11 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 
 	// Tester la connexion
 	if err := gcpClient.TestConnection(ctx, config.GCPBucket); err != nil {
-	// #region agent log
-	debugLog("sync_service.go:575", "TestConnection failed", map[string]interface{}{
-		"sourceId": source.ID, "bucket": config.GCPBucket, "bucketLen": len(config.GCPBucket), "error": err.Error(),
-	})
-	// #endregion
+		// #region agent log
+		debugLog("sync_service.go:575", "TestConnection failed", map[string]interface{}{
+			"sourceId": source.ID, "bucket": config.GCPBucket, "bucketLen": len(config.GCPBucket), "error": err.Error(),
+		})
+		// #endregion
 		return fmt.Errorf("erreur de connexion GCP: %w", err)
 	}
 
@@ -717,7 +718,7 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 	}
 	// Nettoyer les espaces dans le stateName
 	stateName = strings.TrimSpace(stateName)
-	
+
 	// #region agent log
 	debugLog("sync_service.go:603", "after stateName extraction", map[string]interface{}{
 		"sourceId": source.ID, "stateName": stateName,
@@ -752,7 +753,7 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 			"sourceId": source.ID, "stateFileID": stateFile.ID, "sourceType": source.Type,
 		})
 		// #endregion
-		
+
 		// Décrypter les credentials pour la détection de drift
 		sourceCopy := *source
 		if err := s.decryptCredentials(&sourceCopy); err == nil {
@@ -760,7 +761,7 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 			if sourceCopy.Type == "gcp" && sourceCopy.Config.GCPCredentialsJSON != "" {
 				credentialsJSON = sourceCopy.Config.GCPCredentialsJSON
 			}
-			
+
 			// Effectuer la détection de drift
 			driftResults, driftErr := s.terraformService.DetectDrift(ctx, stateFile.ID, credentialsJSON, sourceCopy.Type)
 			if driftErr != nil {
@@ -788,33 +789,33 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 
 	// Si l'ID était temporaire, mettre à jour la source avec le nouvel ID permanent
 	if strings.HasPrefix(source.StateFileID, "temp-") && source.StateFileID != stateFile.ID {
-	// #region agent log
-	debugLog("sync_service.go:620", "updating source with new stateFileID", map[string]interface{}{
-		"sourceId": source.ID, "oldStateFileID": source.StateFileID, "newStateFileID": stateFile.ID,
-	})
-	// #endregion
-	// Mettre à jour la source avec le nouvel ID seulement si l'ID a changé
-	if source.StateFileID != stateFile.ID {
-		source.StateFileID = stateFile.ID
-		s.mu.Lock()
-		s.sources[source.ID] = source
-		s.saveSourceToCache(ctx, source)
-		s.mu.Unlock()
 		// #region agent log
-		debugLog("sync_service.go:627", "source updated with new stateFileID", map[string]interface{}{
-			"sourceId": source.ID, "newStateFileID": source.StateFileID,
+		debugLog("sync_service.go:620", "updating source with new stateFileID", map[string]interface{}{
+			"sourceId": source.ID, "oldStateFileID": source.StateFileID, "newStateFileID": stateFile.ID,
 		})
 		// #endregion
-	} else {
-		// #region agent log
-		debugLog("sync_service.go:633", "stateFileID unchanged, no update needed", map[string]interface{}{
-			"sourceId": source.ID, "stateFileID": source.StateFileID,
-		})
-		// #endregion
-	}
+		// Mettre à jour la source avec le nouvel ID seulement si l'ID a changé
+		if source.StateFileID != stateFile.ID {
+			source.StateFileID = stateFile.ID
+			s.mu.Lock()
+			s.sources[source.ID] = source
+			s.saveSourceToCache(ctx, source)
+			s.mu.Unlock()
+			// #region agent log
+			debugLog("sync_service.go:627", "source updated with new stateFileID", map[string]interface{}{
+				"sourceId": source.ID, "newStateFileID": source.StateFileID,
+			})
+			// #endregion
+		} else {
+			// #region agent log
+			debugLog("sync_service.go:633", "stateFileID unchanged, no update needed", map[string]interface{}{
+				"sourceId": source.ID, "stateFileID": source.StateFileID,
+			})
+			// #endregion
+		}
 	}
 
-	job.Message = fmt.Sprintf("État synchronisé depuis GCP: %s (version %d, %d ressources)", 
+	job.Message = fmt.Sprintf("État synchronisé depuis GCP: %s (version %d, %d ressources)",
 		stateFile.Name, stateFile.State.Version, len(stateFile.State.Resources))
 
 	return nil
@@ -1032,7 +1033,7 @@ func (s *SyncService) decryptCredentials(source *models.StateSource) error {
 			// #endregion
 			return nil
 		}
-		
+
 		// Essayer de déchiffrer
 		ciphertext, err := base64.StdEncoding.DecodeString(source.Config.GCPCredentialsJSON)
 		if err != nil {

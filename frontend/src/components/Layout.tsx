@@ -4,7 +4,6 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
   Drawer,
-  AppBar,
   Toolbar,
   List,
   Typography,
@@ -17,15 +16,20 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Select,
+  FormControl,
+  Chip,
 } from '@mui/material'
 import {
-  Menu as MenuIcon,
   AccountCircle,
   Logout,
+  Folder as FolderIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 import { useSocket } from '../contexts/SocketContext'
+import { useProject } from '../contexts/ProjectContext'
 import Logo from './Logo'
+import AnimatedBackground from './AnimatedBackground'
 import TerraformIcon from './icons/TerraformIcon'
 import KubernetesIcon from './icons/KubernetesIcon'
 import AnsibleIcon from './icons/AnsibleIcon'
@@ -55,6 +59,7 @@ export default function Layout() {
   const location = useLocation()
   const { user, logout } = useAuth()
   const { connected } = useSocket()
+  const { currentProject, projects, setCurrentProject } = useProject()
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -75,112 +80,39 @@ export default function Layout() {
   }
 
   const drawer = (
-    <div>
-      <Toolbar
+    <div style={{ background: 'transparent' }}>
+      <Box
         sx={{
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          py: 3,
+          background: 'rgba(0, 229, 255, 0.05)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
           px: 2,
-          minHeight: 'auto',
+          py: 2,
         }}
       >
-        <Logo variant="full" size="small" />
-      </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(160, 160, 160, 0.1)', mb: 1 }} />
-      <List>
-        {menuItems.map((item) => {
-          const isSelected = location.pathname === item.path || 
-            (item.path === '/k8s' && location.pathname.startsWith('/k8s'))
-          return (
-            <ListItem key={item.text} disablePadding>
-              <ListItemButton
-                selected={isSelected}
-                onClick={() => {
-                  navigate(item.path)
-                  setMobileOpen(false)
-                }}
-              >
-                <ListItemIcon>
-                  {item.useCustomIcon ? (
-                    React.cloneElement(item.icon as React.ReactElement, { active: isSelected })
-                  ) : (
-                    item.icon
-                  )}
-                </ListItemIcon>
-                <ListItemText primary={item.text} />
-              </ListItemButton>
-            </ListItem>
-          )
-        })}
-      </List>
-    </div>
-  )
-
-  return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography 
-            variant="h6" 
-            noWrap 
-            component="div" 
-            sx={{ 
-              flexGrow: 1,
-              fontFamily: '"Inter", sans-serif',
-              fontWeight: 700,
-              fontSize: '1rem',
-              letterSpacing: '0.15em',
-              background: 'linear-gradient(135deg, #00FFFF, #BF00FF)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: 'none',
-              position: 'relative',
-            }}
-          >
-            Plateforme DevOps KURA
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box
               sx={{
-                width: 10,
-                height: 10,
+                width: 8,
+                height: 8,
                 borderRadius: '50%',
                 bgcolor: connected ? '#00FFFF' : '#FF4500',
-                mr: 1,
                 boxShadow: connected 
-                  ? '0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4)'
-                  : '0 0 10px rgba(255, 69, 0, 0.8), 0 0 20px rgba(255, 69, 0, 0.4)',
+                  ? '0 0 8px rgba(0, 255, 255, 0.8), 0 0 16px rgba(0, 255, 255, 0.4)'
+                  : '0 0 8px rgba(255, 69, 0, 0.8), 0 0 16px rgba(255, 69, 0, 0.4)',
                 animation: connected ? 'breathingGlow 2s ease-in-out infinite' : 'none',
               }}
             />
             <IconButton
-              size="large"
+              size="small"
               edge="end"
               aria-label="account menu"
               aria-controls="account-menu"
               aria-haspopup="true"
               onClick={handleMenuClick}
-              color="inherit"
+              sx={{ p: 0.5 }}
             >
-              <Avatar sx={{ width: 32, height: 32 }}>
+              <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem' }}>
                 {user?.email?.charAt(0).toUpperCase() || 'U'}
               </Avatar>
             </IconButton>
@@ -200,11 +132,200 @@ export default function Layout() {
               </MenuItem>
             </Menu>
           </Box>
-        </Toolbar>
-      </AppBar>
+        </Box>
+      </Box>
+      <Toolbar
+        disableGutters
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+          height: 120,
+          minHeight: 120,
+          overflow: 'hidden',
+          background: 'rgba(0, 0, 0, 0.3)',
+          borderTop: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+          boxSizing: 'border-box',
+          '&.MuiToolbar-root': { minHeight: 120, padding: 0 },
+        }}
+      >
+        <Box sx={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          {/* Marge au-dessus du logo (en px) pour l’équilibre vertical ; augmenter pour descendre le bloc */}
+          <Logo variant="full" size="small" sx={{ margin: 0 }} />
+        </Box>
+      </Toolbar>
+      <Divider sx={{ borderColor: 'rgba(0, 184, 212, 0.2)' }} />
+      <Box sx={{ px: 2, py: 2, background: 'rgba(171, 71, 188, 0.05)', borderBottom: '2px solid rgba(171, 71, 188, 0.3)' }}>
+        <FormControl fullWidth size="small">
+          <Select
+            value={currentProject?.id || ''}
+            onChange={(e) => {
+              const project = projects.find(p => p.id === e.target.value)
+              if (project) {
+                setCurrentProject(project)
+                if (location.pathname === '/projects') {
+                  navigate('/modules')
+                }
+              }
+            }}
+            displayEmpty
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  backgroundColor: 'rgba(26, 35, 50, 0.98)',
+                  backdropFilter: 'blur(30px) saturate(180%)',
+                  border: '1px solid rgba(0, 229, 255, 0.3)',
+                  borderRadius: '12px',
+                  mt: 1,
+                },
+              },
+            }}
+            sx={{
+              color: '#f0f0f0',
+              backgroundColor: 'rgba(26, 35, 50, 0.8)',
+              backdropFilter: 'blur(10px)',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0, 229, 255, 0.3)',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0, 229, 255, 0.5)',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0, 229, 255, 0.8)',
+              },
+              '& .MuiSelect-icon': {
+                color: '#b8b8b8',
+              },
+              '& .MuiSelect-select': {
+                backgroundColor: 'transparent',
+              },
+            }}
+            renderValue={(selected) => {
+              if (!selected) {
+                return (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FolderIcon sx={{ fontSize: 16, color: '#b8b8b8' }} />
+                    <Typography variant="body2" sx={{ color: '#b8b8b8', fontWeight: 500 }}>
+                      Sélectionner un projet
+                    </Typography>
+                  </Box>
+                )
+              }
+              const project = projects.find(p => p.id === selected)
+              return (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <FolderIcon sx={{ fontSize: 16, color: '#00E5FF' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#f0f0f0' }}>
+                    {project?.name || 'Projet'}
+                  </Typography>
+                </Box>
+              )
+            }}
+          >
+            <MenuItem 
+              value="" 
+              onClick={() => navigate('/projects')}
+              sx={{
+                backgroundColor: 'transparent',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 229, 255, 0.12)',
+                },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                <FolderIcon sx={{ fontSize: 16, mr: 1 }} />
+                <Typography variant="body2">Gérer les projets</Typography>
+              </Box>
+            </MenuItem>
+            {projects.map((project) => (
+              <MenuItem 
+                key={project.id} 
+                value={project.id}
+                sx={{
+                  backgroundColor: currentProject?.id === project.id ? 'rgba(0, 229, 255, 0.15)' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                  <FolderIcon sx={{ fontSize: 16, mr: 1, color: '#00E5FF' }} />
+                  <Typography variant="body2">{project.name}</Typography>
+                  {currentProject?.id === project.id && (
+                    <Chip
+                      label="Actif"
+                      size="small"
+                      sx={{
+                        ml: 'auto',
+                        background: 'transparent',
+                        border: '1px solid #66BB6A',
+                        color: '#66BB6A',
+                        fontSize: '0.65rem',
+                        height: '20px',
+                        fontWeight: 700,
+                      }}
+                    />
+                  )}
+                </Box>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+      <List sx={{ px: 1, py: 2, background: 'rgba(0, 0, 0, 0.2)' }}>
+        {menuItems.map((item) => {
+          const isSelected = location.pathname === item.path || 
+            (item.path === '/k8s' && location.pathname.startsWith('/k8s'))
+          return (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton
+                selected={isSelected}
+                onClick={() => {
+                  navigate(item.path)
+                  setMobileOpen(false)
+                }}
+              >
+                <ListItemIcon>
+                  {item.useCustomIcon ? (
+                    React.cloneElement(item.icon as React.ReactElement, { active: isSelected })
+                  ) : (
+                    item.icon
+                  )}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    sx: isSelected
+                      ? { color: '#f0f0f0', fontWeight: 600 }
+                      : {
+                          color: '#b8b8b8',
+                          fontWeight: 500,
+                        },
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          )
+        })}
+      </List>
+    </div>
+  )
+
+  return (
+    <Box sx={{ display: 'flex', position: 'relative', minHeight: '100vh' }}>
+      <AnimatedBackground />
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        sx={{ 
+          width: { sm: drawerWidth }, 
+          flexShrink: { sm: 0 }, 
+          position: 'relative', 
+          zIndex: 1,
+          background: 'transparent',
+        }}
         aria-label="navigation"
       >
         <Drawer
@@ -216,7 +337,12 @@ export default function Layout() {
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              background: 'transparent !important',
+              backgroundColor: 'transparent !important',
+            },
           }}
         >
           {drawer}
@@ -225,7 +351,12 @@ export default function Layout() {
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              background: 'transparent !important',
+              backgroundColor: 'transparent !important',
+            },
           }}
           open
         >
@@ -236,9 +367,13 @@ export default function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: 8,
+          p: 4,
+          pt: 5,
+          width: '100%',
+          backgroundColor: 'transparent',
+          minHeight: '100vh',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <Outlet />

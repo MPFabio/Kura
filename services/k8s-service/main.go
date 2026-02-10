@@ -72,6 +72,9 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	// Note: La migration des clusters existants vers un projet par défaut
+	// doit être effectuée manuellement ou via l'API, pas automatiquement au démarrage
+
 	// Initialiser le service de gestion de clusters
 	clusterService := service.NewClusterService(redisClient, cfg)
 
@@ -236,42 +239,47 @@ func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.Cluster
 
 			// Namespaces
 			k8sGroup.GET("/namespaces", k8sHandler.GetNamespaces)
-			
+
 			// Ressources par namespace
 			k8sGroup.GET("/namespaces/:namespace/pods", k8sHandler.GetPods)
 			k8sGroup.GET("/namespaces/:namespace/deployments", k8sHandler.GetDeployments)
 			k8sGroup.GET("/namespaces/:namespace/services", k8sHandler.GetServices)
 			k8sGroup.GET("/namespaces/:namespace/configmaps", k8sHandler.GetConfigMaps)
 			k8sGroup.GET("/namespaces/:namespace/secrets", k8sHandler.GetSecrets)
-			
+
 			// Détails et logs
+			k8sGroup.GET("/namespaces/:namespace/pods/:name", k8sHandler.GetPodDetail)
 			k8sGroup.GET("/namespaces/:namespace/pods/:name/logs", k8sHandler.GetPodLogs)
 			k8sGroup.GET("/namespaces/:namespace/pods/:name/yaml", k8sHandler.GetPodYAML)
+			k8sGroup.GET("/namespaces/:namespace/deployments/:name", k8sHandler.GetDeploymentDetail)
 			k8sGroup.GET("/namespaces/:namespace/deployments/:name/yaml", k8sHandler.GetDeploymentYAML)
 			k8sGroup.GET("/namespaces/:namespace/services/:name/yaml", k8sHandler.GetServiceYAML)
-			
+			k8sGroup.GET("/namespaces/:namespace/configmaps/:name/yaml", k8sHandler.GetConfigMapYAML)
+			k8sGroup.GET("/namespaces/:namespace/secrets/:name/yaml", k8sHandler.GetSecretYAML)
+
 			// Actions
 			k8sGroup.PUT("/namespaces/:namespace/deployments/:name/scale", k8sHandler.ScaleDeployment)
 			k8sGroup.DELETE("/namespaces/:namespace/pods/:name", k8sHandler.DeletePod)
 			k8sGroup.DELETE("/namespaces/:namespace/deployments/:name", k8sHandler.DeleteDeployment)
 			k8sGroup.DELETE("/namespaces/:namespace/services/:name", k8sHandler.DeleteService)
-			
+
 			// Actions en masse (Bulk Actions)
 			k8sGroup.POST("/namespaces/:namespace/pods/bulk/delete", k8sHandler.BulkDeletePods)
 			k8sGroup.POST("/namespaces/:namespace/pods/bulk/restart", k8sHandler.BulkRestartPods)
 			k8sGroup.POST("/namespaces/:namespace/deployments/bulk/delete", k8sHandler.BulkDeleteDeployments)
 			k8sGroup.POST("/namespaces/:namespace/deployments/bulk/scale", k8sHandler.BulkScaleDeployments)
 			k8sGroup.POST("/namespaces/:namespace/services/bulk/delete", k8sHandler.BulkDeleteServices)
-			
+
 			// Événements
 			k8sGroup.GET("/namespaces/:namespace/events", k8sHandler.GetEvents)
-			
+
 			// Terminal (WebSocket) - toujours disponible, créé dynamiquement si nécessaire
 			terminalHandler := handler.NewTerminalHandler(k8sService, clusterService, redisClient, cfg)
 			k8sGroup.GET("/namespaces/:namespace/pods/:name/terminal", terminalHandler.HandleTerminal)
-			
+
 			// Nodes (cluster-wide)
 			k8sGroup.GET("/nodes", k8sHandler.GetNodes)
+			k8sGroup.GET("/nodes/:name/yaml", k8sHandler.GetNodeYAML)
 
 			// Webhook pour recevoir des événements Kubernetes (squelette)
 			k8sGroup.POST("/webhooks/events", k8sHandler.ReceiveEventWebhook)
@@ -302,4 +310,3 @@ func corsMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
-

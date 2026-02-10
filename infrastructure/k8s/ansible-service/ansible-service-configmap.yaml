@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ansible-service-config
+  namespace: kura
+data:
+  ANSIBLE_SERVICE_PORT: "8083"
+  ENV: "development"
+  LOG_LEVEL: "info"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ""
+  REDIS_DB: "0"
+  ANSIBLE_CACHE_TTL: "300"
+  ANSIBLE_TOWER_URL: "http://awx:8080"
+  ANSIBLE_TOWER_USERNAME: "admin"
+  ANSIBLE_TOWER_PASSWORD: "admin"
+  ANSIBLE_TOWER_VERIFY_SSL: "false"
