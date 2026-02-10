@@ -392,12 +392,10 @@ services:
       REDIS_PASSWORD: ""
       REDIS_DB: "0"
       ANSIBLE_CACHE_TTL: "300"
-      # AWX/Tower est optionnel - le service fonctionnera sans mais avec fonctionnalités limitées
-      # Pour utiliser AWX, décommentez et configurez ces variables :
-      # ANSIBLE_TOWER_URL: http://awx:8080  # Ou l'URL de votre instance AWX/Tower
-      # ANSIBLE_TOWER_USERNAME: admin
-      # ANSIBLE_TOWER_PASSWORD: admin
-      # ANSIBLE_TOWER_VERIFY_SSL: "false"
+      ANSIBLE_TOWER_URL: http://host.docker.internal:8052
+      ANSIBLE_TOWER_USERNAME: admin
+      ANSIBLE_TOWER_PASSWORD: "MpOmLHogJgQdZdjWKOGmYECZpi9sDfYc"
+      ANSIBLE_TOWER_VERIFY_SSL: "false"
     depends_on:
       redis:
         condition: service_healthy
@@ -427,8 +425,10 @@ services:
       REDIS_PASSWORD: ""
       REDIS_DB: "0"
       PIPELINE_CACHE_TTL: "24h"
-      # Optionnel : tokens pour appeler les API GitHub/GitLab/Jenkins
-      # GITHUB_TOKEN: ""
+      # Lier GitHub Actions (sync par API - pas de webhook requis) :
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPOS: ${GITHUB_REPOS:-}
+      # Optionnel : tokens pour GitLab/Jenkins
       # GITLAB_TOKEN: ""
       # JENKINS_URL: ""
       # JENKINS_USERNAME: ""

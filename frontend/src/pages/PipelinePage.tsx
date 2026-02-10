@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import {
   Box,
   Alert,
@@ -15,6 +16,9 @@ import {
   IconButton,
   Tooltip,
   Link,
+  TextField,
+  Button,
+  Collapse,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -22,10 +26,19 @@ import {
   Schedule as ScheduleIcon,
   Cached as CachedIcon,
   OpenInNew as OpenInNewIcon,
+  Sync as SyncIcon,
+  Link as LinkIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleCard from '../components/ModuleCard'
-import { pipelineService, type PipelineRun, type PipelineRunStatus } from '../services/pipelineService'
+import {
+  pipelineService,
+  type PipelineRun,
+  type PipelineRunStatus,
+  type PipelineConfig,
+} from '../services/pipelineService'
 import { jellyfishColors } from '../theme'
 
 const providerLabels: Record<string, string> = {
@@ -115,6 +128,11 @@ function formatDate(s?: string) {
 }
 
 export default function PipelinePage() {
+  const queryClient = useQueryClient()
+  const [configExpanded, setConfigExpanded] = useState(false)
+  const [tokenInput, setTokenInput] = useState('')
+  const [reposInput, setReposInput] = useState('')
+
   const {
     data: runsData,
     isLoading: runsLoading,
@@ -125,6 +143,42 @@ export default function PipelinePage() {
     queryFn: () => pipelineService.getRuns({ limit: 50 }),
   })
 
+  const { data: configData, refetch: refetchConfig } = useQuery({
+    queryKey: ['pipeline-config'],
+    queryFn: () => pipelineService.getConfig(),
+  })
+
+  const saveConfigMutation = useMutation({
+    mutationFn: (data: { github_token?: string; github_repos?: string[] }) =>
+      pipelineService.setConfig(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline-config'] })
+      refetchConfig()
+      setTokenInput('')
+    },
+  })
+
+  const handleSaveConfig = () => {
+    const repos = reposInput
+      .split(/[,;\n]/)
+      .map((r) => r.trim())
+      .filter(Boolean)
+    saveConfigMutation.mutate({
+      ...(tokenInput && { github_token: tokenInput }),
+      github_repos: repos,
+    })
+  }
+
+  const syncMutation = useMutation({
+    mutationFn: () => pipelineService.sync(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline-runs'] })
+      if (data.runs > 0) {
+        refetchRuns()
+      }
+    },
+  })
+
   const { data: providersData } = useQuery({
     queryKey: ['pipeline-providers'],
     queryFn: () => pipelineService.getProviders(),
@@ -133,6 +187,8 @@ export default function PipelinePage() {
   const runs = runsData?.runs ?? []
   const providers = providersData?.providers ?? []
   const hasRuns = runs.length > 0
+  const config = configData as PipelineConfig | undefined
+  const isLinked = config?.linked ?? false
 
   return (
     <Box>
@@ -148,6 +204,20 @@ export default function PipelinePage() {
       >
         <ModuleTitle>Pipelines CI/CD</ModuleTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Tooltip title="Synchroniser GitHub">
+            <span>
+              <IconButton
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+                sx={{
+                  color: jellyfishColors.cyanSoft,
+                  '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
+                }}
+              >
+                <SyncIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
           <Tooltip title="Actualiser">
             <IconButton
               onClick={() => refetchRuns()}
@@ -175,33 +245,95 @@ export default function PipelinePage() {
 
       <Box sx={{ mb: 4 }}>
         <ModuleCard>
-          <Alert
-            severity="info"
+          <Box
             sx={{
-              borderRadius: 0,
-              borderLeft: `4px solid ${jellyfishColors.cyanSoft}`,
-              backgroundColor: 'rgba(0, 229, 255, 0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              py: 0.5,
             }}
+            onClick={() => setConfigExpanded(!configExpanded)}
           >
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              Agrégation des pipelines GitHub Actions, GitLab CI et Jenkins.
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#a0a0a0' }}>
-              Configurez des webhooks vers{' '}
-              <code style={{ background: '#2c2f3f', padding: '2px 6px' }}>
-                /api/v1/pipeline/webhooks/github
-              </code>
-              ,{' '}
-              <code style={{ background: '#2c2f3f', padding: '2px 6px' }}>
-                /api/v1/pipeline/webhooks/gitlab
-              </code>
-              ou{' '}
-              <code style={{ background: '#2c2f3f', padding: '2px 6px' }}>
-                /api/v1/pipeline/webhooks/jenkins
-              </code>
-              pour recevoir les événements en temps réel.
-            </Typography>
-          </Alert>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <LinkIcon sx={{ color: jellyfishColors.cyanSoft }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Connecter un dépôt GitHub
+              </Typography>
+              {isLinked && (
+                <Chip
+                  size="small"
+                  label="Connecté"
+                  sx={{
+                    border: `1px solid ${jellyfishColors.successSoft}`,
+                    color: jellyfishColors.successSoft,
+                    backgroundColor: 'transparent',
+                    fontWeight: 600,
+                  }}
+                />
+              )}
+            </Box>
+            {configExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </Box>
+          <Collapse in={configExpanded}>
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(0,229,255,0.2)' }}>
+              <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 2 }}>
+                Liez vos dépôts GitHub pour afficher les exécutions GitHub Actions. Créez un{' '}
+                <Link
+                  href="https://github.com/settings/tokens"
+                  target="_blank"
+                  rel="noopener"
+                  sx={{ color: jellyfishColors.cyanSoft }}
+                >
+                  Personal Access Token
+                </Link>{' '}
+                (scope <code style={{ background: '#2c2f3f', padding: '1px 4px' }}>repo</code> ou Actions read).
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                label="Token GitHub"
+                type="password"
+                placeholder={isLinked ? '•••••••• (laisser vide pour conserver)' : 'ghp_xxx...'}
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { backgroundColor: '#1a1d24' } }}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Dépôts (owner/repo)"
+                placeholder={
+                  config?.github_repos?.length
+                    ? config.github_repos.join(', ')
+                    : 'owner/repo ou owner/repo1, owner/repo2'
+                }
+                value={reposInput}
+                onChange={(e) => setReposInput(e.target.value)}
+                helperText="Format: owner/repo. Plusieurs dépôts séparés par des virgules."
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { backgroundColor: '#1a1d24' } }}
+              />
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  onClick={handleSaveConfig}
+                  disabled={saveConfigMutation.isPending}
+                  sx={{
+                    backgroundColor: jellyfishColors.cyanSoft,
+                    color: '#0a0d12',
+                    '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.9)' },
+                  }}
+                >
+                  {saveConfigMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                </Button>
+                {saveConfigMutation.isSuccess && (
+                  <Typography sx={{ color: jellyfishColors.successSoft, alignSelf: 'center' }}>
+                    ✓ Configuration enregistrée
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </Collapse>
         </ModuleCard>
       </Box>
 
@@ -346,8 +478,8 @@ export default function PipelinePage() {
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <ScheduleIcon sx={{ fontSize: 48, color: jellyfishColors.cyanSoft, opacity: 0.6 }} />
             <Typography sx={{ mt: 2, color: '#a0a0a0' }}>
-              Aucune exécution enregistrée. Les runs apparaîtront ici une fois les webhooks
-              configurés et les pipelines déclenchés.
+              Aucune exécution enregistrée. Connectez un dépôt GitHub ci-dessus, puis cliquez sur
+              Sync pour afficher les runs.
             </Typography>
           </Box>
         </ModuleCard>

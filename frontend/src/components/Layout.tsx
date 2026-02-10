@@ -38,6 +38,7 @@ import MonitoringIcon from './icons/MonitoringIcon'
 import PipelinesIcon from './icons/PipelinesIcon'
 import AlertsIcon from './icons/AlertsIcon'
 import SettingsIcon from './icons/SettingsIcon'
+import { MenuBook as MenuBookIcon } from '@mui/icons-material'
 
 const drawerWidth = 240
 
@@ -49,6 +50,7 @@ const menuItems = [
   { text: 'Monitoring', icon: <MonitoringIcon />, path: '/metrics', useCustomIcon: true },
   { text: 'Pipelines', icon: <PipelinesIcon />, path: '/pipelines', useCustomIcon: true },
   { text: 'Alertes', icon: <AlertsIcon />, path: '/alerts', useCustomIcon: true },
+  { text: 'Documentation', icon: <MenuBookIcon />, path: '/documentation', useCustomIcon: false },
   { text: 'Paramètres', icon: <SettingsIcon />, path: '/settings', useCustomIcon: true },
 ]
 
@@ -277,8 +279,9 @@ export default function Layout() {
       </Box>
       <List sx={{ px: 1, py: 2, background: 'rgba(0, 0, 0, 0.2)' }}>
         {menuItems.map((item) => {
-          const isSelected = location.pathname === item.path || 
-            (item.path === '/k8s' && location.pathname.startsWith('/k8s'))
+          const isSelected = location.pathname === item.path ||
+            (item.path === '/k8s' && location.pathname.startsWith('/k8s')) ||
+            (item.path === '/documentation' && location.pathname.startsWith('/documentation'))
           return (
             <ListItem key={item.text} disablePadding>
               <ListItemButton

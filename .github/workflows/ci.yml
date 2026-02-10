@@ -33,7 +33,7 @@ jobs:
         run: npm run build
 
   services-go:
-    name: Services Go
+    name: Services Go (${{ matrix.service }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -45,7 +45,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-          cache-dependency-path: services/${{ matrix.service }}/go.sum
+          cache-dependency-path: services/${{ matrix.service }}/go.mod
+
+      - name: Download dependencies
+        run: go mod download
+        working-directory: services/${{ matrix.service }}
 
       - name: Build ${{ matrix.service }}
         run: go build -v ./...

@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/modulops/pipeline-service/internal/adapter"
 	"github.com/modulops/pipeline-service/internal/cache"
+	"github.com/modulops/pipeline-service/internal/client"
 	"github.com/modulops/pipeline-service/internal/config"
 	"github.com/modulops/pipeline-service/internal/models"
 )
@@ -18,6 +20,8 @@ const (
 	keyRunPrefix   = "pipeline:run:"
 	keyRunsList    = "pipeline:runs:"
 	keyAggregated  = "pipeline:agg:"
+	keyConfigToken = "pipeline:config:github_token"
+	keyConfigRepos = "pipeline:config:github_repos"
 	maxRunsPerRepo = 100
 )
 
@@ -58,10 +62,17 @@ func (s *PipelineService) ProcessWebhook(ctx context.Context, provider models.Pr
 		return nil, nil
 	}
 
-	run.ID = fmt.Sprintf("run_%d", time.Now().UnixNano())
-
-	if err := s.StoreRun(ctx, run); err != nil {
-		return nil, err
+	// ID stable pour GitHub (évite doublons webhook + API)
+	if run.Provider == models.ProviderGitHub && run.ExternalID != "" {
+		run.ID = "github_" + run.ExternalID
+		if err := s.UpsertRun(ctx, run); err != nil {
+			return nil, err
+		}
+	} else {
+		run.ID = fmt.Sprintf("run_%d", time.Now().UnixNano())
+		if err := s.StoreRun(ctx, run); err != nil {
+			return nil, err
+		}
 	}
 
 	log.Printf("✅ Run enregistré: %s %s %s [%s]", run.Provider, run.Repository, run.Branch, run.Status)
@@ -98,14 +109,167 @@ func (s *PipelineService) StoreRun(ctx context.Context, run *models.PipelineRun)
 	}
 
 	// Mettre à jour l'agrégation
-	if err := s.updateAggregation(ctx, aggKey, run); err != nil {
+	if err := s.updateAggregation(ctx, aggKey, run, true); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *PipelineService) updateAggregation(ctx context.Context, aggKey string, run *models.PipelineRun) error {
+// UpsertRun met à jour un run existant ou le stocke s'il est nouveau (évite doublons)
+func (s *PipelineService) UpsertRun(ctx context.Context, run *models.PipelineRun) error {
+	runKey := keyRunPrefix + run.ID
+	existsVal, err := s.cache.Get(ctx, runKey)
+	if err != nil {
+		return err
+	}
+
+	isNew := existsVal == ""
+
+	// Si mise à jour : incrémenter seulement si le statut passe à terminal (ex: running → success)
+	incrementCounts := isNew
+	if !isNew && (run.Status == models.StatusSuccess || run.Status == models.StatusFailure || run.Status == models.StatusCancelled) {
+		var oldRun models.PipelineRun
+		if json.Unmarshal([]byte(existsVal), &oldRun) == nil {
+			wasTerminal := oldRun.Status == models.StatusSuccess || oldRun.Status == models.StatusFailure || oldRun.Status == models.StatusCancelled
+			incrementCounts = !wasTerminal
+		}
+	}
+
+	data, err := json.Marshal(run)
+	if err != nil {
+		return err
+	}
+
+	if err := s.cache.Set(ctx, runKey, string(data), s.cfg.CacheTTL); err != nil {
+		return err
+	}
+
+	listKey := keyRunsList + string(run.Provider) + ":" + run.Repository + ":" + run.Branch
+	aggKey := keyAggregated + string(run.Provider) + ":" + run.Repository + ":" + run.Branch
+
+	if isNew {
+		if err := s.cache.RPush(ctx, listKey, run.ID); err != nil {
+			return err
+		}
+		if err := s.cache.Expire(ctx, listKey, s.cfg.CacheTTL); err != nil {
+			return err
+		}
+		if err := s.cache.LTrim(ctx, listKey, -int64(maxRunsPerRepo), -1); err != nil {
+			return err
+		}
+	}
+
+	return s.updateAggregation(ctx, aggKey, run, incrementCounts)
+}
+
+// PipelineConfig config GitHub (token jamais exposé au GET)
+type PipelineConfig struct {
+	GitHubRepos []string `json:"github_repos"`
+	Linked      bool     `json:"linked"` // true si token + au moins 1 repo
+}
+
+// GetConfig retourne la config (sans token)
+func (s *PipelineService) GetConfig(ctx context.Context) (*PipelineConfig, error) {
+	token, _ := s.cache.Get(ctx, keyConfigToken)
+	reposStr, _ := s.cache.Get(ctx, keyConfigRepos)
+
+	var repos []string
+	if reposStr != "" {
+		_ = json.Unmarshal([]byte(reposStr), &repos)
+	}
+
+	// Fallback env si pas de config UI
+	if len(repos) == 0 && len(s.cfg.GitHubRepos) > 0 {
+		repos = s.cfg.GitHubRepos
+	}
+	tokenSet := token != "" || s.cfg.GitHubToken != ""
+
+	return &PipelineConfig{
+		GitHubRepos: repos,
+		Linked:      tokenSet && len(repos) > 0,
+	}, nil
+}
+
+// SetConfig enregistre token et/ou repos (depuis l'UI)
+func (s *PipelineService) SetConfig(ctx context.Context, token string, repos []string) error {
+	ttl := 365 * 24 * time.Hour
+	if token != "" {
+		if err := s.cache.Set(ctx, keyConfigToken, token, ttl); err != nil {
+			return err
+		}
+	}
+	// repos == nil signifie "ne pas modifier" ; repos != nil (y compris []) met à jour
+	if repos != nil {
+		data, err := json.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		if err := s.cache.Set(ctx, keyConfigRepos, string(data), ttl); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// getGitHubConfig retourne token et repos (Redis prioritaire sur env)
+func (s *PipelineService) getGitHubConfig(ctx context.Context) (token string, repos []string) {
+	token, _ = s.cache.Get(ctx, keyConfigToken)
+	if token == "" {
+		token = s.cfg.GitHubToken
+	}
+
+	reposStr, _ := s.cache.Get(ctx, keyConfigRepos)
+	if reposStr != "" {
+		_ = json.Unmarshal([]byte(reposStr), &repos)
+	}
+	if len(repos) == 0 {
+		repos = s.cfg.GitHubRepos
+	}
+	return token, repos
+}
+
+// SyncFromGitHub récupère les workflow runs via l'API GitHub et les stocke
+func (s *PipelineService) SyncFromGitHub(ctx context.Context) (int, error) {
+	token, repos := s.getGitHubConfig(ctx)
+	if token == "" || len(repos) == 0 {
+		return 0, nil
+	}
+
+	apiClient := client.NewGitHubAPIClient(token)
+	count := 0
+
+	for _, repo := range repos {
+		parts := strings.SplitN(repo, "/", 2)
+		if len(parts) != 2 {
+			log.Printf("⚠️ GITHUB_REPOS ignoré (format invalide): %s", repo)
+			continue
+		}
+		owner, repoName := parts[0], parts[1]
+
+		runs, err := apiClient.FetchWorkflowRuns(owner, repoName, 30)
+		if err != nil {
+			log.Printf("⚠️ Sync GitHub %s: %v", repo, err)
+			continue
+		}
+
+		for _, run := range runs {
+			if err := s.UpsertRun(ctx, run); err != nil {
+				log.Printf("⚠️ Upsert run %s: %v", run.ID, err)
+				continue
+			}
+			count++
+		}
+	}
+
+	if count > 0 {
+		log.Printf("✅ Sync GitHub: %d runs synchronisés", count)
+	}
+
+	return count, nil
+}
+
+func (s *PipelineService) updateAggregation(ctx context.Context, aggKey string, run *models.PipelineRun, incrementCounts bool) error {
 	agg, err := s.cache.HGetAll(ctx, aggKey)
 	if err != nil {
 		return err
@@ -119,11 +283,13 @@ func (s *PipelineService) updateAggregation(ctx context.Context, aggKey string, 
 		fmt.Sscanf(v, "%d", &failureCount)
 	}
 
-	switch run.Status {
-	case models.StatusSuccess:
-		successCount++
-	case models.StatusFailure, models.StatusCancelled:
-		failureCount++
+	if incrementCounts {
+		switch run.Status {
+		case models.StatusSuccess:
+			successCount++
+		case models.StatusFailure, models.StatusCancelled:
+			failureCount++
+		}
 	}
 
 	lastRunAt := ""

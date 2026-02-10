@@ -5,6 +5,19 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.3.0] - 2026-02-10
+
+### Ajouté
+- **Module Pipeline** : Connexion GitHub depuis l'interface (SaaS-ready)
+  - Formulaire "Connecter un dépôt GitHub" (token + dépôts) directement dans Kura
+  - Stockage de la config dans Redis (pas de modification .env requise)
+  - API GET/POST `/api/v1/pipeline/config` pour gérer la config via l'UI
+  - Sync automatique des workflow runs via API GitHub (toutes les 2 min)
+  - Bouton Sync manuel dans l'interface
+
+### Modifié
+- **Pipeline** : Priorité config UI sur variables d'environnement (fallback env conservé pour self-hosted)
+
 ## [1.2.0] - 2026-02-10
 
 ### Ajouté
