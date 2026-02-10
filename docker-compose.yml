@@ -392,9 +392,9 @@ services:
       REDIS_PASSWORD: ""
       REDIS_DB: "0"
       ANSIBLE_CACHE_TTL: "300"
-      ANSIBLE_TOWER_URL: http://host.docker.internal:8052
-      ANSIBLE_TOWER_USERNAME: admin
-      ANSIBLE_TOWER_PASSWORD: "MpOmLHogJgQdZdjWKOGmYECZpi9sDfYc"
+      ANSIBLE_TOWER_URL: ${ANSIBLE_TOWER_URL:-http://host.docker.internal:8052}
+      ANSIBLE_TOWER_USERNAME: ${ANSIBLE_TOWER_USERNAME:-admin}
+      ANSIBLE_TOWER_PASSWORD: ${ANSIBLE_TOWER_PASSWORD:-changeme}
       ANSIBLE_TOWER_VERIFY_SSL: "false"
     depends_on:
       redis:

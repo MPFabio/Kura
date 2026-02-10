@@ -8,6 +8,7 @@
 *.out
 bin/
 dist/
+Dossier_Certification/
 
 # Go
 vendor/
@@ -48,7 +49,7 @@ yarn-error.log*
 *.kubeconfig
 kubeconfig-*.yaml
 
-# Clé GCP (compte de service) pour GKE dans ModulOps
+# Clé GCP (compte de service) pour GKE dans Kura
 secrets/gcp-sa.json
 
 # Docker

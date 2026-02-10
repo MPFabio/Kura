@@ -64,7 +64,7 @@ Pour **persister les tfstate dans un bucket** (au lieu du seul Redis/mémoire), 
 - `S3_ENDPOINT` : endpoint S3 (pour MinIO : `http://minio:9000`)
 - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` : identifiants (pour MinIO : minioadmin/minioadmin)
 
-En stack ModulOps, lancer MinIO avec `docker compose --profile tfstate up` et définir les variables ci-dessus dans un fichier `.env` (voir `env.example` à la racine du projet).
+En stack Kura, lancer MinIO avec `docker compose --profile tfstate up` et définir les variables ci-dessus dans un fichier `.env` (voir `env.example` à la racine du projet).
 
 ## API
 

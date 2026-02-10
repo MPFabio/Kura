@@ -60,9 +60,9 @@ go mod download
 # Définir les variables d'environnement
 export POSTGRES_HOST=localhost
 export POSTGRES_PORT=5432
-export POSTGRES_USER=modulops
-export POSTGRES_PASSWORD=modulops
-export POSTGRES_DB=modulops
+export POSTGRES_USER=kura
+export POSTGRES_PASSWORD=kura
+export POSTGRES_DB=kura
 export JWT_SECRET=test-secret-key-12345
 export JWT_EXPIRATION=24h
 export AUTH_SERVICE_PORT=8080
@@ -213,7 +213,7 @@ curl -X PUT http://localhost:8080/api/v1/auth/me \
 
 ```bash
 # Se connecter à PostgreSQL
-docker exec -it modulops-postgres psql -U modulops -d modulops
+docker exec -it kura-postgres psql -U kura -d kura
 
 # Voir les utilisateurs créés
 SELECT id, email, username, roles, created_at FROM users;
@@ -232,7 +232,7 @@ SELECT id, user_id, expires_at, revoked FROM refresh_tokens;
 docker-compose logs -f auth-service
 
 # Ou pour un conteneur spécifique
-docker logs -f modulops-auth-service
+docker logs -f kura-auth-service
 ```
 
 ## ❌ Résolution des problèmes
