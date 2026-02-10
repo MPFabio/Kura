@@ -70,6 +70,11 @@ export interface PipelineProvidersResponse {
   providers: PipelineProviderInfo[]
 }
 
+export interface PipelineConfig {
+  github_repos: string[]
+  linked: boolean
+}
+
 // Intercepteur auth pour pipelineClient (copie le token si on utilise l'URL directe)
 if (pipelineBaseURL) {
   pipelineClient.interceptors.request.use((config) => {
@@ -120,6 +125,30 @@ export const pipelineService = {
   getProviders: async (): Promise<PipelineProvidersResponse> => {
     const response = await getClient().get<PipelineProvidersResponse>(
       '/api/v1/pipeline/providers'
+    )
+    return response.data
+  },
+
+  getConfig: async (): Promise<PipelineConfig> => {
+    const response = await getClient().get<PipelineConfig>('/api/v1/pipeline/config')
+    return response.data
+  },
+
+  setConfig: async (data: {
+    github_token?: string
+    github_repos?: string[]
+  }): Promise<{ message: string; config: PipelineConfig }> => {
+    const response = await getClient().post<{ message: string; config: PipelineConfig }>(
+      '/api/v1/pipeline/config',
+      data
+    )
+    return response.data
+  },
+
+  /** Déclenche une sync manuelle depuis l'API GitHub */
+  sync: async (): Promise<{ message: string; runs: number }> => {
+    const response = await getClient().post<{ message: string; runs: number }>(
+      '/api/v1/pipeline/sync'
     )
     return response.data
   },

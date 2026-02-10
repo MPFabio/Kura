@@ -48,6 +48,21 @@ func main() {
 		}
 	}()
 
+	// Sync périodique GitHub (config UI ou env)
+	go func() {
+		ticker := time.NewTicker(2 * time.Minute)
+		defer ticker.Stop()
+		ctx := context.Background()
+		if _, err := pipelineService.SyncFromGitHub(ctx); err != nil {
+			log.Printf("Sync GitHub initial: %v", err)
+		}
+		for range ticker.C {
+			if _, err := pipelineService.SyncFromGitHub(ctx); err != nil {
+				log.Printf("Sync GitHub: %v", err)
+			}
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -83,11 +98,18 @@ func setupRouter(pipelineHandler *handler.PipelineHandler, webhookHandler *handl
 	{
 		pipelineGroup := v1.Group("/pipeline")
 		{
+			// Config (lier repo depuis l'UI)
+			pipelineGroup.GET("/config", pipelineHandler.GetConfig)
+			pipelineGroup.POST("/config", pipelineHandler.SetConfig)
+
 			// API REST
 			pipelineGroup.GET("/runs", pipelineHandler.ListRuns)
 			pipelineGroup.GET("/runs/:id", pipelineHandler.GetRun)
 			pipelineGroup.GET("/aggregated", pipelineHandler.GetAggregatedStatus)
 			pipelineGroup.GET("/providers", pipelineHandler.ListProviders)
+
+			// Sync manuel (API GitHub - token + GITHUB_REPOS)
+			pipelineGroup.POST("/sync", pipelineHandler.SyncGitHub)
 
 			// Webhooks
 			pipelineGroup.POST("/webhooks", webhookHandler.HandleGeneric)

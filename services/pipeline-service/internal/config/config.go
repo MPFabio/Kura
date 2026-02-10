@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,7 @@ type Config struct {
 
 	// CI/CD - GitHub
 	GitHubToken         string
+	GitHubRepos         []string // ex: ["owner/repo1", "owner/repo2"]
 	GitHubWebhookSecret string
 
 	// CI/CD - GitLab
@@ -72,6 +74,13 @@ func Load() (*Config, error) {
 	// GitHub
 	cfg.GitHubToken = getEnv("GITHUB_TOKEN", "")
 	cfg.GitHubWebhookSecret = getEnv("GITHUB_WEBHOOK_SECRET", "")
+	if reposStr := getEnv("GITHUB_REPOS", ""); reposStr != "" {
+		for _, r := range splitAndTrim(reposStr, ",") {
+			if r != "" {
+				cfg.GitHubRepos = append(cfg.GitHubRepos, r)
+			}
+		}
+	}
 
 	// GitLab
 	cfg.GitLabToken = getEnv("GITLAB_TOKEN", "")
@@ -90,4 +99,14 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func splitAndTrim(s, sep string) []string {
+	var out []string
+	for _, p := range strings.Split(s, sep) {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }

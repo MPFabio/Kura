@@ -48,6 +48,7 @@ import { terraformService, TerraformState, terraformSourceService, TerraformDrif
 import { useProject } from '../contexts/ProjectContext'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleButton from '../components/ModuleButton'
+import CodeBlock from '../components/CodeBlock'
 import ModuleCard from '../components/ModuleCard'
 import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
@@ -945,36 +946,35 @@ export default function TerraformPage() {
               )}
 
               <Divider sx={{ my: 2 }} />
-              <ModuleSubtitle sx={{ mb: 1 }}>
-                Bloc Terraform
-              </ModuleSubtitle>
-              <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                <ModuleBodyText component="pre" sx={{ fontFamily: '"JetBrains Mono", monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {(() => {
-                    const instances = selectedResource.instances || []
-                    const instanceBlocks = instances.map((instance: any, idx: number) => {
-                      if (!instance.attributes) return ''
-                      const attrs = Object.entries(instance.attributes)
-                        .filter(([key]) => !key.startsWith('_'))
-                        .map(([key, value]) => {
-                          if (typeof value === 'object' && value !== null) {
-                            return `  ${key} = ${JSON.stringify(value, null, 2).split('\n').map((line: string, i: number) => i === 0 ? line : '  ' + line).join('\n')}`
-                          }
-                          if (typeof value === 'string' && value.includes('\n')) {
-                            return `  ${key} = <<-EOT\n${value}\nEOT`
-                          }
-                          return `  ${key} = ${JSON.stringify(value)}`
-                        })
-                        .join('\n')
-                      return attrs ? (instances.length > 1 ? `  # Instance ${idx + 1}\n${attrs}` : attrs) : ''
-                    }).filter(Boolean).join('\n\n')
-                    
-                    const moduleLine = selectedResource.module ? `  module = "${selectedResource.module}"\n` : ''
-                    return `resource "${selectedResource.type}" "${selectedResource.name}" {
+              <Box sx={{ mb: 0 }}>
+                {(() => {
+                  const instances = selectedResource.instances || []
+                  const instanceBlocks = instances.map((instance: any, idx: number) => {
+                    if (!instance.attributes) return ''
+                    const attrs = Object.entries(instance.attributes)
+                      .filter(([key]) => !key.startsWith('_'))
+                      .map(([key, value]) => {
+                        if (typeof value === 'object' && value !== null) {
+                          return `  ${key} = ${JSON.stringify(value, null, 2).split('\n').map((line: string, i: number) => i === 0 ? line : '  ' + line).join('\n')}`
+                        }
+                        if (typeof value === 'string' && value.includes('\n')) {
+                          return `  ${key} = <<-EOT\n${value}\nEOT`
+                        }
+                        return `  ${key} = ${JSON.stringify(value)}`
+                      })
+                      .join('\n')
+                    return attrs ? (instances.length > 1 ? `  # Instance ${idx + 1}\n${attrs}` : attrs) : ''
+                  }).filter(Boolean).join('\n\n')
+                  const moduleLine = selectedResource.module ? `  module = "${selectedResource.module}"\n` : ''
+                  const hclBlock = `resource "${selectedResource.type}" "${selectedResource.name}" {
 ${moduleLine}${instanceBlocks}
 }`
-                  })()}
-                </ModuleBodyText>
+                  return (
+                    <CodeBlock language="hcl" label="Bloc Terraform" showLineNumbers>
+                      {hclBlock}
+                    </CodeBlock>
+                  )
+                })()}
               </Box>
             </Box>
           )}

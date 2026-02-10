@@ -48,7 +48,7 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
           width: currentSize.jellyfish + 50,
           height: currentSize.jellyfish + 50,
           margin: '0 auto',
-          mb: variant === 'full' ? currentSize.spacing : 0,
+          mb: variant === 'full' ? 0.25 : 0,
           flexShrink: 0,
         }}
       >
@@ -145,7 +145,7 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
         />
       </Box>
 
-      {/* Texte "KURA" - sans décalage pour équilibrer l'espace au-dessus / en-dessous */}
+      {/* Texte "KURA" - remonté pour coller au logo */}
       {variant === 'full' && (
         <Box
           sx={{
@@ -156,6 +156,7 @@ export default function Logo({ variant = 'full', size = 'medium', sx }: LogoProp
             textAlign: 'center',
             width: '100%',
             gap: 0.5,
+            marginTop: -1,
           }}
         >
           <Typography
