@@ -106,3 +106,56 @@ func (h *PipelineHandler) ListProviders(c *gin.Context) {
 		},
 	})
 }
+
+// GetConfig retourne la config actuelle (sans token)
+// GET /api/v1/pipeline/config
+func (h *PipelineHandler) GetConfig(c *gin.Context) {
+	cfg, err := h.svc.GetConfig(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, cfg)
+}
+
+// SetConfig enregistre la config (token + repos) depuis l'UI
+// POST /api/v1/pipeline/config
+func (h *PipelineHandler) SetConfig(c *gin.Context) {
+	var body struct {
+		GitHubToken *string  `json:"github_token"`
+		GitHubRepos []string `json:"github_repos"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "format invalide"})
+		return
+	}
+
+	token := ""
+	if body.GitHubToken != nil {
+		token = *body.GitHubToken
+	}
+	repos := body.GitHubRepos
+
+	if err := h.svc.SetConfig(c.Request.Context(), token, repos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	cfg, _ := h.svc.GetConfig(c.Request.Context())
+	c.JSON(http.StatusOK, gin.H{"message": "configuration enregistrée", "config": cfg})
+}
+
+// SyncGitHub déclenche une synchronisation manuelle depuis l'API GitHub
+// POST /api/v1/pipeline/sync
+func (h *PipelineHandler) SyncGitHub(c *gin.Context) {
+	count, err := h.svc.SyncFromGitHub(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "synchronisation terminée",
+		"runs":    count,
+	})
+}
