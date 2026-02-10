@@ -82,7 +82,16 @@ Si non définie, le frontend utilisera `http://localhost:8000` (à remplacer apr
 
 Après le premier `terraform apply`, attendre 2–3 minutes que le script de démarrage de la VM installe Docker et gcloud. Ensuite, lancer un déploiement manuel ou pousser sur `main`.
 
-## 7. Ressources créées
+## 7. Pipeline Terraform (CI)
+
+Le workflow **Terraform GCP** s’exécute :
+- sur **PR** : `terraform plan` pour prévisualiser les changements
+- sur **push main** : `terraform apply -auto-approve` si le dossier `infrastructure/terraform/gcp/` a changé
+
+Secrets utilisés : `GCP_SA_KEY`, `GCP_PROJECT_ID` (identiques au déploiement).  
+Le compte de service doit disposer des droits sur le bucket GCS du state.
+
+## 8. Ressources créées
 
 - **VM** : e2-micro (1 Go RAM, gratuit dans les régions éligibles)
 - **Artifact Registry** : dépôt `kura` pour les images Docker
