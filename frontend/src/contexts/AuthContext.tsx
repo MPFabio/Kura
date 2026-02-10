@@ -36,12 +36,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.error('Erreur lors de la récupération de l\'utilisateur:', error)
           localStorage.removeItem('token')
           localStorage.removeItem('refreshToken')
+          setUser(null)
         }
+      } else {
+        setUser(null)
       }
       setLoading(false)
     }
 
+    const onSessionExpired = () => {
+      setUser(null)
+    }
+
     initAuth()
+    window.addEventListener('auth:session-expired', onSessionExpired)
+    return () => window.removeEventListener('auth:session-expired', onSessionExpired)
   }, [])
 
   const login = async (email: string, password: string) => {

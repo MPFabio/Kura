@@ -22,7 +22,7 @@ import (
 
 // Client encapsule le client Kubernetes officiel.
 type Client struct {
-	clientset *kubernetes.Clientset
+	clientset  *kubernetes.Clientset
 	restConfig *rest.Config
 }
 
@@ -42,19 +42,19 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		if cfg.KubeconfigPath == "" {
 			return nil, fmt.Errorf("KUBECONFIG_PATH doit être défini lorsque K8S_INCLUSTER=false")
 		}
-		
+
 		// Charger la configuration avec possibilité de désactiver TLS pour les clusters locaux
 		configLoadingRules := &clientcmd.ClientConfigLoadingRules{
 			ExplicitPath: cfg.KubeconfigPath,
 		}
 		configOverrides := &clientcmd.ConfigOverrides{}
-		
+
 		// Vérifier si le serveur utilise host.docker.internal ou 127.0.0.1
 		rawConfig, err := configLoadingRules.Load()
 		if err != nil {
 			return nil, fmt.Errorf("échec du chargement du kubeconfig: %w", err)
 		}
-		
+
 		// Déterminer le contexte à utiliser
 		contextToUse := rawConfig.CurrentContext
 		if contextToUse == "" && len(rawConfig.Contexts) > 0 {
@@ -64,26 +64,46 @@ func NewClient(cfg *config.Config) (*Client, error) {
 				break
 			}
 		}
-		
+
+		// Validation en production : rejeter les endpoints locaux
+		isProduction := cfg.Environment == "production"
+
 		if contextToUse != "" {
 			currentContext := rawConfig.Contexts[contextToUse]
 			if currentContext != nil {
 				clusterName := currentContext.Cluster
 				cluster := rawConfig.Clusters[clusterName]
-				if cluster != nil && (strings.Contains(cluster.Server, "host.docker.internal") || strings.Contains(cluster.Server, "127.0.0.1")) {
-					// Forcer InsecureSkipTLSVerify pour les clusters locaux
-					configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
-					configOverrides.ClusterInfo.CertificateAuthorityData = nil
+				if cluster != nil {
+					// En production, interdire les endpoints locaux
+					if isProduction && (strings.Contains(cluster.Server, "host.docker.internal") ||
+						strings.Contains(cluster.Server, "127.0.0.1") ||
+						strings.Contains(cluster.Server, "localhost")) {
+						return nil, fmt.Errorf("endpoints locaux (127.0.0.1, localhost, host.docker.internal) interdits en production pour des raisons de sécurité")
+					}
+
+					// Forcer InsecureSkipTLSVerify uniquement pour les clusters locaux en développement
+					if !isProduction && (strings.Contains(cluster.Server, "host.docker.internal") || strings.Contains(cluster.Server, "127.0.0.1")) {
+						configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
+						configOverrides.ClusterInfo.CertificateAuthorityData = nil
+					} else if isProduction {
+						// En production, toujours valider TLS
+						configOverrides.ClusterInfo.InsecureSkipTLSVerify = false
+					}
 				}
 				// S'assurer que le contexte est correctement défini
 				configOverrides.CurrentContext = contextToUse
 			}
 		}
-		
+
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(configLoadingRules, configOverrides)
 		restConfig, err = clientConfig.ClientConfig()
 		if err != nil {
 			return nil, fmt.Errorf("échec du chargement du kubeconfig: %w", err)
+		}
+
+		// Configurer les timeouts pour les connexions réseau
+		if cfg.K8sAPITimeout > 0 {
+			restConfig.Timeout = cfg.K8sAPITimeout
 		}
 	}
 
@@ -242,6 +262,48 @@ func (c *Client) GetServiceYAML(ctx context.Context, namespace, name string) (st
 	return toYAML(service)
 }
 
+// GetConfigMap retourne un ConfigMap spécifique.
+func (c *Client) GetConfigMap(ctx context.Context, namespace, name string) (*corev1.ConfigMap, error) {
+	return c.clientset.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetSecret retourne un Secret spécifique.
+func (c *Client) GetSecret(ctx context.Context, namespace, name string) (*corev1.Secret, error) {
+	return c.clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetNode retourne un Node spécifique.
+func (c *Client) GetNode(ctx context.Context, name string) (*corev1.Node, error) {
+	return c.clientset.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetConfigMapYAML retourne le YAML d'un ConfigMap.
+func (c *Client) GetConfigMapYAML(ctx context.Context, namespace, name string) (string, error) {
+	cm, err := c.GetConfigMap(ctx, namespace, name)
+	if err != nil {
+		return "", err
+	}
+	return toYAML(cm)
+}
+
+// GetSecretYAML retourne le YAML d'un Secret.
+func (c *Client) GetSecretYAML(ctx context.Context, namespace, name string) (string, error) {
+	secret, err := c.GetSecret(ctx, namespace, name)
+	if err != nil {
+		return "", err
+	}
+	return toYAML(secret)
+}
+
+// GetNodeYAML retourne le YAML d'un Node.
+func (c *Client) GetNodeYAML(ctx context.Context, name string) (string, error) {
+	node, err := c.GetNode(ctx, name)
+	if err != nil {
+		return "", err
+	}
+	return toYAML(node)
+}
+
 // toYAML convertit un objet Kubernetes en YAML.
 func toYAML(obj runtime.Object) (string, error) {
 	// Créer un sérialiseur JSON
@@ -336,4 +398,3 @@ func (c *Client) ExecPod(ctx context.Context, namespace, name, container string,
 		Tty:               tty,
 	})
 }
-

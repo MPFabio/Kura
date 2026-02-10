@@ -1,66 +1,71 @@
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
+import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const baseURL =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL != null
+    ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '')
+    : ''
 
-class ApiClient {
-  private client: AxiosInstance
+export const apiClient = axios.create({
+  baseURL,
+  headers: { 'Content-Type': 'application/json' },
+})
 
-  constructor() {
-    this.client = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
-    // Intercepteur pour ajouter le token d'authentification
-    this.client.interceptors.request.use(
-      (config: InternalAxiosRequestConfig) => {
-        const token = localStorage.getItem('token')
-        if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`
-        }
-        return config
-      },
-      (error) => {
-        return Promise.reject(error)
-      }
-    )
+const authBaseURL =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_AUTH_URL
+    ? String(import.meta.env.VITE_AUTH_URL).replace(/\/$/, '')
+    : baseURL
 
-    // Intercepteur pour gérer les erreurs 401 (non autorisé)
-    this.client.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        if (error.response?.status === 401) {
-          // Token expiré, déconnexion
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+      const refreshToken = localStorage.getItem('refreshToken')
+      if (refreshToken) {
+        try {
+          const { data } = await axios.post(authBaseURL + '/api/v1/auth/refresh', {
+            refresh_token: refreshToken,
+          })
+          localStorage.setItem('token', data.token)
+          if (data.refresh_token) localStorage.setItem('refreshToken', data.refresh_token)
+          originalRequest.headers.Authorization = `Bearer ${data.token}`
+          return apiClient(originalRequest)
+        } catch (_) {
           localStorage.removeItem('token')
           localStorage.removeItem('refreshToken')
-          // Ne pas rediriger si on est déjà sur la page de login
-          // pour éviter les boucles de redirection
-          if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-            window.location.href = '/login'
-          }
+          window.dispatchEvent(new CustomEvent('auth:session-expired'))
         }
-        return Promise.reject(error)
+      } else {
+        localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
+        window.dispatchEvent(new CustomEvent('auth:session-expired'))
       }
-    )
+    }
+    return Promise.reject(error)
   }
+)
 
-  get instance() {
-    return this.client
-  }
-}
-
-export const apiClient = new ApiClient().instance
-
-// Types pour les réponses API
+// Auth types
 export interface User {
   id: string
   email: string
-  name?: string
-  roles: string[]
-  created_at: string
-  updated_at: string
+  username: string
+  roles?: string[]
+  first_name?: string
+  last_name?: string
+  active?: boolean
+  created_at?: string
+  updated_at?: string
+  last_login?: string | null
 }
 
 export interface LoginRequest {
@@ -72,6 +77,7 @@ export interface LoginResponse {
   token: string
   refresh_token: string
   user: User
+  expires_at?: string
 }
 
 export interface RegisterRequest {
@@ -82,83 +88,20 @@ export interface RegisterRequest {
   last_name?: string
 }
 
-export interface Namespace {
-  name: string
-  status?: string
-  created_at?: string
-}
-
-export interface Pod {
-  name: string
-  namespace: string
-  status: string
-  node?: string
-  created_at?: string
-}
-
+// K8s types
 export interface K8sNamespacesResponse {
-  items: Namespace[]
+  items: { name: string; [key: string]: unknown }[]
 }
 
 export interface K8sPodsResponse {
-  items: Pod[]
+  items: { name: string; namespace?: string; [key: string]: unknown }[]
 }
 
 export interface Deployment {
   name: string
-  namespace: string
-  replicas: number
-  readyReplicas: number
-  availableReplicas: number
-  creationTimestamp: string
-  labels?: Record<string, string>
-}
-
-export interface Service {
-  name: string
-  namespace: string
-  type: string
-  clusterIP: string
-  ports?: ServicePort[]
-  creationTimestamp: string
-  labels?: Record<string, string>
-}
-
-export interface ServicePort {
-  name?: string
-  port: number
-  protocol: string
-  targetPort?: string
-}
-
-export interface ConfigMap {
-  name: string
-  namespace: string
-  dataKeys: string[]
-  creationTimestamp: string
-  labels?: Record<string, string>
-}
-
-export interface Secret {
-  name: string
-  namespace: string
-  type: string
-  dataKeys: string[]
-  creationTimestamp: string
-  labels?: Record<string, string>
-}
-
-export interface Node {
-  name: string
-  status: string
-  kubeletVersion: string
-  osImage: string
-  architecture: string
-  cpu: string
-  memory: string
-  pods: string
-  creationTimestamp: string
-  labels?: Record<string, string>
+  namespace?: string
+  replicas?: number
+  [key: string]: unknown
 }
 
 export interface K8sDeploymentsResponse {
@@ -166,30 +109,42 @@ export interface K8sDeploymentsResponse {
 }
 
 export interface K8sServicesResponse {
-  items: Service[]
+  items: { name: string; namespace?: string; [key: string]: unknown }[]
 }
 
 export interface K8sConfigMapsResponse {
-  items: ConfigMap[]
+  items: { name: string; namespace?: string; [key: string]: unknown }[]
 }
 
 export interface K8sSecretsResponse {
-  items: Secret[]
+  items: { name: string; namespace?: string; [key: string]: unknown }[]
 }
 
 export interface K8sNodesResponse {
-  items: Node[]
+  items: { name: string; [key: string]: unknown }[]
+}
+
+export interface K8sPodDetail {
+  metadata?: { name?: string; namespace?: string }
+  spec?: { containers?: { name: string }[] }
+  status?: { phase?: string; containerStatuses?: { name: string; ready: boolean }[] }
+  [key: string]: unknown
+}
+
+export interface K8sDeploymentDetail {
+  metadata?: { name?: string; namespace?: string }
+  spec?: { replicas?: number; selector?: { matchLabels?: Record<string, string> } }
+  status?: { replicas?: number; readyReplicas?: number; availableReplicas?: number; updatedReplicas?: number; conditions?: { type: string; status: string; message?: string }[] }
+  [key: string]: unknown
 }
 
 export interface Event {
-  name: string
-  namespace: string
-  type: string
-  reason: string
-  message: string
-  firstTimestamp: string
-  lastTimestamp: string
-  count: number
-  involvedObject: string
-  involvedObjectKind: string
+  type?: string
+  reason?: string
+  message?: string
+  count?: number
+  firstTimestamp?: string
+  lastTimestamp?: string
+  involvedObject?: { kind?: string; name?: string; namespace?: string }
+  [key: string]: unknown
 }

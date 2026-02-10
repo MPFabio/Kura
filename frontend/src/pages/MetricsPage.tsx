@@ -1,4 +1,4 @@
-import { Box, Typography, Grid, Alert } from '@mui/material'
+import { Box, Grid, Alert } from '@mui/material'
 import {
   LineChart,
   Line,
@@ -12,6 +12,8 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import ModuleCard from '../components/ModuleCard'
+import ModuleTitle from '../components/ModuleTitle'
+import { ModuleSubtitle } from '../components/ModuleText'
 
 // Données d'exemple pour les métriques
 const sampleData = [
@@ -37,54 +39,16 @@ const colors = {
 export default function MetricsPage() {
   return (
     <Box>
-      <Typography
-        variant="h4"
-        sx={{
-          mb: 4,
-          fontWeight: 600,
-          color: '#FFFFFF',
-          fontFamily: '"Inter", sans-serif',
-          letterSpacing: '0.02em',
-        }}
-      >
-        Métriques
-      </Typography>
+      <ModuleTitle>Métriques</ModuleTitle>
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <ModuleCard sx={{ p: 3 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                mb: 3,
-                color: colors.turquoise,
-                fontFamily: '"Inter", sans-serif',
-                fontWeight: 600,
-                textShadow: `0 0 10px ${colors.turquoise}40`,
-                letterSpacing: '0.02em',
-              }}
-            >
+            <ModuleSubtitle sx={{ mb: 3 }}>
               Utilisation CPU et Mémoire (7 derniers jours)
-            </Typography>
+            </ModuleSubtitle>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={sampleData}>
-                <defs>
-                  <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={colors.turquoise} stopOpacity={0.8} />
-                    <stop offset="100%" stopColor={colors.turquoise} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="memoryGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={colors.violet} stopOpacity={0.8} />
-                    <stop offset="100%" stopColor={colors.violet} stopOpacity={0} />
-                  </linearGradient>
-                  <filter id="glow">
-                    <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
                 <CartesianGrid
                   strokeDasharray="2 2"
                   stroke={colors.grayMedium}
@@ -106,12 +70,11 @@ export default function MetricsPage() {
                 />
                 <Tooltip
                   contentStyle={{
-                    background: 'rgba(10, 10, 14, 0.95)',
-                    border: `1px solid ${colors.turquoise}40`,
-                    borderRadius: '8px',
+                    background: '#2c2f3f',
+                    border: `1px solid ${colors.turquoise}`,
+                    borderRadius: '0',
                     color: '#FFFFFF',
                     fontFamily: '"JetBrains Mono", monospace',
-                    boxShadow: `0 0 20px ${colors.turquoise}30`,
                   }}
                   labelStyle={{ color: colors.turquoise, fontFamily: '"Inter", sans-serif' }}
                   itemStyle={{ fontFamily: '"JetBrains Mono", monospace' }}
@@ -128,39 +91,33 @@ export default function MetricsPage() {
                   type="monotone"
                   dataKey="cpu"
                   stroke={colors.turquoise}
-                  strokeWidth={3}
+                  strokeWidth={2}
                   name="CPU %"
                   dot={{
                     fill: colors.turquoise,
-                    strokeWidth: 2,
-                    r: 4,
-                    filter: 'url(#glow)',
+                    strokeWidth: 0,
+                    r: 3,
                   }}
                   activeDot={{
-                    r: 6,
+                    r: 5,
                     fill: colors.turquoise,
-                    filter: 'url(#glow)',
                   }}
-                  style={{ filter: `drop-shadow(0 0 8px ${colors.turquoise})` }}
                 />
                 <Line
                   type="monotone"
                   dataKey="memory"
-                  stroke={colors.violet}
-                  strokeWidth={3}
+                  stroke={colors.magenta}
+                  strokeWidth={2}
                   name="Mémoire %"
                   dot={{
-                    fill: colors.violet,
-                    strokeWidth: 2,
-                    r: 4,
-                    filter: 'url(#glow)',
+                    fill: colors.magenta,
+                    strokeWidth: 0,
+                    r: 3,
                   }}
                   activeDot={{
-                    r: 6,
-                    fill: colors.violet,
-                    filter: 'url(#glow)',
+                    r: 5,
+                    fill: colors.magenta,
                   }}
-                  style={{ filter: `drop-shadow(0 0 8px ${colors.violet})` }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -169,34 +126,11 @@ export default function MetricsPage() {
 
         <Grid item xs={12}>
           <ModuleCard sx={{ p: 3 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                mb: 3,
-                color: colors.turquoise,
-                fontFamily: '"Inter", sans-serif',
-                fontWeight: 600,
-                textShadow: `0 0 10px ${colors.turquoise}40`,
-                letterSpacing: '0.02em',
-              }}
-            >
+            <ModuleSubtitle sx={{ mb: 3 }}>
               Requêtes par jour
-            </Typography>
+            </ModuleSubtitle>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={sampleData}>
-                <defs>
-                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={colors.turquoise} stopOpacity={1} />
-                    <stop offset="100%" stopColor={colors.violet} stopOpacity={1} />
-                  </linearGradient>
-                  <filter id="barGlow">
-                    <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
                 <CartesianGrid
                   strokeDasharray="2 2"
                   stroke={colors.grayMedium}
@@ -217,14 +151,13 @@ export default function MetricsPage() {
                 />
                 <Tooltip
                   contentStyle={{
-                    background: 'rgba(10, 10, 14, 0.95)',
-                    border: `1px solid ${colors.violet}40`,
-                    borderRadius: '8px',
+                    background: '#2c2f3f',
+                    border: `1px solid ${colors.turquoise}`,
+                    borderRadius: '0',
                     color: '#FFFFFF',
                     fontFamily: '"JetBrains Mono", monospace',
-                    boxShadow: `0 0 20px ${colors.violet}30`,
                   }}
-                  labelStyle={{ color: colors.violet, fontFamily: '"Inter", sans-serif' }}
+                  labelStyle={{ color: colors.turquoise, fontFamily: '"Inter", sans-serif' }}
                   itemStyle={{ fontFamily: '"JetBrains Mono", monospace' }}
                 />
                 <Legend
@@ -236,10 +169,9 @@ export default function MetricsPage() {
                 />
                 <Bar
                   dataKey="requests"
-                  fill="url(#barGradient)"
+                  fill={colors.turquoise}
                   name="Requêtes"
-                  radius={[8, 8, 0, 0]}
-                  style={{ filter: 'url(#barGlow)' }}
+                  radius={[0, 0, 0, 0]}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -251,13 +183,12 @@ export default function MetricsPage() {
             <Alert
               severity="info"
               sx={{
-                background: 'rgba(10, 10, 14, 0.8)',
-                border: `1px solid ${colors.turquoise}40`,
-                borderRadius: '12px',
+                background: '#2c2f3f',
+                border: `1px solid ${colors.turquoise}`,
+                borderRadius: '0',
                 color: colors.grayLight,
                 '& .MuiAlert-icon': {
                   color: colors.turquoise,
-                  filter: `drop-shadow(0 0 8px ${colors.turquoise})`,
                 },
                 fontFamily: '"JetBrains Mono", monospace',
               }}

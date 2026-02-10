@@ -31,14 +31,16 @@ func main() {
 	}
 	defer repo.Close()
 
-	// Initialiser le service
+	// Initialiser les services
 	authService := service.NewAuthService(repo, cfg)
+	projectService := service.NewProjectService(repo)
 
 	// Initialiser les handlers
 	authHandler := handler.NewAuthHandler(authService, cfg)
+	projectHandler := handler.NewProjectHandler(projectService, cfg)
 
 	// Configurer le routeur
-	router := setupRouter(authHandler, cfg)
+	router := setupRouter(authHandler, projectHandler, cfg)
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
@@ -72,7 +74,7 @@ func main() {
 	log.Println("Service d'authentification arrêté")
 }
 
-func setupRouter(authHandler *handler.AuthHandler, cfg *config.Config) *gin.Engine {
+func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.ProjectHandler, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -99,6 +101,21 @@ func setupRouter(authHandler *handler.AuthHandler, cfg *config.Config) *gin.Engi
 			auth.GET("/me", authHandler.RequireAuth(), authHandler.GetCurrentUser)
 			auth.PUT("/me", authHandler.RequireAuth(), authHandler.UpdateCurrentUser)
 			auth.PUT("/password", authHandler.RequireAuth(), authHandler.ChangePassword)
+		}
+
+		// Routes de projets
+		projects := v1.Group("/projects")
+		projects.Use(authHandler.RequireAuth())
+		{
+			projects.POST("", projectHandler.CreateProject)
+			projects.GET("", projectHandler.ListProjects)
+			projects.GET("/:id", projectHandler.GetProject)
+			projects.PUT("/:id", projectHandler.UpdateProject)
+			projects.DELETE("/:id", projectHandler.DeleteProject)
+			projects.POST("/:id/members", projectHandler.AddProjectMember)
+			projects.GET("/:id/members", projectHandler.ListProjectMembers)
+			projects.PUT("/:id/members/:user_id", projectHandler.UpdateProjectMember)
+			projects.DELETE("/:id/members/:user_id", projectHandler.RemoveProjectMember)
 		}
 
 		// Routes d'administration (nécessitent le rôle admin)

@@ -7,6 +7,8 @@ import {
   K8sConfigMapsResponse,
   K8sSecretsResponse,
   K8sNodesResponse,
+  K8sPodDetail,
+  K8sDeploymentDetail,
   Event,
 } from './api'
 
@@ -129,6 +131,30 @@ export const k8sService = {
     }
   },
 
+  getPod: async (namespace: string, name: string): Promise<K8sPodDetail> => {
+    try {
+      const response = await apiClient.get<K8sPodDetail>(
+        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}`
+      )
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la récupération du pod ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
+  getDeployment: async (namespace: string, name: string): Promise<K8sDeploymentDetail> => {
+    try {
+      const response = await apiClient.get<K8sDeploymentDetail>(
+        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}`
+      )
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la récupération du deployment ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
   getPodLogs: async (namespace: string, name: string, container?: string, tailLines?: number): Promise<string> => {
     try {
       const params = new URLSearchParams()
@@ -179,6 +205,45 @@ export const k8sService = {
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du YAML pour service ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
+  getConfigMapYAML: async (namespace: string, name: string): Promise<string> => {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/configmaps/${encodeURIComponent(name)}/yaml`,
+        { responseType: 'text' }
+      )
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la récupération du YAML pour configmap ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
+  getSecretYAML: async (namespace: string, name: string): Promise<string> => {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/secrets/${encodeURIComponent(name)}/yaml`,
+        { responseType: 'text' }
+      )
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la récupération du YAML pour secret ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
+  getNodeYAML: async (name: string): Promise<string> => {
+    try {
+      const response = await apiClient.get(
+        `/api/v1/k8s/nodes/${encodeURIComponent(name)}/yaml`,
+        { responseType: 'text' }
+      )
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la récupération du YAML pour node ${name}:`, error)
       throw error
     }
   },

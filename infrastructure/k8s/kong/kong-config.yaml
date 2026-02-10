@@ -62,11 +62,11 @@ data:
         - DELETE
     
     - name: pipeline-service
-      url: http://pipeline-service:8080
+      url: http://pipeline-service:8084
       routes:
       - name: pipeline-route
         paths:
-        - /api/pipeline
+        - /api/v1/pipeline
         strip_path: false
         methods:
         - GET

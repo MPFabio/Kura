@@ -1,12 +1,22 @@
 import { useNavigate } from 'react-router-dom'
-import { Grid, Typography, Box } from '@mui/material'
+import { useQuery } from '@tanstack/react-query'
+import { Grid, Box, Chip, Typography } from '@mui/material'
 import {
-  Cloud as CloudIcon,
-  Storage as StorageIcon,
-  PlayArrow as PlayArrowIcon,
-  BarChart as BarChartIcon,
+  CheckCircle as CheckCircleIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material'
 import ModuleCard from '../components/ModuleCard'
+import ModuleTitle from '../components/ModuleTitle'
+import { ModuleBodyText, ModuleSecondaryText, ModuleSubtitle, ModuleCaption } from '../components/ModuleText'
+import TerraformIcon from '../components/icons/TerraformIcon'
+import KubernetesIcon from '../components/icons/KubernetesIcon'
+import AnsibleIcon from '../components/icons/AnsibleIcon'
+import PipelinesIcon from '../components/icons/PipelinesIcon'
+import MonitoringIcon from '../components/icons/MonitoringIcon'
+import { useProject } from '../contexts/ProjectContext'
+import { terraformService } from '../services/terraformService'
+import { clusterService } from '../services/clusterService'
+import { ansibleService } from '../services/ansibleService'
 
 interface Module {
   id: string
@@ -19,180 +29,387 @@ interface Module {
   subtitle?: string
   statusText?: string
   description?: string
+  stats?: {
+    label: string
+    value: string | number
+  }[]
+  features?: string[]
+  status?: 'active' | 'inactive' | 'deploying' | 'available'
 }
 
 export default function ModulesPage() {
   const navigate = useNavigate()
+  const { currentProject } = useProject()
+
+  const { data: terraformStatesData } = useQuery({
+    queryKey: ['terraform-states', currentProject?.id],
+    queryFn: () => terraformService.getStates(currentProject!.id),
+    enabled: !!currentProject?.id,
+  })
+
+  const { data: clustersData } = useQuery({
+    queryKey: ['clusters', currentProject?.id],
+    queryFn: () => clusterService.getClusters(currentProject!.id),
+    enabled: !!currentProject?.id,
+  })
+
+  const { data: ansibleJobsData } = useQuery({
+    queryKey: ['ansible-jobs-summary'],
+    queryFn: () => ansibleService.getJobs(),
+    retry: false,
+  })
+
+  const { data: ansibleInventoriesData } = useQuery({
+    queryKey: ['ansible-inventories-summary'],
+    queryFn: () => ansibleService.getInventories(),
+    retry: false,
+  })
+
+  const { data: ansibleTemplatesData } = useQuery({
+    queryKey: ['ansible-templates-summary'],
+    queryFn: () => ansibleService.getJobTemplates(),
+    retry: false,
+  })
+
+  const hasProject = !!currentProject?.id
+  const statesCount = hasProject ? (terraformStatesData?.items?.length ?? 0) : null
+  const clustersCount = hasProject ? (clustersData?.items?.length ?? 0) : null
+  const ansibleJobsCount = ansibleJobsData?.items?.length ?? 0
+  const ansibleInventoriesCount = ansibleInventoriesData?.items?.length ?? 0
+  const ansibleTemplatesCount = ansibleTemplatesData?.items?.length ?? 0
+  const formatStat = (n: number | null) => (n === null ? '—' : String(n))
 
   const modules: Module[] = [
     {
       id: 'terraform',
       name: 'Terraform',
-      icon: <StorageIcon sx={{ fontSize: 80 }} />,
+      icon: <TerraformIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/terraform',
       active: true,
-      deploying: true,
-      statusText: 'Deployment in Progress',
-      description: 'Terraform will deploy the given plan in your infrastructure...',
+      deploying: false,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'Gestion complète de vos états Terraform avec synchronisation cloud et détection de drift en temps réel.',
+      stats: [
+        { label: 'États', value: formatStat(statesCount) },
+        { label: 'Sources', value: formatStat(statesCount) },
+        { label: 'Drifts', value: '0' },
+      ],
+      features: [
+        'Synchronisation S3, Azure, GCP',
+        'Détection de drift automatique',
+        'Visualisation des ressources',
+      ],
     },
     {
       id: 'kubernetes',
       name: 'Kubernetes',
-      icon: <CloudIcon sx={{ fontSize: 80 }} />,
+      icon: <KubernetesIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/k8s',
-      active: false,
-      inactive: true,
-      subtitle: 'Kubernetes',
+      active: true,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'Gestion complète de vos clusters Kubernetes avec terminal interactif et actions en masse.',
+      stats: [
+        { label: 'Clusters', value: formatStat(clustersCount) },
+        { label: 'Pods', value: '0' },
+        { label: 'Services', value: '0' },
+      ],
+      features: [
+        'Gestion multi-clusters',
+        'Terminal interactif',
+        'Actions en masse',
+      ],
     },
     {
       id: 'ansible',
       name: 'Ansible',
-      icon: <PlayArrowIcon sx={{ fontSize: 80 }} />,
+      icon: <AnsibleIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/ansible',
-      active: false,
-      inactive: true,
-      subtitle: 'Kubernetes',
+      active: true,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'Automatisation de vos déploiements avec Ansible Tower. Gestion des jobs, inventaires, templates et exécution de playbooks.',
+      stats: [
+        { label: 'Jobs', value: formatStat(ansibleJobsCount) },
+        { label: 'Inventaires', value: formatStat(ansibleInventoriesCount) },
+        { label: 'Templates', value: formatStat(ansibleTemplatesCount) },
+      ],
+      features: [
+        'Intégration Ansible Tower / AWX',
+        'Gestion des inventaires et hôtes',
+        'Exécution de playbooks et templates',
+      ],
+    },
+    {
+      id: 'pipelines',
+      name: 'Pipelines',
+      icon: <PipelinesIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
+      path: '/pipelines',
+      active: true,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'CI/CD et pipelines de déploiement. Déclenchement, suivi des runs et intégration avec vos dépôts.',
+      stats: [
+        { label: 'Pipelines', value: '0' },
+        { label: 'Runs', value: '0' },
+        { label: 'Dernier run', value: '—' },
+      ],
+      features: [
+        'Workflows GitHub Actions / GitLab CI',
+        'Déploiement Terraform et K8s',
+        'Historique et statut des runs',
+      ],
     },
     {
       id: 'monitoring',
       name: 'Monitoring',
-      icon: <BarChartIcon sx={{ fontSize: 80 }} />,
+      icon: <MonitoringIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={false} />,
       path: '/metrics',
       active: false,
       inactive: true,
-      subtitle: 'Kubernetes',
+      status: 'available',
+      subtitle: 'Bientôt disponible',
+      description: 'Surveillance complète de votre infrastructure avec métriques, alertes et dashboards personnalisables.',
+      features: [
+        'Métriques en temps réel',
+        'Alertes configurables',
+        'Dashboards Grafana',
+      ],
     },
   ]
 
   return (
     <Box>
-      <Typography
-        variant="h4"
-        sx={{
-          mb: 4,
-          fontWeight: 600,
-          color: '#FFFFFF',
-          fontFamily: '"Inter", sans-serif',
-          letterSpacing: '0.02em',
-        }}
-      >
-        Modules
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 6, pb: 3, borderBottom: '2px solid rgba(0, 229, 255, 0.15)' }}>
+        <ModuleTitle>
+          Modules
+        </ModuleTitle>
+        <Box
+          sx={{
+            px: 2,
+            py: 0.75,
+            backgroundColor: '#2c2f3f',
+            color: '#00E5FF',
+            border: '2px solid #00E5FF',
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: '0.8125rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+          }}
+        >
+          {modules.filter(m => m.active).length} / {modules.length}
+        </Box>
+      </Box>
 
       <Grid container spacing={4}>
-        {modules.map((module) => (
-          <Grid item xs={12} sm={6} key={module.id}>
-            <ModuleCard
-              active={module.active}
-              inactive={module.inactive}
-              deploying={module.deploying}
-              onClick={() => navigate(module.path)}
-              sx={{
-                minHeight: '400px',
+        {modules.map((module, idx) => {
+          return (
+            <Grid item xs={12} sm={6} key={module.id}>
+              <ModuleCard
+                active={module.active}
+                inactive={module.inactive}
+                deploying={module.deploying}
+                onClick={() => navigate(module.path)}
+                sx={{
+                minHeight: '520px',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                textAlign: 'center',
-                py: 4,
-                px: 3,
+                height: '100%',
+                '--card-delay': `${idx * 0.3}s`,
               }}
             >
               {module.active ? (
-                <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: '350px' }}>
-                  {/* Icône centrale avec filaments lumineux */}
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      mb: 4,
-                    }}
-                  >
-                    {/* Filaments animés autour de l'icône */}
+                <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  {/* Header avec icône et statut */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 4 }}>
+                    <Box sx={{ color: '#00E5FF' }}>
+                      {module.icon}
+                    </Box>
                     <Box
                       sx={{
-                        position: 'absolute',
-                        width: 200,
-                        height: 200,
-                        border: '1px solid transparent',
-                        borderTop: '2px solid rgba(0, 255, 255, 0.4)',
-                        borderRight: '2px solid rgba(0, 255, 255, 0.3)',
-                        borderRadius: '50%',
-                        animation: 'constructAnimation 8s linear infinite',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        width: 180,
-                        height: 180,
-                        border: '1px solid transparent',
-                        borderBottom: '1px solid rgba(0, 255, 255, 0.2)',
-                        borderLeft: '1px solid rgba(0, 255, 255, 0.2)',
-                        borderRadius: '50%',
-                        animation: 'constructAnimation 6s linear infinite reverse',
-                      }}
-                    />
-                    {/* Lignes de circuit */}
-                    {[...Array(6)].map((_, i) => (
-                      <Box
-                        key={i}
-                        sx={{
-                          position: 'absolute',
-                          width: 2,
-                          height: 60,
-                          background: `linear-gradient(180deg, transparent, rgba(0, 255, 255, ${0.3 - i * 0.05}))`,
-                          transform: `rotate(${i * 60}deg)`,
-                          transformOrigin: '0 100px',
-                          top: '50%',
-                          left: '50%',
-                          marginTop: '-100px',
-                          marginLeft: '-1px',
-                          borderRadius: 1,
-                        }}
-                      />
-                    ))}
-                    {/* Icône principale */}
-                    <Box
-                      sx={{
-                        position: 'relative',
-                        zIndex: 1,
-                        color: '#00FFFF',
-                        filter: 'drop-shadow(0 0 20px rgba(0, 255, 255, 0.9)) drop-shadow(0 0 40px rgba(0, 255, 255, 0.6))',
-                        animation: 'breathingGlow 3s ease-in-out infinite',
+                        px: 1.5,
+                        py: 0.5,
+                        backgroundColor: 'transparent',
+                        color: '#81C784',
+                        border: '1px solid #81C784',
+                        fontFamily: '"JetBrains Mono", monospace',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
                       }}
                     >
-                      {module.icon}
+                      ACTIF
                     </Box>
                   </Box>
 
-                  {/* Texte d'état */}
+                  {/* Nom du module */}
                   <Typography
-                    variant="h6"
+                    variant="h4"
                     sx={{
-                      fontFamily: '"JetBrains Mono", monospace',
-                      color: '#FFFFFF',
-                      mb: 1,
-                      textShadow: '0 0 10px rgba(0, 255, 255, 0.6)',
-                      letterSpacing: '0.05em',
-                      fontWeight: 500,
+                      mb: 3,
+                      color: '#f0f0f0',
+                      fontSize: '2rem',
+                      fontWeight: 700,
+                      letterSpacing: '-0.02em',
                     }}
                   >
-                    {module.statusText}
+                    {module.name}
                   </Typography>
 
                   {/* Description */}
                   {module.description && (
-                    <Typography
-                      variant="body2"
+                    <Typography sx={{ mb: 4, color: '#a0a0a0', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+                      {module.description}
+                    </Typography>
+                  )}
+
+                  {/* Statistiques - ordre logo : cyan (gauche) → violet → magenta (droite) */}
+                  {module.stats && (
+                    <Box sx={{ display: 'flex', gap: 3, mb: 4 }}>
+                      {module.stats.map((stat, idx) => {
+                        const isCyan = idx === 0
+                        const isViolet = idx === 1
+                        const isMagenta = idx === 2
+                        return (
+                        <Box
+                          key={idx}
+                          sx={{
+                            flex: 1,
+                            textAlign: 'center',
+                            p: 2.5,
+                            borderRadius: 0,
+                            background: '#2c2f3f',
+                            borderLeft: isCyan ? '4px solid #00E5FF' : isViolet ? '4px solid #AB47BC' : '4px solid #EC407A',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                            transition: 'all 0.15s ease',
+                            '&:hover': {
+                              borderLeftWidth: '5px',
+                            },
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              fontFamily: '"JetBrains Mono", monospace',
+                              color: '#f0f0f0',
+                              fontWeight: 700,
+                              mb: 0.5,
+                              fontSize: '2rem',
+                            }}
+                          >
+                            {stat.value}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.1em',
+                              fontWeight: 600,
+                              color: '#808080',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            {stat.label}
+                          </Typography>
+                        </Box>
+                        )
+                      })}
+                    </Box>
+                  )}
+
+                  {/* Features */}
+                  {module.features && (
+                    <Box sx={{ mt: 'auto', pt: 4, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                      <Typography
+                        sx={{
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.15em',
+                          mb: 3,
+                          fontWeight: 700,
+                          color: '#808080',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        Fonctionnalités
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        {module.features.map((feature, idx) => (
+                          <Box
+                            key={idx}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                              py: 1,
+                              px: 0,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                width: idx === 0 ? 24 : idx === 1 ? 20 : 16,
+                                height: 2,
+                                flexShrink: 0,
+                                backgroundColor: idx % 2 === 0 ? '#00E5FF' : '#EC407A',
+                              }}
+                            />
+                            <Typography sx={{ color: '#f0f0f0', fontSize: '0.9375rem', fontWeight: 400 }}>
+                              {feature}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center', textAlign: 'center', p: 4 }}>
+                  {/* Icône simple */}
+                  <Box sx={{ mb: 4, color: '#AB47BC', opacity: 0.6 }}>
+                    {module.icon}
+                  </Box>
+
+                  {/* Nom du module */}
+                  <Typography
+                    sx={{
+                      mb: 2,
+                      fontSize: '1.5rem',
+                      fontWeight: 700,
+                      color: '#f0f0f0',
+                    }}
+                  >
+                    {module.name}
+                  </Typography>
+
+                  {/* Subtitle */}
+                  {module.subtitle && (
+                    <Box
                       sx={{
-                        fontFamily: '"JetBrains Mono", monospace',
-                        color: '#A0A0A0',
-                        fontSize: '0.875rem',
-                        maxWidth: '400px',
+                        mb: 3,
+                        px: 2,
+                        py: 0.5,
+                        border: '1px solid #AB47BC',
+                        color: '#AB47BC',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {module.subtitle}
+                    </Box>
+                  )}
+
+                  {/* Description */}
+                  {module.description && (
+                    <Typography
+                      sx={{
+                        mb: 4,
+                        maxWidth: '320px',
                         mx: 'auto',
+                        color: '#a0a0a0',
+                        fontSize: '0.875rem',
                         lineHeight: 1.6,
                       }}
                     >
@@ -200,125 +417,44 @@ export default function ModulesPage() {
                     </Typography>
                   )}
 
-                  {/* Éléments secondaires en bas */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: 16,
-                      left: 16,
-                      right: 16,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      zIndex: 2,
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          background: 'rgba(0, 255, 255, 0.1)',
-                          border: '1px solid rgba(0, 255, 255, 0.4)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#00FFFF',
-                          fontFamily: '"JetBrains Mono", monospace',
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                          boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)',
-                        }}
-                      >
-                        D
-                      </Box>
+                  {/* Features */}
+                  {module.features && (
+                    <Box sx={{ width: '100%', mt: 'auto', pt: 3, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                       <Typography
-                        variant="body2"
                         sx={{
-                          fontFamily: '"JetBrains Mono", monospace',
-                          color: '#FFFFFF',
-                          fontSize: '0.875rem',
-                          textShadow: '0 0 5px rgba(0, 255, 255, 0.4)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.15em',
+                          mb: 2,
+                          fontWeight: 700,
+                          color: '#606060',
+                          fontSize: '0.6875rem',
                         }}
                       >
-                        Dobernaton
+                        À venir
                       </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        {module.features.map((feature, idx) => (
+                          <Typography
+                            key={idx}
+                            sx={{
+                              color: '#909090',
+                              fontSize: '0.875rem',
+                              fontWeight: 400,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {feature}
+                          </Typography>
+                        ))}
+                      </Box>
                     </Box>
-
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        background: 'rgba(0, 255, 255, 0.1)',
-                        border: '1px solid rgba(0, 255, 255, 0.4)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#00FFFF',
-                        boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)',
-                      }}
-                    >
-                      ↓
-                    </Box>
-                  </Box>
-
-                  {/* Flèche en haut à droite */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 16,
-                      right: 16,
-                      color: '#00FFFF',
-                      fontSize: '1.2rem',
-                      filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.8))',
-                      zIndex: 2,
-                    }}
-                  >
-                    ↓
-                  </Box>
-                </Box>
-              ) : (
-                <>
-                  {/* Module inactif - très discret */}
-                  <Box
-                    sx={{
-                      color: 'rgba(160, 160, 160, 0.2)',
-                      mb: 2,
-                      filter: 'none',
-                    }}
-                  >
-                    {module.icon}
-                  </Box>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontFamily: '"Inter", sans-serif',
-                      color: 'rgba(160, 160, 160, 0.4)',
-                      mb: 1,
-                      fontWeight: 500,
-                    }}
-                  >
-                    {module.name}
-                  </Typography>
-                  {module.subtitle && (
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontFamily: '"JetBrains Mono", monospace',
-                        color: 'rgba(96, 96, 96, 0.5)',
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      {module.subtitle}
-                    </Typography>
                   )}
-                </>
+                </Box>
               )}
             </ModuleCard>
           </Grid>
-        ))}
+          )
+        })}
       </Grid>
     </Box>
   )

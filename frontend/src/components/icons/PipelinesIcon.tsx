@@ -1,35 +1,32 @@
 import { Box, SxProps, Theme } from '@mui/material'
+import pipelineLogo from '../../assets/pipeline_logo.png'
 
 interface PipelinesIconProps {
   sx?: SxProps<Theme>
   active?: boolean
 }
 
+/**
+ * Logo Pipelines en image (comme Kubernetes) : le mask donne un carré avec ce PNG.
+ * Actif = logo tel quel, inactif = gris (grayscale) pour uniformité sidebar.
+ */
 export default function PipelinesIcon({ sx, active = false }: PipelinesIconProps) {
-  const color = active ? '#00FFFF' : '#A0A0A0'
-  
   return (
     <Box
-      component="svg"
-      viewBox="0 0 24 24"
+      component="img"
+      src={pipelineLogo}
+      alt=""
+      aria-hidden
       sx={{
         width: 24,
         height: 24,
-        fill: 'none',
-        stroke: color,
-        strokeWidth: 1.5,
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        filter: active ? 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.8))' : 'none',
+        objectFit: 'contain',
+        filter: active ? 'none' : 'grayscale(1) brightness(0.85) contrast(0.9)',
+        opacity: active ? 1 : 0.9,
         transition: 'all 0.3s ease',
+        flexShrink: 0,
         ...sx,
       }}
-    >
-      {/* Pipeline/workflow style */}
-      <circle cx="6" cy="6" r="2" fill={color} opacity={active ? 0.8 : 0.5} />
-      <circle cx="12" cy="12" r="2" fill={color} opacity={active ? 0.8 : 0.5} />
-      <circle cx="18" cy="18" r="2" fill={color} opacity={active ? 0.8 : 0.5} />
-      <path d="M8 6L10 12M14 12L16 18" stroke={color} strokeWidth="1.5" />
-    </Box>
+    />
   )
 }

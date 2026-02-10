@@ -61,9 +61,9 @@ export interface TerraformDriftResponse {
 }
 
 export const terraformService = {
-  getStates: async (): Promise<TerraformStateResponse> => {
+  getStates: async (projectId: string): Promise<TerraformStateResponse> => {
     try {
-      const response = await apiClient.get<TerraformStateResponse>('/api/v1/terraform/states')
+      const response = await apiClient.get<TerraformStateResponse>(`/api/v1/terraform/states?project_id=${projectId}`)
       if (!response.data || !response.data.items) {
         return { items: [] }
       }

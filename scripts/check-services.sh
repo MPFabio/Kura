@@ -58,6 +58,18 @@ if curl -s http://localhost:3000/api/health > /dev/null 2>&1; then
 else
     echo "  ❌ Grafana: ERREUR"
 fi
+
+if curl -s http://localhost:8084/health 2>/dev/null | grep -q '"status":"ok"'; then
+    echo "  ✅ Pipeline Service (port 8084): OK - http://localhost:8084"
+else
+    echo "  ❌ Pipeline Service (port 8084): ERREUR"
+fi
+
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/pipeline/runs 2>/dev/null | grep -qE '^(200|401)'; then
+    echo "  ✅ Pipeline via Kong (port 8000): OK - http://localhost:8000/api/v1/pipeline/runs"
+else
+    echo "  ❌ Pipeline via Kong: ERREUR"
+fi
 echo ""
 
 echo "📝 Note: PostgreSQL, Redis et Kafka ne sont PAS accessibles via un navigateur web."

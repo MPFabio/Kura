@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: awx
+  namespace: kura
+  labels:
+    app: awx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: awx
+  template:
+    metadata:
+      labels:
+        app: awx
+    spec:
+      containers:
+      - name: awx
+        image: ansible/awx:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: AWX_ADMIN_USER
+          value: "admin"
+        - name: AWX_ADMIN_PASSWORD
+          value: "admin"
+        - name: DATABASE_HOST
+          value: "awx-postgres"
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          value: "awx"
+        - name: DATABASE_USER
+          value: "awx"
+        - name: DATABASE_PASSWORD
+          value: "awxpassword"
+        - name: MEMCACHED_HOST
+          value: "awx-memcached"
+        - name: MEMCACHED_PORT
+          value: "11211"
+        - name: AWX_TASK_CONTAINER_REPO
+          value: "ansible/awx"
+        - name: AWX_WEB_CONTAINER_REPO
+          value: "ansible/awx"
+        volumeMounts:
+        - name: awx-data
+          mountPath: /var/lib/awx
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        readinessProbe:
+          httpGet:
+            path: /api/v2/ping/
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /api/v2/ping/
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: awx-data
+        persistentVolumeClaim:
+          claimName: awx-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: awx
+  namespace: kura
+  labels:
+    app: awx
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: awx

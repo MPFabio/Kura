@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,6 +38,23 @@ func NewK8sHandler(svc *service.K8sService, clusterService *service.ClusterServi
 	}
 }
 
+// gkePluginErrorResponse détecte l'échec du plugin GKE (exit code 1) et retourne un message clair pour l'utilisateur.
+func gkePluginErrorResponse(err error) (msg string, httpCode int) {
+	if err == nil {
+		return "", 0
+	}
+	s := err.Error()
+	if !strings.Contains(s, "gke-gcloud-auth-plugin") {
+		return "", 0
+	}
+	if strings.Contains(s, "exit code 1") || strings.Contains(s, "not found") {
+		return "Cluster GKE : le plugin d'authentification n'a pas pu obtenir les identifiants. " +
+			"En Docker, définissez GOOGLE_APPLICATION_CREDENTIALS et montez la clé JSON du compte de service GCP " +
+			"(voir docs/CONNECTER_CLUSTER_GKE.md). Sinon, utilisez un kubeconfig avec token (section 5 du même doc).", http.StatusServiceUnavailable
+	}
+	return "", 0
+}
+
 // checkService vérifie si le service est disponible et le crée dynamiquement si nécessaire.
 func (h *K8sHandler) checkService(c *gin.Context) bool {
 	h.mu.RLock()
@@ -63,6 +83,30 @@ func (h *K8sHandler) checkService(c *gin.Context) bool {
 		return false
 	}
 
+	// GKE : écrire la clé, activer gcloud (le plugin appelle "gcloud config config-helper"), et définir les env
+	if activeCluster.ClusterType == "gke" && activeCluster.CloudCredentials != "" {
+		gcpPath, gcpErr := h.clusterService.WriteGCPCredentialsToTempFile(activeCluster)
+		if gcpErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": fmt.Sprintf("Erreur lors de la préparation des credentials GCP: %v", gcpErr),
+			})
+			return false
+		}
+		if gcpPath != "" {
+			os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", gcpPath)
+			// Le plugin GKE appelle "gcloud config config-helper" ; gcloud doit avoir le compte activé
+			gcloudConfigDir := filepath.Join("/tmp/kubeconfigs", "gcloud-"+activeCluster.ID)
+			os.MkdirAll(gcloudConfigDir, 0755)
+			os.Setenv("CLOUDSDK_CONFIG", gcloudConfigDir)
+			cmd := exec.Command("gcloud", "auth", "activate-service-account", "--key-file="+gcpPath, "--quiet")
+			cmd.Env = append(os.Environ(), "CLOUDSDK_CONFIG="+gcloudConfigDir)
+			if err := cmd.Run(); err != nil {
+				log.Printf("gcloud auth activate-service-account: %v", err)
+			}
+			// CLOUDSDK_CONFIG déjà défini ci-dessus pour que le plugin le voie
+		}
+	}
+
 	// Créer un client Kubernetes temporaire à partir du cluster actif
 	kubeconfigPath, err := h.clusterService.SaveKubeconfigToFile(ctx, activeCluster.ID)
 	if err != nil {
@@ -87,6 +131,10 @@ func (h *K8sHandler) checkService(c *gin.Context) bool {
 
 	k8sClient, err := k8s.NewClient(tempCfg)
 	if err != nil {
+		if msg, code := gkePluginErrorResponse(err); code != 0 {
+			c.JSON(code, gin.H{"error": msg})
+			return false
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("Erreur lors de la connexion au cluster: %v", err),
 		})
@@ -124,6 +172,10 @@ func (h *K8sHandler) GetNamespaces(c *gin.Context) {
 	namespaces, err := h.svc.ListNamespaces(ctx)
 	if err != nil {
 		log.Printf("Erreur GetNamespaces: %v", err)
+		if msg, code := gkePluginErrorResponse(err); code != 0 {
+			c.JSON(code, gin.H{"error": msg})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "impossible de récupérer les namespaces"})
 		return
 	}
@@ -168,14 +220,14 @@ func (h *K8sHandler) GetPods(c *gin.Context) {
 	pods, err := h.svc.ListPods(ctx, namespace)
 	if err != nil {
 		log.Printf("Erreur GetPods pour namespace %s: %v", namespace, err)
-		
+
 		// Vérifier si c'est une erreur de namespace non trouvé
 		errStr := strings.ToLower(err.Error())
 		if strings.Contains(errStr, "not found") || strings.Contains(errStr, "notfound") {
 			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("namespace '%s' non trouvé", namespace)})
 			return
 		}
-		
+
 		// Autres erreurs
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -323,6 +375,10 @@ func (h *K8sHandler) GetNodes(c *gin.Context) {
 	nodes, err := h.svc.ListNodes(ctx)
 	if err != nil {
 		log.Printf("Erreur GetNodes: %v", err)
+		if msg, code := gkePluginErrorResponse(err); code != 0 {
+			c.JSON(code, gin.H{"error": msg})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -338,7 +394,7 @@ func (h *K8sHandler) GetPodLogs(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 	container := c.Query("container")
-	
+
 	// Paramètre optionnel pour limiter le nombre de lignes
 	var tailLines *int64
 	if tailStr := c.Query("tail"); tailStr != "" {
@@ -430,6 +486,110 @@ func (h *K8sHandler) GetServiceYAML(c *gin.Context) {
 		return
 	}
 
+	c.Data(http.StatusOK, "application/x-yaml", []byte(yaml))
+}
+
+// GetPodDetail retourne les détails d'un pod (JSON) pour l'overview et la liste des containers.
+func (h *K8sHandler) GetPodDetail(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	if namespace == "" || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "namespace et name requis"})
+		return
+	}
+	pod, err := h.svc.GetPod(ctx, namespace, name)
+	if err != nil {
+		log.Printf("Erreur GetPod pour pod %s/%s: %v", namespace, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, pod)
+}
+
+// GetDeploymentDetail retourne les détails d'un deployment (JSON) pour l'overview.
+func (h *K8sHandler) GetDeploymentDetail(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	if namespace == "" || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "namespace et name requis"})
+		return
+	}
+	deployment, err := h.svc.GetDeployment(ctx, namespace, name)
+	if err != nil {
+		log.Printf("Erreur GetDeployment pour deployment %s/%s: %v", namespace, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, deployment)
+}
+
+// GetConfigMapYAML retourne le YAML d'un ConfigMap.
+func (h *K8sHandler) GetConfigMapYAML(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	if namespace == "" || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "namespace et name requis"})
+		return
+	}
+	yaml, err := h.svc.GetConfigMapYAML(ctx, namespace, name)
+	if err != nil {
+		log.Printf("Erreur GetConfigMapYAML pour configmap %s/%s: %v", namespace, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Data(http.StatusOK, "application/x-yaml", []byte(yaml))
+}
+
+// GetSecretYAML retourne le YAML d'un Secret.
+func (h *K8sHandler) GetSecretYAML(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	if namespace == "" || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "namespace et name requis"})
+		return
+	}
+	yaml, err := h.svc.GetSecretYAML(ctx, namespace, name)
+	if err != nil {
+		log.Printf("Erreur GetSecretYAML pour secret %s/%s: %v", namespace, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Data(http.StatusOK, "application/x-yaml", []byte(yaml))
+}
+
+// GetNodeYAML retourne le YAML d'un Node (ressource cluster-scoped).
+func (h *K8sHandler) GetNodeYAML(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name requis"})
+		return
+	}
+	yaml, err := h.svc.GetNodeYAML(ctx, name)
+	if err != nil {
+		log.Printf("Erreur GetNodeYAML pour node %s: %v", name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.Data(http.StatusOK, "application/x-yaml", []byte(yaml))
 }
 
@@ -785,4 +945,3 @@ func (h *K8sHandler) GetEvents(c *gin.Context) {
 		"items": events,
 	})
 }
-

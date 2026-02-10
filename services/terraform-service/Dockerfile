@@ -4,15 +4,17 @@ WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates && update-ca-certificates
 
-# Étape 1 : préparer le cache des dépendances à partir du go.mod
-COPY go.mod ./
-RUN go mod download && go mod verify
+# Étape 1 : copier go.mod et go.sum (si présent)
+COPY go.mod go.sum* ./
 
-# Étape 2 : copier le code source et s'assurer que go.sum contient bien toutes les entrées nécessaires
+# Étape 2 : télécharger toutes les dépendances
+RUN go mod download
+
+# Étape 3 : copier le code source et s'assurer que go.sum contient bien toutes les entrées nécessaires
 COPY . .
 RUN go mod tidy
 
-# Étape 3 : builder le binaire
+# Étape 4 : builder le binaire
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o terraform-service ./main.go
 
 FROM gcr.io/distroless/base-debian12

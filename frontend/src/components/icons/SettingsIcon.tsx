@@ -1,36 +1,36 @@
 import { Box, SxProps, Theme } from '@mui/material'
+import parametresLogo from '../../assets/parametres_logo.png'
+
+const ICON_COLOR_ACTIVE = '#00E5FF'
+const ICON_COLOR_INACTIVE = '#b8b8b8'
 
 interface SettingsIconProps {
   sx?: SxProps<Theme>
   active?: boolean
 }
 
+/** Même rendu que Terraform/Ansible : mask + couleur unie (cyan actif, gris inactif). */
 export default function SettingsIcon({ sx, active = false }: SettingsIconProps) {
-  const color = active ? '#00FFFF' : '#A0A0A0'
-  
   return (
     <Box
-      component="svg"
-      viewBox="0 0 24 24"
+      aria-hidden
       sx={{
         width: 24,
         height: 24,
-        fill: 'none',
-        stroke: color,
-        strokeWidth: 1.5,
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        filter: active ? 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.8))' : 'none',
+        backgroundColor: active ? ICON_COLOR_ACTIVE : ICON_COLOR_INACTIVE,
+        mask: `url(${parametresLogo}) center/contain no-repeat`,
+        WebkitMask: `url(${parametresLogo}) center/contain no-repeat`,
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
+        filter: 'none',
         transition: 'all 0.3s ease',
+        flexShrink: 0,
         ...sx,
       }}
-    >
-      {/* Engrenage/Paramètres */}
-      <circle cx="12" cy="12" r="3" stroke={color} />
-      <path
-        d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0l-4.243 4.243m4.242-4.242l-4.243-4.243m4.242 0l4.243 4.243"
-        stroke={color}
-      />
-    </Box>
+    />
   )
 }
