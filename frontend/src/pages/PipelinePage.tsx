@@ -218,7 +218,7 @@ export default function PipelinePage() {
       : null) ??
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL != null
       ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '')
-      : '') ||
+      : '') ??
     (typeof window !== 'undefined' ? window.location.origin : '')
   const webhookUrl = webhookBaseUrl ? `${webhookBaseUrl}/api/v1/pipeline/webhooks/github` : ''
 
