@@ -49,7 +49,7 @@ jobs:
           cat > terraform.auto.tfvars <<'EOF'
           gcp_project             = "${GCP_PROJECT_ID}"
           instance_ssh_public_key = "${pub_key} github-actions"
-EOF
+          EOF
 
       - name: Terraform Init
         run: terraform init -input=false
