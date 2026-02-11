@@ -32,6 +32,25 @@ jobs:
           echo "$GCP_SA_KEY" > $HOME/gcp-sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcp-sa.json" >> $GITHUB_ENV
 
+      - name: Inject Terraform variables
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_SSH_PRIVATE_KEY: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          tmp_key=$(mktemp)
+          printf '%s\n' "$GCP_SSH_PRIVATE_KEY" > "$tmp_key"
+          chmod 600 "$tmp_key"
+
+          pub_key=$(ssh-keygen -y -f "$tmp_key")
+          rm -f "$tmp_key"
+
+          cat > terraform.auto.tfvars <<EOF
+gcp_project             = "${GCP_PROJECT_ID}"
+instance_ssh_public_key = "${pub_key} github-actions"
+EOF
+
       - name: Terraform Init
         run: terraform init -input=false
 
