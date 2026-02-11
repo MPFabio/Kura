@@ -102,7 +102,7 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           source: release.tar.gz
-          target: /tmp/release-${{ github.sha }}
+          target: /tmp/
 
       - name: Deploy on VM
         uses: appleboy/ssh-action@v0.1.10
@@ -115,7 +115,7 @@ jobs:
 
             RELEASE_DIR="${{ env.RELEASE_DIR }}"
             RELEASE_SHA="${{ github.sha }}"
-            ARCHIVE="/tmp/release-${RELEASE_SHA}"
+            ARCHIVE="/tmp/release.tar.gz"
             RELEASE_PATH="${RELEASE_DIR}/releases/${RELEASE_SHA}"
 
             sudo mkdir -p "${RELEASE_DIR}/releases"
