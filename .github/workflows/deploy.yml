@@ -49,9 +49,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Write production env file
-        if: ${{ secrets.PROD_ENV_FILE != '' }}
         run: |
-          echo "${{ secrets.PROD_ENV_FILE }}" | base64 --decode > .env.production
+          if [ -n "${{ secrets.PROD_ENV_FILE }}" ]; then
+            echo "${{ secrets.PROD_ENV_FILE }}" | base64 --decode > .env.production
+            echo "PROD_ENV_GENERATED=1" >> $GITHUB_ENV
+          fi
+
+      - name: Check env file presence
+        run: |
+          if [ -z "${{ env.PROD_ENV_GENERATED }}" ]; then
+            echo "No .env.production generated (PROD_ENV_FILE secret empty)"
+          else
+            echo ".env.production generated successfully"
+          fi
 
       - name: Create deployment archive
         run: |
@@ -105,5 +115,4 @@ jobs:
             sudo docker system prune -af || true
 
             find "${RELEASE_DIR}/releases" -maxdepth 1 -mindepth 1 -type d | sort | head -n -2 | xargs -r sudo rm -rf
-# trigger redeploy
 # trigger redeploy
