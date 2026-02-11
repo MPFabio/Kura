@@ -6,6 +6,7 @@
 *.dylib
 *.test
 *.out
+*.tfvars
 bin/
 dist/
 Dossier_Certification/
@@ -44,6 +45,7 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+*.tfvars
 
 # Kubernetes
 *.kubeconfig
@@ -51,15 +53,6 @@ kubeconfig-*.yaml
 
 # Clé GCP (compte de service) pour GKE dans Kura
 secrets/gcp-sa.json
-
-# Terraform
-.terraform/
-*.tfstate
-*.tfstate.*
-terraform.tfvars
-infrastructure/terraform/gcp/backend.tf
-deploy_key
-deploy_key.pub
 
 # Docker
 docker-compose.override.yml

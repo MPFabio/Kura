@@ -213,12 +213,12 @@ export default function PipelinePage() {
   const isLinked = config?.linked ?? false
 
   const webhookBaseUrl =
-    ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_PUBLIC_URL
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PUBLIC_URL
       ? String(import.meta.env.VITE_PUBLIC_URL).replace(/\/$/, '')
       : null) ??
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL != null
       ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '')
-      : '')) ||
+      : '') ||
     (typeof window !== 'undefined' ? window.location.origin : '')
   const webhookUrl = webhookBaseUrl ? `${webhookBaseUrl}/api/v1/pipeline/webhooks/github` : ''
 

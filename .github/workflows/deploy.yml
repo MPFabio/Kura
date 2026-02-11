@@ -1,0 +1,75 @@
+name: Deploy to GCP VM
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+env:
+  RELEASE_DIR: /opt/kura
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write production env file
+        if: secrets.PROD_ENV_FILE != ''
+        run: |
+          echo "${{ secrets.PROD_ENV_FILE }}" | base64 --decode > .env.production
+
+      - name: Create deployment archive
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='release.tar.gz' \
+            -czf release.tar.gz .
+
+      - name: Copy archive to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          source: release.tar.gz
+          target: /tmp/release-${{ github.sha }}.tar.gz
+
+      - name: Deploy on VM
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            set -euo pipefail
+
+            ARCHIVE=/tmp/release-${GITHUB_SHA}.tar.gz
+            RELEASE_PATH=${RELEASE_DIR}/releases/${GITHUB_SHA}
+
+            sudo mkdir -p "${RELEASE_DIR}/releases"
+            sudo rm -rf "${RELEASE_PATH}"
+            sudo mkdir -p "${RELEASE_PATH}"
+            sudo tar xzf "${ARCHIVE}" -C "${RELEASE_PATH}"
+            sudo rm -f "${ARCHIVE}"
+
+            if [ -f "${RELEASE_PATH}/.env.production" ]; then
+              sudo mv "${RELEASE_PATH}/.env.production" "${RELEASE_PATH}/.env"
+            fi
+
+            sudo ln -sfn "${RELEASE_PATH}" "${RELEASE_DIR}/current"
+            cd "${RELEASE_DIR}/current"
+
+            if [ ! -f ".env" ]; then
+              echo "Missing .env file in ${RELEASE_DIR}/current" >&2
+              exit 1
+            fi
+
+            sudo docker compose --env-file .env down || true
+            sudo docker compose --env-file .env up -d --build
+            sudo docker system prune -af || true
+
+            find "${RELEASE_DIR}/releases" -maxdepth 1 -mindepth 1 -type d | sort | head -n -2 | xargs -r sudo rm -rf
