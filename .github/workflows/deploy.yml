@@ -85,6 +85,7 @@ jobs:
       - name: Create deployment archive
         run: |
           tar \
+            --warning=no-file-changed \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='release.tar.gz' \
