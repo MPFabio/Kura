@@ -113,8 +113,9 @@ jobs:
           script: |
             set -euo pipefail
 
-            ARCHIVE=/tmp/release-${GITHUB_SHA}.tar.gz
-            RELEASE_PATH=${RELEASE_DIR}/releases/${GITHUB_SHA}
+            RELEASE_SHA="${{ github.sha }}"
+            ARCHIVE="/tmp/release-${RELEASE_SHA}.tar.gz"
+            RELEASE_PATH="${RELEASE_DIR}/releases/${RELEASE_SHA}"
 
             sudo mkdir -p "${RELEASE_DIR}/releases"
             sudo rm -rf "${RELEASE_PATH}"
