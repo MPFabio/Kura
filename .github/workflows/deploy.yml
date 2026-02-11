@@ -46,9 +46,9 @@ jobs:
           pub_key=$(ssh-keygen -y -f "$tmp_key")
           rm -f "$tmp_key"
 
-          cat > terraform.auto.tfvars <<EOF
-gcp_project             = "${GCP_PROJECT_ID}"
-instance_ssh_public_key = "${pub_key} github-actions"
+          cat > terraform.auto.tfvars <<'EOF'
+          gcp_project             = "${GCP_PROJECT_ID}"
+          instance_ssh_public_key = "${pub_key} github-actions"
 EOF
 
       - name: Terraform Init
