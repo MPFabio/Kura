@@ -84,12 +84,16 @@ jobs:
 
       - name: Create deployment archive
         run: |
-          tar \
-            --warning=no-file-changed \
+          rsync -a \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='release.tar.gz' \
-            -czf release.tar.gz .
+            ./ /tmp/modulops-release
+
+          tar \
+            -C /tmp/modulops-release \
+            -czf release.tar.gz \
+            .
 
       - name: Copy archive to VM
         uses: appleboy/scp-action@v0.1.7
