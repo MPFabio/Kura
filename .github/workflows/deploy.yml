@@ -106,3 +106,4 @@ jobs:
 
             find "${RELEASE_DIR}/releases" -maxdepth 1 -mindepth 1 -type d | sort | head -n -2 | xargs -r sudo rm -rf
 # trigger redeploy
+# trigger redeploy
