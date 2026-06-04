@@ -17,6 +17,8 @@ import { useProject } from '../contexts/ProjectContext'
 import { terraformService } from '../services/terraformService'
 import { clusterService } from '../services/clusterService'
 import { ansibleService } from '../services/ansibleService'
+import { pipelineService } from '../services/pipelineService'
+import { k8sService } from '../services/k8sService'
 
 interface Module {
   id: string
@@ -71,6 +73,46 @@ export default function ModulesPage() {
     retry: false,
   })
 
+  // Namespaces pour agréger pods et services
+  const SYSTEM_NAMESPACES = ['kube-system', 'kube-public', 'kube-node-lease', 'gke-system', 'gmp-system', 'gmp-public']
+
+  const { data: namespacesData } = useQuery({
+    queryKey: ['k8s-namespaces-modules'],
+    queryFn: () => k8sService.getNamespaces(),
+    retry: false,
+  })
+
+  const userNamespaces = (namespacesData?.items ?? [])
+    .map((ns: any) => ns.name ?? ns.metadata?.name ?? ns)
+    .filter((name: string) => !SYSTEM_NAMESPACES.includes(name))
+
+  const { data: podsData } = useQuery({
+    queryKey: ['k8s-pods-all-modules', userNamespaces],
+    queryFn: async () => {
+      const results = await Promise.all(
+        userNamespaces.map((ns: string) => k8sService.getPods(ns).catch(() => ({ items: [] })))
+      )
+      return results.flatMap(r => r.items ?? [])
+    },
+    enabled: userNamespaces.length > 0,
+    retry: false,
+  })
+
+  const { data: servicesData } = useQuery({
+    queryKey: ['k8s-services-all-modules', userNamespaces],
+    queryFn: async () => {
+      const results = await Promise.all(
+        userNamespaces.map((ns: string) => k8sService.getServices(ns).catch(() => ({ items: [] })))
+      )
+      return results.flatMap(r => r.items ?? [])
+    },
+    enabled: userNamespaces.length > 0,
+    retry: false,
+  })
+
+  const podsCount = podsData?.length ?? 0
+  const servicesCount = servicesData?.length ?? 0
+
   const hasProject = !!currentProject?.id
   const statesCount = hasProject ? (terraformStatesData?.items?.length ?? 0) : null
   const clustersCount = hasProject ? (clustersData?.items?.length ?? 0) : null
@@ -78,6 +120,28 @@ export default function ModulesPage() {
   const ansibleInventoriesCount = ansibleInventoriesData?.items?.length ?? 0
   const ansibleTemplatesCount = ansibleTemplatesData?.items?.length ?? 0
   const formatStat = (n: number | null) => (n === null ? '—' : String(n))
+  
+  const { data: pipelineData } = useQuery({
+    queryKey: ['pipeline-runs'],
+    queryFn: () => pipelineService.getRuns({ limit: 50 }),
+  })
+
+
+    const runs = pipelineData?.runs ?? []
+
+    const runsCount = runs.length
+
+    const pipelinesCount = new Set(
+      runs.map(r => `${r.repository}-${r.workflow_name}`)
+    ).size
+
+    const lastRun = runs[0]
+
+    const formatDate = (s?: string) => {
+      if (!s) return '—'
+      return new Date(s).toLocaleString('fr-FR')
+    }
+
 
   const modules: Module[] = [
     {
@@ -112,8 +176,8 @@ export default function ModulesPage() {
       description: 'Gestion complète de vos clusters Kubernetes avec terminal interactif et actions en masse.',
       stats: [
         { label: 'Clusters', value: formatStat(clustersCount) },
-        { label: 'Pods', value: '0' },
-        { label: 'Services', value: '0' },
+        { label: 'Pods', value: String(podsCount) },
+        { label: 'Services', value: String(servicesCount) },
       ],
       features: [
         'Gestion multi-clusters',
@@ -151,9 +215,12 @@ export default function ModulesPage() {
       statusText: 'Module actif',
       description: 'CI/CD et pipelines de déploiement. Déclenchement, suivi des runs et intégration avec vos dépôts.',
       stats: [
-        { label: 'Pipelines', value: '0' },
-        { label: 'Runs', value: '0' },
-        { label: 'Dernier run', value: '—' },
+        { label: 'Pipelines', value: pipelinesCount },
+        { label: 'Runs', value: runsCount },
+        {
+          label: 'Dernier run',
+          value: lastRun ? formatDate(lastRun.created_at) : '—',
+        },
       ],
       features: [
         'Workflows GitHub Actions / GitLab CI',
@@ -164,12 +231,12 @@ export default function ModulesPage() {
     {
       id: 'monitoring',
       name: 'Monitoring',
-      icon: <MonitoringIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={false} />,
+      icon: <MonitoringIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/metrics',
-      active: false,
-      inactive: true,
-      status: 'available',
-      subtitle: 'Bientôt disponible',
+      active: true,
+      inactive: false,
+      status: 'active',
+      subtitle: 'Prometheus · Grafana',
       description: 'Surveillance complète de votre infrastructure avec métriques, alertes et dashboards personnalisables.',
       features: [
         'Métriques en temps réel',

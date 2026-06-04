@@ -31,7 +31,7 @@ export interface ClusterResponse {
 export const clusterService = {
   getClusters: async (projectId: string): Promise<ClusterResponse> => {
     try {
-      const response = await apiClient.get<ClusterResponse>(`/api/v1/k8s/clusters?project_id=${projectId}`)
+      const response = await apiClient.get<ClusterResponse>(`/v1/k8s/clusters?project_id=${projectId}`)
       if (!response.data || !response.data.items) {
         return { items: [] }
       }
@@ -44,7 +44,7 @@ export const clusterService = {
 
   getCluster: async (id: string): Promise<KubernetesCluster> => {
     try {
-      const response = await apiClient.get<KubernetesCluster>(`/api/v1/k8s/clusters/${id}`)
+      const response = await apiClient.get<KubernetesCluster>(`/v1/k8s/clusters/${id}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du cluster ${id}:`, error)
@@ -54,7 +54,7 @@ export const clusterService = {
 
   getActiveCluster: async (): Promise<KubernetesCluster | null> => {
     try {
-      const response = await apiClient.get<KubernetesCluster>('/api/v1/k8s/clusters/active')
+      const response = await apiClient.get<KubernetesCluster>('/v1/k8s/clusters/active')
       return response.data
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -76,7 +76,7 @@ export const clusterService = {
     is_active?: boolean
   }): Promise<KubernetesCluster> => {
     try {
-      const response = await apiClient.post<KubernetesCluster>('/api/v1/k8s/clusters', cluster)
+      const response = await apiClient.post<KubernetesCluster>('/v1/k8s/clusters', cluster)
       return response.data
     } catch (error) {
       console.error('Erreur lors de la création du cluster:', error)
@@ -97,7 +97,7 @@ export const clusterService = {
     }
   ): Promise<KubernetesCluster> => {
     try {
-      const response = await apiClient.put<KubernetesCluster>(`/api/v1/k8s/clusters/${id}`, cluster)
+      const response = await apiClient.put<KubernetesCluster>(`/v1/k8s/clusters/${id}`, cluster)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la mise à jour du cluster ${id}:`, error)
@@ -107,7 +107,7 @@ export const clusterService = {
 
   deleteCluster: async (id: string): Promise<void> => {
     try {
-      await apiClient.delete(`/api/v1/k8s/clusters/${id}`)
+      await apiClient.delete(`/v1/k8s/clusters/${id}`)
     } catch (error) {
       console.error(`Erreur lors de la suppression du cluster ${id}:`, error)
       throw error
@@ -116,7 +116,7 @@ export const clusterService = {
 
   setActiveCluster: async (id: string): Promise<void> => {
     try {
-      await apiClient.post(`/api/v1/k8s/clusters/${id}/activate`)
+      await apiClient.post(`/v1/k8s/clusters/${id}/activate`)
     } catch (error) {
       console.error(`Erreur lors de l'activation du cluster ${id}:`, error)
       throw error
@@ -125,7 +125,7 @@ export const clusterService = {
 
   testClusterConnection: async (id: string): Promise<ClusterStatus> => {
     try {
-      const response = await apiClient.get<ClusterStatus>(`/api/v1/k8s/clusters/${id}/test`)
+      const response = await apiClient.get<ClusterStatus>(`/v1/k8s/clusters/${id}/test`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors du test de connexion du cluster ${id}:`, error)

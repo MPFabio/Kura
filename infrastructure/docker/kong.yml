@@ -14,6 +14,14 @@ services:
     - POST
     - PUT
     - DELETE
+    plugins:
+    - name: rate-limiting
+      config:
+        minute: 20
+        hour: 200
+        policy: local
+        limit_by: ip
+        error_message: "Trop de tentatives d'authentification. Veuillez réessayer plus tard."
   - name: projects-route
     paths:
     - /api/v1/projects
@@ -74,6 +82,17 @@ services:
     strip_path: false
     methods:
     - POST
+
+- name: metrics-service
+  url: http://metrics-service:8086
+  routes:
+  - name: metrics-route
+    paths:
+    - /api/v1/metrics
+    strip_path: false
+    methods:
+    - GET
+    - OPTIONS
 
 - name: pipeline-service
   url: http://pipeline-service:8084

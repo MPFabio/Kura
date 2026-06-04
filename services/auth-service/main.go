@@ -17,6 +17,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// authRateLimiter protège Login et Register contre le brute-force :
+// 10 tentatives par IP par minute (défense en profondeur derrière Kong).
+var authRateLimiter = handler.NewRateLimiter(10, time.Minute)
+
 func main() {
 	// Charger la configuration
 	cfg, err := config.Load()
@@ -94,8 +98,8 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 	{
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
+			auth.POST("/register", authRateLimiter.Middleware(), authHandler.Register)
+			auth.POST("/login", authRateLimiter.Middleware(), authHandler.Login)
 			auth.POST("/refresh", authHandler.RefreshToken)
 			auth.POST("/logout", authHandler.Logout)
 			auth.GET("/me", authHandler.RequireAuth(), authHandler.GetCurrentUser)
