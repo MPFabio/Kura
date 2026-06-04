@@ -104,6 +104,31 @@ jobs:
           source: release.tar.gz
           target: /tmp/
 
+      # Écriture des secrets sensibles sur le runner avant envoi sur la VM
+      - name: Write secrets to files
+        run: |
+          mkdir -p /tmp/kura-secrets
+
+          # Service account GCP (pour k8s-service et terraform-service)
+          if [ -n "${{ secrets.GCP_SA_JSON }}" ]; then
+            echo '${{ secrets.GCP_SA_JSON }}' > /tmp/kura-secrets/gcp-sa.json
+          fi
+
+          # Kubeconfig Ansible (pour Semaphore → kubernetes.core)
+          if [ -n "${{ secrets.KUBECONFIG_ANSIBLE }}" ]; then
+            echo '${{ secrets.KUBECONFIG_ANSIBLE }}' > /tmp/kura-secrets/kubeconfig-ansible
+          fi
+
+      - name: Copy secrets to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          source: /tmp/kura-secrets
+          target: /tmp/
+          strip_components: 0
+
       - name: Deploy on VM
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -118,15 +143,43 @@ jobs:
             ARCHIVE="/tmp/release.tar.gz"
             RELEASE_PATH="${RELEASE_DIR}/releases/${RELEASE_SHA}"
 
+            # Répertoire persistant pour les secrets (survit aux redéploiements)
+            sudo mkdir -p /opt/kura-secrets
+
+            # Copier les secrets depuis le runner vers l'emplacement persistant
+            if [ -f /tmp/kura-secrets/gcp-sa.json ]; then
+              sudo cp /tmp/kura-secrets/gcp-sa.json /opt/kura-secrets/gcp-sa.json
+              sudo chmod 600 /opt/kura-secrets/gcp-sa.json
+            fi
+
+            if [ -f /tmp/kura-secrets/kubeconfig-ansible ]; then
+              sudo cp /tmp/kura-secrets/kubeconfig-ansible /opt/kura-secrets/kubeconfig-ansible
+              sudo chmod 600 /opt/kura-secrets/kubeconfig-ansible
+            fi
+
+            sudo rm -rf /tmp/kura-secrets
+
             sudo mkdir -p "${RELEASE_DIR}/releases"
             sudo rm -rf "${RELEASE_PATH}"
             sudo mkdir -p "${RELEASE_PATH}"
             sudo tar xzf "${ARCHIVE}" -C "${RELEASE_PATH}"
             sudo rm -f "${ARCHIVE}"
 
+            # Créer le dossier secrets dans la release (fichier, pas dossier)
+            sudo mkdir -p "${RELEASE_PATH}/secrets"
+            if [ -f /opt/kura-secrets/gcp-sa.json ]; then
+              sudo cp /opt/kura-secrets/gcp-sa.json "${RELEASE_PATH}/secrets/gcp-sa.json"
+            fi
+
             if [ -f "${RELEASE_PATH}/.env.production" ]; then
               sudo mv "${RELEASE_PATH}/.env.production" "${RELEASE_PATH}/.env"
             fi
+
+            # Injecter les chemins de secrets dans le .env
+            sudo sed -i '/^KUBECONFIG_ANSIBLE_PATH/d' "${RELEASE_PATH}/.env"
+            echo "KUBECONFIG_ANSIBLE_PATH=/opt/kura-secrets/kubeconfig-ansible" | sudo tee -a "${RELEASE_PATH}/.env" > /dev/null
+            sudo sed -i '/^GCP_SA_KEY_PATH/d' "${RELEASE_PATH}/.env"
+            echo "GCP_SA_KEY_PATH=${RELEASE_PATH}/secrets/gcp-sa.json" | sudo tee -a "${RELEASE_PATH}/.env" > /dev/null
 
             sudo ln -sfn "${RELEASE_PATH}" "${RELEASE_DIR}/current"
             cd "${RELEASE_DIR}/current"
