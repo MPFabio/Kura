@@ -72,30 +72,10 @@ export interface UpdateProjectMemberRequest {
   role: 'admin' | 'member'
 }
 
-export interface ProjectMapping {
-  id: string
-  project_id: string
-  github_repository?: string
-  terraform_state_id?: string
-  terraform_source_id?: string
-  cluster_id?: string
-  cluster_namespace?: string
-  created_at: string
-  updated_at: string
-}
-
-export interface CreateProjectMappingRequest {
-  github_repository?: string
-  terraform_state_id?: string
-  terraform_source_id?: string
-  cluster_id?: string
-  cluster_namespace?: string
-}
-
 export const projectService = {
   getProjects: async (): Promise<ProjectResponse> => {
     try {
-      const response = await getProjectClient().get<ProjectResponse>('/api/v1/projects')
+      const response = await getProjectClient().get<ProjectResponse>('/v1/projects')
       if (!response.data || !response.data.items) {
         return { items: [] }
       }
@@ -108,7 +88,7 @@ export const projectService = {
 
   getProject: async (id: string): Promise<Project> => {
     try {
-      const response = await getProjectClient().get<Project>(`/api/v1/projects/${id}`)
+      const response = await getProjectClient().get<Project>(`/v1/projects/${id}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du projet ${id}:`, error)
@@ -118,7 +98,7 @@ export const projectService = {
 
   createProject: async (project: CreateProjectRequest): Promise<Project> => {
     try {
-      const response = await getProjectClient().post<Project>('/api/v1/projects', project)
+      const response = await getProjectClient().post<Project>('/v1/projects', project)
       return response.data
     } catch (error) {
       console.error('Erreur lors de la création du projet:', error)
@@ -128,7 +108,7 @@ export const projectService = {
 
   updateProject: async (id: string, project: UpdateProjectRequest): Promise<Project> => {
     try {
-      const response = await getProjectClient().put<Project>(`/api/v1/projects/${id}`, project)
+      const response = await getProjectClient().put<Project>(`/v1/projects/${id}`, project)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la mise à jour du projet ${id}:`, error)
@@ -138,7 +118,7 @@ export const projectService = {
 
   deleteProject: async (id: string): Promise<void> => {
     try {
-      await getProjectClient().delete(`/api/v1/projects/${id}`)
+      await getProjectClient().delete(`/v1/projects/${id}`)
     } catch (error) {
       console.error(`Erreur lors de la suppression du projet ${id}:`, error)
       throw error
@@ -147,7 +127,7 @@ export const projectService = {
 
   getProjectMembers: async (projectId: string): Promise<{ items: ProjectMember[] }> => {
     try {
-      const response = await getProjectClient().get<{ items: ProjectMember[] }>(`/api/v1/projects/${projectId}/members`)
+      const response = await getProjectClient().get<{ items: ProjectMember[] }>(`/v1/projects/${projectId}/members`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération des membres du projet ${projectId}:`, error)
@@ -157,7 +137,7 @@ export const projectService = {
 
   addProjectMember: async (projectId: string, member: AddProjectMemberRequest): Promise<ProjectMember> => {
     try {
-      const response = await getProjectClient().post<ProjectMember>(`/api/v1/projects/${projectId}/members`, member)
+      const response = await getProjectClient().post<ProjectMember>(`/v1/projects/${projectId}/members`, member)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de l'ajout du membre au projet ${projectId}:`, error)
@@ -167,7 +147,7 @@ export const projectService = {
 
   updateProjectMember: async (projectId: string, userId: string, member: UpdateProjectMemberRequest): Promise<void> => {
     try {
-      await getProjectClient().put(`/api/v1/projects/${projectId}/members/${userId}`, member)
+      await getProjectClient().put(`/v1/projects/${projectId}/members/${userId}`, member)
     } catch (error) {
       console.error(`Erreur lors de la mise à jour du membre ${userId} du projet ${projectId}:`, error)
       throw error
@@ -176,24 +156,10 @@ export const projectService = {
 
   removeProjectMember: async (projectId: string, userId: string): Promise<void> => {
     try {
-      await getProjectClient().delete(`/api/v1/projects/${projectId}/members/${userId}`)
+      await getProjectClient().delete(`/v1/projects/${projectId}/members/${userId}`)
     } catch (error) {
       console.error(`Erreur lors de la suppression du membre ${userId} du projet ${projectId}:`, error)
       throw error
     }
-  },
-
-  getProjectMappings: async (projectId: string): Promise<{ items: ProjectMapping[] }> => {
-    const response = await getProjectClient().get<{ items: ProjectMapping[] }>(`/api/v1/projects/${projectId}/mappings`)
-    return response.data
-  },
-
-  createProjectMapping: async (projectId: string, data: CreateProjectMappingRequest): Promise<ProjectMapping> => {
-    const response = await getProjectClient().post<ProjectMapping>(`/api/v1/projects/${projectId}/mappings`, data)
-    return response.data
-  },
-
-  deleteProjectMapping: async (projectId: string, mappingId: string): Promise<void> => {
-    await getProjectClient().delete(`/api/v1/projects/${projectId}/mappings/${mappingId}`)
   },
 }

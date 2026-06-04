@@ -15,7 +15,7 @@ import {
 export const k8sService = {
   getNamespaces: async (): Promise<K8sNamespacesResponse> => {
     try {
-      const response = await apiClient.get<K8sNamespacesResponse>('/api/v1/k8s/namespaces')
+      const response = await apiClient.get<K8sNamespacesResponse>('/v1/k8s/namespaces')
       // S'assurer que la réponse a le format attendu
       if (!response.data || !response.data.items) {
         return { items: [] }
@@ -33,7 +33,7 @@ export const k8sService = {
         throw new Error('Namespace requis')
       }
       const response = await apiClient.get<K8sPodsResponse>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods`
       )
       // S'assurer que la réponse a le format attendu
       if (!response.data || !response.data.items) {
@@ -52,7 +52,7 @@ export const k8sService = {
         throw new Error('Namespace requis')
       }
       const response = await apiClient.get<K8sDeploymentsResponse>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments`
       )
       if (!response.data || !response.data.items) {
         return { items: [] }
@@ -70,7 +70,7 @@ export const k8sService = {
         throw new Error('Namespace requis')
       }
       const response = await apiClient.get<K8sServicesResponse>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/services`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/services`
       )
       if (!response.data || !response.data.items) {
         return { items: [] }
@@ -88,7 +88,7 @@ export const k8sService = {
         throw new Error('Namespace requis')
       }
       const response = await apiClient.get<K8sConfigMapsResponse>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/configmaps`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/configmaps`
       )
       if (!response.data || !response.data.items) {
         return { items: [] }
@@ -106,7 +106,7 @@ export const k8sService = {
         throw new Error('Namespace requis')
       }
       const response = await apiClient.get<K8sSecretsResponse>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/secrets`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/secrets`
       )
       if (!response.data || !response.data.items) {
         return { items: [] }
@@ -120,7 +120,7 @@ export const k8sService = {
 
   getNodes: async (): Promise<K8sNodesResponse> => {
     try {
-      const response = await apiClient.get<K8sNodesResponse>('/api/v1/k8s/nodes')
+      const response = await apiClient.get<K8sNodesResponse>('/v1/k8s/nodes')
       if (!response.data || !response.data.items) {
         return { items: [] }
       }
@@ -134,7 +134,7 @@ export const k8sService = {
   getPod: async (namespace: string, name: string): Promise<K8sPodDetail> => {
     try {
       const response = await apiClient.get<K8sPodDetail>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}`
       )
       return response.data
     } catch (error) {
@@ -146,7 +146,7 @@ export const k8sService = {
   getDeployment: async (namespace: string, name: string): Promise<K8sDeploymentDetail> => {
     try {
       const response = await apiClient.get<K8sDeploymentDetail>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}`
       )
       return response.data
     } catch (error) {
@@ -161,7 +161,7 @@ export const k8sService = {
       if (container) params.append('container', container)
       if (tailLines) params.append('tail', tailLines.toString())
       const query = params.toString()
-      const url = `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}/logs${query ? `?${query}` : ''}`
+      const url = `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}/logs${query ? `?${query}` : ''}`
       const response = await apiClient.get<{ logs: string }>(url)
       return response.data.logs || ''
     } catch (error) {
@@ -173,7 +173,7 @@ export const k8sService = {
   getPodYAML: async (namespace: string, name: string): Promise<string> => {
     try {
       const response = await apiClient.get(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}/yaml`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}/yaml`,
         { responseType: 'text' }
       )
       return response.data
@@ -186,7 +186,7 @@ export const k8sService = {
   getDeploymentYAML: async (namespace: string, name: string): Promise<string> => {
     try {
       const response = await apiClient.get(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/yaml`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/yaml`,
         { responseType: 'text' }
       )
       return response.data
@@ -199,7 +199,7 @@ export const k8sService = {
   getServiceYAML: async (namespace: string, name: string): Promise<string> => {
     try {
       const response = await apiClient.get(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/services/${encodeURIComponent(name)}/yaml`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/services/${encodeURIComponent(name)}/yaml`,
         { responseType: 'text' }
       )
       return response.data
@@ -212,7 +212,7 @@ export const k8sService = {
   getConfigMapYAML: async (namespace: string, name: string): Promise<string> => {
     try {
       const response = await apiClient.get(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/configmaps/${encodeURIComponent(name)}/yaml`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/configmaps/${encodeURIComponent(name)}/yaml`,
         { responseType: 'text' }
       )
       return response.data
@@ -225,7 +225,7 @@ export const k8sService = {
   getSecretYAML: async (namespace: string, name: string): Promise<string> => {
     try {
       const response = await apiClient.get(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/secrets/${encodeURIComponent(name)}/yaml`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/secrets/${encodeURIComponent(name)}/yaml`,
         { responseType: 'text' }
       )
       return response.data
@@ -238,7 +238,7 @@ export const k8sService = {
   getNodeYAML: async (name: string): Promise<string> => {
     try {
       const response = await apiClient.get(
-        `/api/v1/k8s/nodes/${encodeURIComponent(name)}/yaml`,
+        `/v1/k8s/nodes/${encodeURIComponent(name)}/yaml`,
         { responseType: 'text' }
       )
       return response.data
@@ -251,7 +251,7 @@ export const k8sService = {
   scaleDeployment: async (namespace: string, name: string, replicas: number): Promise<void> => {
     try {
       await apiClient.put(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/scale`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/scale`,
         { replicas }
       )
     } catch (error) {
@@ -260,38 +260,10 @@ export const k8sService = {
     }
   },
 
-  restartDeployment: async (namespace: string, name: string): Promise<void> => {
-    try {
-      await apiClient.post(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/restart`
-      )
-    } catch (error) {
-      console.error(`Erreur lors du restart du deployment ${namespace}/${name}:`, error)
-      throw error
-    }
-  },
-
-  patchDeploymentEnv: async (
-    namespace: string,
-    name: string,
-    container: string,
-    env: Array<{ name: string; value: string }>
-  ): Promise<void> => {
-    try {
-      await apiClient.patch(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/env`,
-        { container, env }
-      )
-    } catch (error) {
-      console.error(`Erreur lors de la mise à jour des env vars de ${namespace}/${name}:`, error)
-      throw error
-    }
-  },
-
   deletePod: async (namespace: string, name: string): Promise<void> => {
     try {
       await apiClient.delete(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}`
       )
     } catch (error) {
       console.error(`Erreur lors de la suppression du pod ${namespace}/${name}:`, error)
@@ -302,7 +274,7 @@ export const k8sService = {
   deleteDeployment: async (namespace: string, name: string): Promise<void> => {
     try {
       await apiClient.delete(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}`
       )
     } catch (error) {
       console.error(`Erreur lors de la suppression du deployment ${namespace}/${name}:`, error)
@@ -313,7 +285,7 @@ export const k8sService = {
   deleteService: async (namespace: string, name: string): Promise<void> => {
     try {
       await apiClient.delete(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/services/${encodeURIComponent(name)}`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/services/${encodeURIComponent(name)}`
       )
     } catch (error) {
       console.error(`Erreur lors de la suppression du service ${namespace}/${name}:`, error)
@@ -324,7 +296,7 @@ export const k8sService = {
   getEvents: async (namespace: string): Promise<{ items: Event[] }> => {
     try {
       const response = await apiClient.get<{ items: Event[] }>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/events`
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/events`
       )
       return response.data
     } catch (error) {
@@ -337,7 +309,7 @@ export const k8sService = {
   bulkDeletePods: async (namespace: string, names: string[]): Promise<{ success: string[]; failed: Record<string, string>; total: number }> => {
     try {
       const response = await apiClient.post<{ success: string[]; failed: Record<string, string>; total: number }>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/bulk/delete`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/bulk/delete`,
         { names }
       )
       return response.data
@@ -350,7 +322,7 @@ export const k8sService = {
   bulkRestartPods: async (namespace: string, names: string[]): Promise<{ success: string[]; failed: Record<string, string>; total: number }> => {
     try {
       const response = await apiClient.post<{ success: string[]; failed: Record<string, string>; total: number }>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/bulk/restart`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/pods/bulk/restart`,
         { names }
       )
       return response.data
@@ -363,7 +335,7 @@ export const k8sService = {
   bulkDeleteDeployments: async (namespace: string, names: string[]): Promise<{ success: string[]; failed: Record<string, string>; total: number }> => {
     try {
       const response = await apiClient.post<{ success: string[]; failed: Record<string, string>; total: number }>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/bulk/delete`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/bulk/delete`,
         { names }
       )
       return response.data
@@ -376,7 +348,7 @@ export const k8sService = {
   bulkScaleDeployments: async (namespace: string, names: string[], replicas: number): Promise<{ success: string[]; failed: Record<string, string>; total: number }> => {
     try {
       const response = await apiClient.post<{ success: string[]; failed: Record<string, string>; total: number }>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/bulk/scale`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/bulk/scale`,
         { names, replicas }
       )
       return response.data
@@ -389,7 +361,7 @@ export const k8sService = {
   bulkDeleteServices: async (namespace: string, names: string[]): Promise<{ success: string[]; failed: Record<string, string>; total: number }> => {
     try {
       const response = await apiClient.post<{ success: string[]; failed: Record<string, string>; total: number }>(
-        `/api/v1/k8s/namespaces/${encodeURIComponent(namespace)}/services/bulk/delete`,
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/services/bulk/delete`,
         { names }
       )
       return response.data

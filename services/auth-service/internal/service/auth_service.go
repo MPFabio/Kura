@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/modulops/auth-service/internal/config"
 	"github.com/modulops/auth-service/internal/models"
@@ -12,6 +13,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
 
 type AuthService struct {
 	repo *repository.Repository
@@ -27,38 +29,57 @@ func NewAuthService(repo *repository.Repository, cfg *config.Config) *AuthServic
 
 // Register enregistre un nouvel utilisateur
 func (s *AuthService) Register(req *models.RegisterRequest) (*models.User, error) {
-	// Vérifier si l'email existe déjà
-	_, err := s.repo.GetUserByEmail(req.Email)
-	if err == nil {
-		return nil, errors.New("cet email est déjà utilisé")
-	}
 
-	// Vérifier si le nom d'utilisateur existe déjà
-	_, err = s.repo.GetUserByUsername(req.Username)
-	if err == nil {
-		return nil, errors.New("ce nom d'utilisateur est déjà utilisé")
-	}
+    //Vérifier champs obligatoires
+    if req.Email == "" || req.Password == "" || req.Username == "" {
+        return nil, errors.New("champs obligatoires manquants")
+    }
 
-	// Hasher le mot de passe
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("erreur lors du hachage du mot de passe: %w", err)
-	}
+    //Vérifier email
+    userByEmail, err := s.repo.GetUserByEmail(req.Email)
+    if err == nil && userByEmail != nil {
+        return nil, errors.New("cet email est déjà utilisé")
+    }
+    if err != nil && !errors.Is(err, repository.ErrNotFound) {
+        return nil, fmt.Errorf("erreur DB email: %w", err)
+    }
 
-	// Créer l'utilisateur
-	user := models.NewUser(req.Email, req.Username, string(hashedPassword))
-	user.FirstName = req.FirstName
-	user.LastName = req.LastName
+    //Vérifier username
+    userByUsername, err := s.repo.GetUserByUsername(req.Username)
+    if err == nil && userByUsername != nil {
+        return nil, errors.New("ce nom d'utilisateur est déjà utilisé")
+    }
+    if err != nil && !errors.Is(err, repository.ErrNotFound) {
+        return nil, fmt.Errorf("erreur DB username: %w", err)
+    }
 
-	// Enregistrer dans la base de données
-	if err := s.repo.CreateUser(user); err != nil {
-		return nil, fmt.Errorf("erreur lors de la création de l'utilisateur: %w", err)
-	}
+    //Hasher le mot de passe
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+    if err != nil {
+        return nil, fmt.Errorf("erreur hash password: %w", err)
+    }
 
-	// Ne pas retourner le mot de passe
-	user.Password = ""
+    //Créer utilisateur
+    user := models.NewUser(req.Email, req.Username, string(hashedPassword))
 
-	return user, nil
+    //Sécuriser ID
+    if user.ID == "" {
+        user.ID = uuid.NewString()
+    }
+
+    user.FirstName = req.FirstName
+    user.LastName = req.LastName
+
+    //Insert DB + debug
+    if err := s.repo.CreateUser(user); err != nil {
+        fmt.Printf("CreateUser ERROR: %v\n", err)
+        return nil, fmt.Errorf("erreur lors de la création de l'utilisateur: %w", err)
+    }
+
+    //Nettoyer réponse
+    user.Password = ""
+
+    return user, nil
 }
 
 // Login authentifie un utilisateur
@@ -112,6 +133,7 @@ func (s *AuthService) Login(req *models.LoginRequest) (*models.LoginResponse, er
 		ExpiresAt:    expiresAt,
 	}, nil
 }
+
 
 // RefreshToken génère un nouveau token à partir d'un refresh token
 func (s *AuthService) RefreshToken(refreshToken string) (*models.LoginResponse, error) {

@@ -63,7 +63,7 @@ export interface TerraformDriftResponse {
 export const terraformService = {
   getStates: async (projectId: string): Promise<TerraformStateResponse> => {
     try {
-      const response = await apiClient.get<TerraformStateResponse>(`/api/v1/terraform/states?project_id=${projectId}`)
+      const response = await apiClient.get<TerraformStateResponse>(`/v1/terraform/states?project_id=${projectId}`)
       if (!response.data || !response.data.items) {
         return { items: [] }
       }
@@ -76,7 +76,7 @@ export const terraformService = {
 
   getState: async (id: string): Promise<TerraformState> => {
     try {
-      const response = await apiClient.get<TerraformState>(`/api/v1/terraform/states/${id}`)
+      const response = await apiClient.get<TerraformState>(`/v1/terraform/states/${id}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération de l'état Terraform ${id}:`, error)
@@ -86,7 +86,7 @@ export const terraformService = {
 
   getStateSummary: async (id: string): Promise<TerraformStateSummary> => {
     try {
-      const response = await apiClient.get<TerraformStateSummary>(`/api/v1/terraform/states/${id}/summary`)
+      const response = await apiClient.get<TerraformStateSummary>(`/v1/terraform/states/${id}/summary`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du résumé de l'état ${id}:`, error)
@@ -96,7 +96,7 @@ export const terraformService = {
 
   getResources: async (id: string): Promise<{ items: TerraformResource[] }> => {
     try {
-      const response = await apiClient.get<{ items: TerraformResource[] }>(`/api/v1/terraform/states/${id}/resources`)
+      const response = await apiClient.get<{ items: TerraformResource[] }>(`/v1/terraform/states/${id}/resources`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération des ressources pour l'état ${id}:`, error)
@@ -106,7 +106,7 @@ export const terraformService = {
 
   getOutputs: async (id: string): Promise<Record<string, any>> => {
     try {
-      const response = await apiClient.get<Record<string, any>>(`/api/v1/terraform/states/${id}/outputs`)
+      const response = await apiClient.get<Record<string, any>>(`/v1/terraform/states/${id}/outputs`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération des sorties pour l'état ${id}:`, error)
@@ -116,7 +116,7 @@ export const terraformService = {
 
   detectDrift: async (id: string): Promise<TerraformDriftResponse> => {
     try {
-      const response = await apiClient.post<TerraformDriftResponse>(`/api/v1/terraform/states/${id}/drift`)
+      const response = await apiClient.post<TerraformDriftResponse>(`/v1/terraform/states/${id}/drift`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la détection de drift pour l'état ${id}:`, error)
@@ -124,15 +124,12 @@ export const terraformService = {
     }
   },
 
-  uploadState: async (name: string, stateFile: File, projectId?: string): Promise<TerraformState> => {
+  uploadState: async (name: string, stateFile: File): Promise<TerraformState> => {
     try {
       const formData = new FormData()
       formData.append('file', stateFile)
       formData.append('name', name)
-      if (projectId) {
-        formData.append('project_id', projectId)
-      }
-      const response = await apiClient.post<TerraformState>('/api/v1/terraform/states/upload', formData, {
+      const response = await apiClient.post<TerraformState>('/v1/terraform/states/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -146,7 +143,7 @@ export const terraformService = {
 
   uploadStateJSON: async (name: string, state: any): Promise<TerraformState> => {
     try {
-      const response = await apiClient.post<TerraformState>('/api/v1/terraform/states', {
+      const response = await apiClient.post<TerraformState>('/v1/terraform/states', {
         name,
         state,
       })
@@ -159,7 +156,7 @@ export const terraformService = {
 
   deleteState: async (id: string): Promise<void> => {
     try {
-      await apiClient.delete(`/api/v1/terraform/states/${id}`)
+      await apiClient.delete(`/v1/terraform/states/${id}`)
     } catch (error) {
       console.error(`Erreur lors de la suppression de l'état ${id}:`, error)
       throw error
@@ -222,7 +219,7 @@ export interface TerraformSyncJob {
 export const terraformSourceService = {
   getSources: async (): Promise<TerraformSourceResponse> => {
     try {
-      const response = await apiClient.get<TerraformSourceResponse>('/api/v1/terraform/sources')
+      const response = await apiClient.get<TerraformSourceResponse>('/v1/terraform/sources')
       if (!response.data || !response.data.items) {
         return { items: [] }
       }
@@ -235,7 +232,7 @@ export const terraformSourceService = {
 
   getSource: async (id: string): Promise<TerraformSource> => {
     try {
-      const response = await apiClient.get<TerraformSource>(`/api/v1/terraform/sources/${id}`)
+      const response = await apiClient.get<TerraformSource>(`/v1/terraform/sources/${id}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération de la source ${id}:`, error)
@@ -245,7 +242,7 @@ export const terraformSourceService = {
 
   addSource: async (source: Partial<TerraformSource>): Promise<TerraformSource> => {
     try {
-      const response = await apiClient.post<TerraformSource>('/api/v1/terraform/sources', source)
+      const response = await apiClient.post<TerraformSource>('/v1/terraform/sources', source)
       return response.data
     } catch (error) {
       console.error('Erreur lors de l\'ajout de la source:', error)
@@ -255,7 +252,7 @@ export const terraformSourceService = {
 
   syncSource: async (sourceId: string): Promise<TerraformSyncJob> => {
     try {
-      const response = await apiClient.post<TerraformSyncJob>(`/api/v1/terraform/sources/${sourceId}/sync`)
+      const response = await apiClient.post<TerraformSyncJob>(`/v1/terraform/sources/${sourceId}/sync`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la synchronisation de la source ${sourceId}:`, error)
@@ -265,7 +262,7 @@ export const terraformSourceService = {
 
   updateSource: async (sourceId: string, source: Partial<TerraformSource>): Promise<TerraformSource> => {
     try {
-      const response = await apiClient.put<TerraformSource>(`/api/v1/terraform/sources/${sourceId}`, source)
+      const response = await apiClient.put<TerraformSource>(`/v1/terraform/sources/${sourceId}`, source)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la mise à jour de la source ${sourceId}:`, error)
@@ -275,7 +272,7 @@ export const terraformSourceService = {
 
   deleteSource: async (sourceId: string): Promise<void> => {
     try {
-      await apiClient.delete(`/api/v1/terraform/sources/${sourceId}`)
+      await apiClient.delete(`/v1/terraform/sources/${sourceId}`)
     } catch (error) {
       console.error(`Erreur lors de la suppression de la source ${sourceId}:`, error)
       throw error
@@ -290,7 +287,7 @@ export const terraformSourceService = {
     aws_secret_access_key?: string
   }): Promise<{ message: string }> => {
     try {
-      const response = await apiClient.post<{ message: string }>('/api/v1/terraform/sources/test-s3', config)
+      const response = await apiClient.post<{ message: string }>('/v1/terraform/sources/test-s3', config)
       return response.data
     } catch (error) {
       console.error('Erreur lors du test de connexion S3:', error)

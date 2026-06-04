@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
 import {
   Box,
   Alert,
@@ -31,7 +30,6 @@ import {
   Link as LinkIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleCard from '../components/ModuleCard'
@@ -41,8 +39,6 @@ import {
   type PipelineRunStatus,
   type PipelineConfig,
 } from '../services/pipelineService'
-import { projectService } from '../services/projectService'
-import { useProject } from '../contexts/ProjectContext'
 import { jellyfishColors } from '../theme'
 
 const providerLabels: Record<string, string> = {
@@ -133,7 +129,6 @@ function formatDate(s?: string) {
 
 export default function PipelinePage() {
   const queryClient = useQueryClient()
-  const { currentProject } = useProject()
   const [configExpanded, setConfigExpanded] = useState(false)
   const [tokenInput, setTokenInput] = useState('')
   const [reposInput, setReposInput] = useState('')
@@ -154,22 +149,10 @@ export default function PipelinePage() {
   })
 
   const saveConfigMutation = useMutation({
-    mutationFn: async (data: { github_token?: string; github_repos?: string[] }) => {
-      const result = await pipelineService.setConfig(data)
-      if (currentProject && data.github_repos?.length) {
-        for (const repo of data.github_repos) {
-          try {
-            await projectService.createProjectMapping(currentProject.id, { github_repository: repo })
-          } catch {
-            // Ignore si mapping existe déjà (contrainte unique)
-          }
-        }
-      }
-      return result
-    },
+    mutationFn: (data: { github_token?: string; github_repos?: string[] }) =>
+      pipelineService.setConfig(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-config'] })
-      queryClient.invalidateQueries({ queryKey: ['project-mappings', currentProject?.id] })
       refetchConfig()
       setTokenInput('')
     },
@@ -209,25 +192,17 @@ export default function PipelinePage() {
   })
   const providers = providersData?.providers ?? []
   const hasRuns = runs.length > 0
+  
+  const runsCount = runs.length
+
+  const pipelinesCount = new Set(
+    runs.map(r => r.workflow_name || r.repository)
+  ).size
+
+  const lastRun = runs[0]
+
   const config = configData as PipelineConfig | undefined
   const isLinked = config?.linked ?? false
-
-  const webhookBaseUrl =
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PUBLIC_URL
-      ? String(import.meta.env.VITE_PUBLIC_URL).replace(/\/$/, '')
-      : null) ??
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL != null
-      ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '')
-      : '') ??
-    (typeof window !== 'undefined' ? window.location.origin : '')
-  const webhookUrl = webhookBaseUrl ? `${webhookBaseUrl}/api/v1/pipeline/webhooks/github` : ''
-
-  const handleCopyWebhookUrl = () => {
-    if (webhookUrl) {
-      navigator.clipboard.writeText(webhookUrl)
-      // Feedback visuel optionnel via snackbar si disponible
-    }
-  }
 
   return (
     <Box>
@@ -268,17 +243,17 @@ export default function PipelinePage() {
               <CachedIcon />
             </IconButton>
           </Tooltip>
-          {hasRuns && (
-            <Typography
-              sx={{
-                fontFamily: '"JetBrains Mono", monospace',
-                color: jellyfishColors.cyanSoft,
-                fontSize: '0.875rem',
-              }}
-            >
-              {runs.length} exécution{runs.length > 1 ? 's' : ''}
+          <Box sx={{ display: 'flex', gap: 3 }}>
+            <Typography>
+              {pipelinesCount} pipelines
             </Typography>
-          )}
+            <Typography>
+              {runsCount} runs
+            </Typography>
+            <Typography>
+              {lastRun ? formatDate(lastRun.created_at) : '—'}
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
@@ -368,48 +343,6 @@ export default function PipelinePage() {
                 {saveConfigMutation.isSuccess && (
                   <Typography sx={{ color: jellyfishColors.successSoft, alignSelf: 'center' }}>
                     ✓ Configuration enregistrée
-                  </Typography>
-                )}
-              </Box>
-
-              <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(0,229,255,0.15)' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, color: jellyfishColors.cyanSoft }}>
-                  Option temps réel (webhooks)
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 1.5 }}>
-                  Pour une mise à jour immédiate sans polling, configurez un webhook GitHub en pointant vers l&apos;URL
-                  ci-dessous. Voir la{' '}
-                  <Link component={RouterLink} to="/documentation?section=pipelines" sx={{ color: jellyfishColors.cyanSoft }}>
-                    documentation
-                  </Link>
-                  .
-                </Typography>
-                {webhookUrl ? (
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="URL du webhook GitHub"
-                    value={webhookUrl}
-                    readOnly
-                    InputProps={{
-                      readOnly: true,
-                      endAdornment: (
-                        <Tooltip title="Copier">
-                          <IconButton
-                            size="small"
-                            onClick={handleCopyWebhookUrl}
-                            sx={{ color: jellyfishColors.cyanSoft }}
-                          >
-                            <ContentCopyIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      ),
-                    }}
-                    sx={{ '& .MuiOutlinedInput-root': { backgroundColor: '#1a1d24' } }}
-                  />
-                ) : (
-                  <Typography variant="body2" sx={{ color: '#808080', fontFamily: 'monospace' }}>
-                    Définissez VITE_PUBLIC_URL ou VITE_API_BASE_URL pour afficher l&apos;URL.
                   </Typography>
                 )}
               </Box>

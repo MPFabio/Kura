@@ -20,6 +20,9 @@ class Config:
         ansible_tower_username: Optional[str] = None,
         ansible_tower_password: Optional[str] = None,
         ansible_tower_verify_ssl: bool = True,
+        semaphore_url: Optional[str] = None,
+        semaphore_api_token: Optional[str] = None,
+        semaphore_project_id: int = 1,
     ):
         """Initialise la configuration."""
         self.server_port = server_port
@@ -34,6 +37,9 @@ class Config:
         self.ansible_tower_username = ansible_tower_username
         self.ansible_tower_password = ansible_tower_password
         self.ansible_tower_verify_ssl = ansible_tower_verify_ssl
+        self.semaphore_url = semaphore_url
+        self.semaphore_api_token = semaphore_api_token
+        self.semaphore_project_id = semaphore_project_id
 
 
 def load_config() -> Config:
@@ -51,4 +57,7 @@ def load_config() -> Config:
         ansible_tower_username=os.getenv("ANSIBLE_TOWER_USERNAME"),
         ansible_tower_password=os.getenv("ANSIBLE_TOWER_PASSWORD"),
         ansible_tower_verify_ssl=os.getenv("ANSIBLE_TOWER_VERIFY_SSL", "true").lower() in ("true", "1", "yes"),
+        semaphore_url=os.getenv("SEMAPHORE_URL"),
+        semaphore_api_token=os.getenv("SEMAPHORE_API_TOKEN"),
+        semaphore_project_id=int(os.getenv("SEMAPHORE_PROJECT_ID", "1")),
     )
