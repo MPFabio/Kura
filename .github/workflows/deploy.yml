@@ -190,7 +190,7 @@ jobs:
               exit 1
             fi
 
-            sudo docker compose --env-file .env \
+            sudo docker compose -p kura --env-file .env \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
               down --remove-orphans 2>/dev/null || true
@@ -198,7 +198,7 @@ jobs:
             # Supprimer TOUS les conteneurs résiduels (ports bloqués)
             sudo docker ps -aq | xargs -r sudo docker rm -f || true
 
-            sudo docker compose --env-file .env \
+            sudo docker compose -p kura --env-file .env \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
               up -d --build
