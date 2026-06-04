@@ -1,0 +1,9 @@
+{$KURA_DOMAIN} {
+    reverse_proxy kong:8000
+    tls {$ACME_EMAIL}
+    encode gzip
+    log {
+        output stderr
+        level INFO
+    }
+}
