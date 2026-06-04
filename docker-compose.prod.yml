@@ -27,14 +27,6 @@ services:
     networks:
       - kura-network
 
-  # En production, Kong n'expose plus les ports directement — Caddy fait le proxy
-  kong:
-    ports:
-      - "127.0.0.1:8000:8000"
-      - "127.0.0.1:8443:8443"
-      - "127.0.0.1:8001:8001"
-      - "127.0.0.1:8444:8444"
-
   # Postgres n'expose pas le port en production
   postgres:
     ports:
