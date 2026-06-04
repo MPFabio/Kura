@@ -136,8 +136,16 @@ jobs:
               exit 1
             fi
 
-            sudo docker compose --env-file .env down || true
-            sudo docker compose --env-file .env up -d --build
+            sudo docker compose --env-file .env \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              down || true
+
+            sudo docker compose --env-file .env \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              up -d --build
+
             sudo docker system prune -af || true
 
             find "${RELEASE_DIR}/releases" -maxdepth 1 -mindepth 1 -type d | sort | head -n -2 | xargs -r sudo rm -rf

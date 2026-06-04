@@ -38,7 +38,7 @@ const colors = {
 // URL Grafana — pointe vers le dashboard kura-overview en mode kiosk.
 // En local : http://localhost:3000 ; en prod, adapter via variable d'env.
 const GRAFANA_URL = (import.meta as any).env?.VITE_GRAFANA_URL ?? 'http://localhost:3000'
-const GRAFANA_DASHBOARD_URL = `${GRAFANA_URL}/d/kura-overview/kura-e28094-platform-overview?orgId=1&refresh=30s
+const GRAFANA_DASHBOARD_URL = `${GRAFANA_URL}/d/kura-overview/kura-e28094-platform-overview?orgId=1&kiosk=tv&refresh=30s`
 
 function HealthBadge({ up }: { up: boolean }) {
   return up ? (
