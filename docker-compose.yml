@@ -393,10 +393,10 @@ services:
       SEMAPHORE_ADMIN_EMAIL: admin@kura.io
       SEMAPHORE_ADMIN_NAME: Kura Admin
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION}
-      KUBECONFIG: /home/semaphore/.kube/config
+      KUBECONFIG: /etc/kube/config
     volumes:
       - semaphore-data:/home/semaphore
-      - ${KUBECONFIG_ANSIBLE_PATH:-~/.kube/config-ansible}:/home/semaphore/.kube/config:ro
+      - ${KUBECONFIG_ANSIBLE_PATH:-/dev/null}:/etc/kube/config:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/ping"]
       interval: 10s
