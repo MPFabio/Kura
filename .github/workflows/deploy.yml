@@ -141,8 +141,8 @@ jobs:
               -f docker-compose.prod.yml \
               down --remove-orphans 2>/dev/null || true
 
-            # Forcer la suppression des conteneurs kura résiduels si conflit
-            sudo docker ps -a --filter "name=kura-" -q | xargs -r sudo docker rm -f
+            # Supprimer TOUS les conteneurs résiduels (ports bloqués)
+            sudo docker ps -aq | xargs -r sudo docker rm -f || true
 
             sudo docker compose --env-file .env \
               -f docker-compose.yml \
