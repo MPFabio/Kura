@@ -192,6 +192,15 @@ export default function PipelinePage() {
   })
   const providers = providersData?.providers ?? []
   const hasRuns = runs.length > 0
+  
+  const runsCount = runs.length
+
+  const pipelinesCount = new Set(
+    runs.map(r => r.workflow_name || r.repository)
+  ).size
+
+  const lastRun = runs[0]
+
   const config = configData as PipelineConfig | undefined
   const isLinked = config?.linked ?? false
 
@@ -234,17 +243,17 @@ export default function PipelinePage() {
               <CachedIcon />
             </IconButton>
           </Tooltip>
-          {hasRuns && (
-            <Typography
-              sx={{
-                fontFamily: '"JetBrains Mono", monospace',
-                color: jellyfishColors.cyanSoft,
-                fontSize: '0.875rem',
-              }}
-            >
-              {runs.length} exécution{runs.length > 1 ? 's' : ''}
+          <Box sx={{ display: 'flex', gap: 3 }}>
+            <Typography>
+              {pipelinesCount} pipelines
             </Typography>
-          )}
+            <Typography>
+              {runsCount} runs
+            </Typography>
+            <Typography>
+              {lastRun ? formatDate(lastRun.created_at) : '—'}
+            </Typography>
+          </Box>
         </Box>
       </Box>
 

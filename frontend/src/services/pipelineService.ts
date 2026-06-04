@@ -2,9 +2,11 @@ import axios from 'axios'
 import { apiClient } from './api'
 
 // Contournement : si Kong ne route pas le pipeline, utiliser l'URL directe (VITE_PIPELINE_URL=http://localhost:8084)
+const rawUrl = import.meta.env?.VITE_PIPELINE_URL
+
 const pipelineBaseURL =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_PIPELINE_URL
-    ? String(import.meta.env.VITE_PIPELINE_URL).replace(/\/$/, '')
+  rawUrl && rawUrl.trim() !== ''
+    ? rawUrl.replace(/\/$/, '')
     : null
 
 const pipelineClient = pipelineBaseURL
@@ -99,13 +101,13 @@ export const pipelineService = {
     if (params?.branch) searchParams.set('branch', params.branch)
     if (params?.limit) searchParams.set('limit', String(params.limit))
     const qs = searchParams.toString()
-    const url = `/api/v1/pipeline/runs${qs ? `?${qs}` : ''}`
+    const url = `/v1/pipeline/runs${qs ? `?${qs}` : ''}`
     const response = await getClient().get<PipelineRunsResponse>(url)
     return response.data
   },
 
   getRun: async (id: string): Promise<PipelineRun> => {
-    const response = await getClient().get<PipelineRun>(`/api/v1/pipeline/runs/${id}`)
+    const response = await getClient().get<PipelineRun>(`/v1/pipeline/runs/${id}`)
     return response.data
   },
 
@@ -117,20 +119,20 @@ export const pipelineService = {
     const params = new URLSearchParams({ provider, repository })
     if (branch) params.set('branch', branch)
     const response = await getClient().get<AggregatedStatus | { message: string }>(
-      `/api/v1/pipeline/aggregated?${params}`
+      `/v1/pipeline/aggregated?${params}`
     )
     return response.data
   },
 
   getProviders: async (): Promise<PipelineProvidersResponse> => {
     const response = await getClient().get<PipelineProvidersResponse>(
-      '/api/v1/pipeline/providers'
+      '/v1/pipeline/providers'
     )
     return response.data
   },
 
   getConfig: async (): Promise<PipelineConfig> => {
-    const response = await getClient().get<PipelineConfig>('/api/v1/pipeline/config')
+    const response = await getClient().get<PipelineConfig>('/v1/pipeline/config')
     return response.data
   },
 
@@ -139,7 +141,7 @@ export const pipelineService = {
     github_repos?: string[]
   }): Promise<{ message: string; config: PipelineConfig }> => {
     const response = await getClient().post<{ message: string; config: PipelineConfig }>(
-      '/api/v1/pipeline/config',
+      '/v1/pipeline/config',
       data
     )
     return response.data
@@ -148,7 +150,7 @@ export const pipelineService = {
   /** Déclenche une sync manuelle depuis l'API GitHub */
   sync: async (): Promise<{ message: string; runs: number }> => {
     const response = await getClient().post<{ message: string; runs: number }>(
-      '/api/v1/pipeline/sync'
+      '/v1/pipeline/sync'
     )
     return response.data
   },

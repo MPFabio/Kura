@@ -61,3 +61,43 @@ type AddProjectMemberRequest struct {
 type UpdateProjectMemberRequest struct {
 	Role string `json:"role" binding:"required,oneof=admin member"`
 }
+
+// ProjectMapping lie un projet à des ressources externes (repo GitHub, state Terraform, cluster K8s)
+type ProjectMapping struct {
+	ID                 string    `json:"id" db:"id"`
+	ProjectID          string    `json:"project_id" db:"project_id"`
+	GitHubRepository   string    `json:"github_repository,omitempty" db:"github_repository"`
+	TerraformStateID   string    `json:"terraform_state_id,omitempty" db:"terraform_state_id"`
+	TerraformSourceID  string    `json:"terraform_source_id,omitempty" db:"terraform_source_id"`
+	ClusterID          string    `json:"cluster_id,omitempty" db:"cluster_id"`
+	ClusterNamespace   string    `json:"cluster_namespace,omitempty" db:"cluster_namespace"`
+	CreatedAt          time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// CreateProjectMappingRequest représente une requête de création de mapping
+type CreateProjectMappingRequest struct {
+	GitHubRepository  *string `json:"github_repository,omitempty"`
+	TerraformStateID  *string `json:"terraform_state_id,omitempty"`
+	TerraformSourceID *string `json:"terraform_source_id,omitempty"`
+	ClusterID         *string `json:"cluster_id,omitempty"`
+	ClusterNamespace  *string `json:"cluster_namespace,omitempty"`
+}
+
+// ProjectPermission représente une permission granulaire par projet et module
+type ProjectPermission struct {
+	ID        string    `json:"id" db:"id"`
+	ProjectID string    `json:"project_id" db:"project_id"`
+	UserID    string    `json:"user_id" db:"user_id"`
+	Module    string    `json:"module" db:"module"`   // k8s, terraform, ansible, pipeline
+	Scope     string    `json:"scope" db:"scope"`     // read, write, admin
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// CreateProjectPermissionRequest représente une requête de création de permission
+type CreateProjectPermissionRequest struct {
+	UserID string `json:"user_id" binding:"required"`
+	Module string `json:"module" binding:"required,oneof=k8s terraform ansible pipeline"`
+	Scope  string `json:"scope" binding:"required,oneof=read write admin"`
+}

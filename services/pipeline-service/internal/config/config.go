@@ -73,7 +73,9 @@ func Load() (*Config, error) {
 
 	// GitHub
 	cfg.GitHubToken = getEnv("GITHUB_TOKEN", "")
-	cfg.GitHubWebhookSecret = getEnv("GITHUB_WEBHOOK_SECRET", "")
+	// WEBHOOK_SECRET est le secret partagé pour valider les signatures HMAC de tous les providers
+	webhookSecret := getEnv("WEBHOOK_SECRET", getEnv("GITHUB_WEBHOOK_SECRET", ""))
+	cfg.GitHubWebhookSecret = webhookSecret
 	if reposStr := getEnv("GITHUB_REPOS", ""); reposStr != "" {
 		for _, r := range splitAndTrim(reposStr, ",") {
 			if r != "" {
@@ -84,7 +86,7 @@ func Load() (*Config, error) {
 
 	// GitLab
 	cfg.GitLabToken = getEnv("GITLAB_TOKEN", "")
-	cfg.GitLabWebhookSecret = getEnv("GITLAB_WEBHOOK_SECRET", "")
+	cfg.GitLabWebhookSecret = getEnv("GITLAB_WEBHOOK_SECRET", webhookSecret)
 
 	// Jenkins
 	cfg.JenkinsURL = getEnv("JENKINS_URL", "")

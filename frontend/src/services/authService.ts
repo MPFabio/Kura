@@ -61,14 +61,14 @@ async function with502Fallback<T>(request: (client: AxiosInstance) => Promise<T>
 export const authService = {
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
     const response = await with502Fallback((client) =>
-      client.post<LoginResponse>('/api/v1/auth/login', credentials)
+      client.post<LoginResponse>('/v1/auth/login', credentials)
     )
     return response.data
   },
 
   register: async (data: RegisterRequest): Promise<{ message: string; user: User }> => {
     const response = await with502Fallback((client) =>
-      client.post('/api/v1/auth/register', data)
+      client.post('/v1/auth/register', data)
     )
     return response.data
   },
@@ -78,7 +78,7 @@ export const authService = {
     if (refreshToken) {
       try {
         await with502Fallback((client) =>
-          client.post('/api/v1/auth/logout', { refresh_token: refreshToken })
+          client.post('/v1/auth/logout', { refresh_token: refreshToken })
         )
       } catch (error) {
         console.error('Erreur lors de la déconnexion:', error)
@@ -90,26 +90,26 @@ export const authService = {
 
   refreshToken: async (refreshToken: string): Promise<LoginResponse> => {
     const response = await with502Fallback((client) =>
-      client.post<LoginResponse>('/api/v1/auth/refresh', { refresh_token: refreshToken })
+      client.post<LoginResponse>('/v1/auth/refresh', { refresh_token: refreshToken })
     )
     return response.data
   },
 
   getCurrentUser: async (): Promise<User> => {
-    const response = await with502Fallback((client) => client.get<User>('/api/v1/auth/me'))
+    const response = await with502Fallback((client) => client.get<User>('/v1/auth/me'))
     return response.data
   },
 
   updateUser: async (data: Partial<User>): Promise<User> => {
     const response = await with502Fallback((client) =>
-      client.put<User>('/api/v1/auth/me', data)
+      client.put<User>('/v1/auth/me', data)
     )
     return response.data
   },
 
   changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
     await with502Fallback((client) =>
-      client.put('/api/v1/auth/password', {
+      client.put('/v1/auth/password', {
         current_password: currentPassword,
         new_password: newPassword,
       })
