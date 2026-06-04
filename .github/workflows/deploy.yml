@@ -120,6 +120,7 @@ jobs:
           fi
 
       - name: Copy secrets to VM
+        if: hashFiles('/tmp/kura-secrets/*') != ''
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.GCP_VM_IP }}
