@@ -17,6 +17,7 @@ import (
 	"github.com/modulops/terraform-service/internal/s3"
 	"github.com/modulops/terraform-service/internal/service"
 	"github.com/modulops/terraform-service/internal/storage"
+	"github.com/modulops/terraform-service/internal/worker"
 )
 
 func main() {
@@ -53,6 +54,11 @@ func main() {
 	// Initialiser le service de synchronisation
 	syncService := service.NewSyncService(terraformService, redisClient, cfg)
 	defer syncService.Stop()
+
+	// Démarrer le worker de drift automatisé (détection périodique pour les sources avec auto_sync)
+	driftWorker := worker.NewDriftWorker(terraformService, syncService, cfg)
+	driftWorker.Start()
+	defer driftWorker.Stop()
 
 	// Initialiser les handlers HTTP
 	terraformHandler := handler.NewTerraformHandler(terraformService, syncService, cfg)

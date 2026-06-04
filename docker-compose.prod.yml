@@ -1,0 +1,45 @@
+# Override de production — utilisé avec :
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Ajoute Caddy (TLS automatique Let's Encrypt via nip.io) devant Kong.
+# KURA_DOMAIN doit être défini dans .env :
+#   KURA_DOMAIN=kura.<VM-IP>.nip.io
+#   ACME_EMAIL=admin@kura.io
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: kura-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      KURA_DOMAIN: ${KURA_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@kura.io}
+    volumes:
+      - ./infrastructure/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - kong
+    networks:
+      - kura-network
+
+  # En production, Kong n'expose plus les ports directement — Caddy fait le proxy
+  kong:
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8443:8443"
+      - "127.0.0.1:8001:8001"
+      - "127.0.0.1:8444:8444"
+
+  # Postgres n'expose pas le port en production
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+volumes:
+  caddy-data:
+  caddy-config:

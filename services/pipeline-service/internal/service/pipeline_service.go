@@ -32,7 +32,9 @@ type PipelineService struct {
 	adapters map[models.Provider]adapter.PipelineAdapter
 }
 
-// NewPipelineService crée un nouveau service de pipelines
+// NewPipelineService crée un nouveau service de pipelines.
+// La synchronisation périodique est gérée au niveau de main.go via un contexte
+// annulable, ce qui garantit l'arrêt gracieux de la goroutine de sync.
 func NewPipelineService(c *cache.RedisClient, cfg *config.Config) *PipelineService {
 	adapters := map[models.Provider]adapter.PipelineAdapter{
 		models.ProviderGitHub:  adapter.NewGitHubAdapter(),
@@ -46,6 +48,7 @@ func NewPipelineService(c *cache.RedisClient, cfg *config.Config) *PipelineServi
 		adapters: adapters,
 	}
 }
+
 
 // ProcessWebhook traite un webhook et stocke le run
 func (s *PipelineService) ProcessWebhook(ctx context.Context, provider models.Provider, body []byte) (*models.PipelineRun, error) {

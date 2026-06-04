@@ -1,0 +1,192 @@
+{
+  "uid": "kura-overview",
+  "title": "Kura — Platform Overview",
+  "tags": ["kura", "devops"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Services en ligne",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 3 },
+              { "color": "green", "value": 5 }
+            ]
+          },
+          "mappings": [],
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "expr": "count(up{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"} == 1) or vector(0)",
+          "legendFormat": "Services UP",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 2,
+      "title": "Services hors ligne",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "expr": "count(up{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"} == 0) or vector(0)",
+          "legendFormat": "Services DOWN",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 3,
+      "title": "Goroutines totales",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      },
+      "targets": [
+        {
+          "expr": "sum(go_goroutines{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"})",
+          "legendFormat": "Goroutines",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 4,
+      "title": "Mémoire RSS totale",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      },
+      "targets": [
+        {
+          "expr": "sum(process_resident_memory_bytes{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"})",
+          "legendFormat": "Mémoire totale",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 5,
+      "title": "Goroutines par service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      },
+      "targets": [
+        {
+          "expr": "go_goroutines{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"}",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 6,
+      "title": "Mémoire RSS par service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      },
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"}",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 7,
+      "title": "État des services (up/down)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 12 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "up{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"}",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    }
+  ]
+}

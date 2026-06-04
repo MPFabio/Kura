@@ -1,9 +1,13 @@
 package handler
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +29,31 @@ func NewWebhookHandler(svc *service.PipelineService, cfg *config.Config) *Webhoo
 	return &WebhookHandler{svc: svc, cfg: cfg}
 }
 
+// verifyGitHubSignature valide la signature HMAC-SHA256 envoyée par GitHub.
+// GitHub inclut l'en-tête X-Hub-Signature-256: sha256=<hex>
+// Si le secret n'est pas configuré, la vérification est ignorée (mode développement).
+func (h *WebhookHandler) verifyGitHubSignature(body []byte, signature string) bool {
+	if h.cfg.GitHubWebhookSecret == "" {
+		return true
+	}
+	if !strings.HasPrefix(signature, "sha256=") {
+		return false
+	}
+	expectedMAC := hmac.New(sha256.New, []byte(h.cfg.GitHubWebhookSecret))
+	expectedMAC.Write(body)
+	expected := "sha256=" + hex.EncodeToString(expectedMAC.Sum(nil))
+	return hmac.Equal([]byte(expected), []byte(signature))
+}
+
+// verifyGitLabToken valide le token secret envoyé par GitLab.
+// GitLab inclut l'en-tête X-Gitlab-Token: <secret>
+func (h *WebhookHandler) verifyGitLabToken(token string) bool {
+	if h.cfg.GitLabWebhookSecret == "" {
+		return true
+	}
+	return hmac.Equal([]byte(token), []byte(h.cfg.GitLabWebhookSecret))
+}
+
 // HandleGitHub gère les webhooks GitHub Actions
 // POST /api/v1/pipeline/webhooks/github
 func (h *WebhookHandler) HandleGitHub(c *gin.Context) {
@@ -32,7 +61,14 @@ func (h *WebhookHandler) HandleGitHub(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		metrics.WebhooksReceivedTotal.WithLabelValues("github", "error").Inc()
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "lecture du corps impossible"})
+		return
+	}
+
+	if !h.verifyGitHubSignature(body, c.GetHeader("X-Hub-Signature-256")) {
+		metrics.WebhooksReceivedTotal.WithLabelValues("github", "unauthorized").Inc()
+		log.Printf("⚠️ Webhook GitHub rejeté : signature HMAC invalide")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "signature invalide"})
 		return
 	}
 
@@ -41,7 +77,7 @@ func (h *WebhookHandler) HandleGitHub(c *gin.Context) {
 	if err != nil {
 		metrics.WebhooksReceivedTotal.WithLabelValues("github", "error").Inc()
 		log.Printf("Erreur webhook GitHub: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "traitement du webhook échoué"})
 		return
 	}
 	metrics.WebhooksReceivedTotal.WithLabelValues("github", "ok").Inc()
@@ -65,7 +101,14 @@ func (h *WebhookHandler) HandleGitLab(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "error").Inc()
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "lecture du corps impossible"})
+		return
+	}
+
+	if !h.verifyGitLabToken(c.GetHeader("X-Gitlab-Token")) {
+		metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "unauthorized").Inc()
+		log.Printf("⚠️ Webhook GitLab rejeté : token invalide")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalide"})
 		return
 	}
 
@@ -74,7 +117,7 @@ func (h *WebhookHandler) HandleGitLab(c *gin.Context) {
 	if err != nil {
 		metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "error").Inc()
 		log.Printf("Erreur webhook GitLab: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "traitement du webhook échoué"})
 		return
 	}
 	metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "ok").Inc()
@@ -98,7 +141,7 @@ func (h *WebhookHandler) HandleJenkins(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		metrics.WebhooksReceivedTotal.WithLabelValues("jenkins", "error").Inc()
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "lecture du corps impossible"})
 		return
 	}
 
@@ -107,7 +150,7 @@ func (h *WebhookHandler) HandleJenkins(c *gin.Context) {
 	if err != nil {
 		metrics.WebhooksReceivedTotal.WithLabelValues("jenkins", "error").Inc()
 		log.Printf("Erreur webhook Jenkins: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "traitement du webhook échoué"})
 		return
 	}
 	metrics.WebhooksReceivedTotal.WithLabelValues("jenkins", "ok").Inc()
@@ -130,7 +173,7 @@ func (h *WebhookHandler) HandleGeneric(c *gin.Context) {
 	start := time.Now()
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "lecture du corps impossible"})
 		return
 	}
 
@@ -143,12 +186,29 @@ func (h *WebhookHandler) HandleGeneric(c *gin.Context) {
 		return
 	}
 
+	// Validation de la signature selon le provider détecté
+	if provider == models.ProviderGitHub {
+		if !h.verifyGitHubSignature(body, c.GetHeader("X-Hub-Signature-256")) {
+			metrics.WebhooksReceivedTotal.WithLabelValues("github", "unauthorized").Inc()
+			log.Printf("⚠️ Webhook GitHub (generic) rejeté : signature HMAC invalide")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "signature invalide"})
+			return
+		}
+	} else if provider == models.ProviderGitLab {
+		if !h.verifyGitLabToken(c.GetHeader("X-Gitlab-Token")) {
+			metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "unauthorized").Inc()
+			log.Printf("⚠️ Webhook GitLab (generic) rejeté : token invalide")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalide"})
+			return
+		}
+	}
+
 	run, err := h.svc.ProcessWebhook(c.Request.Context(), provider, body)
 	metrics.WebhookProcessingDuration.WithLabelValues(string(provider)).Observe(time.Since(start).Seconds())
 	if err != nil {
 		metrics.WebhooksReceivedTotal.WithLabelValues(string(provider), "error").Inc()
 		log.Printf("Erreur webhook %s: %v", provider, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "traitement du webhook échoué"})
 		return
 	}
 	metrics.WebhooksReceivedTotal.WithLabelValues(string(provider), "ok").Inc()

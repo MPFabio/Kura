@@ -12,14 +12,16 @@ import (
 )
 
 type AuthHandler struct {
-	authService *service.AuthService
-	cfg         *config.Config
+	authService    *service.AuthService
+	projectService *service.ProjectService
+	cfg            *config.Config
 }
 
-func NewAuthHandler(authService *service.AuthService, cfg *config.Config) *AuthHandler {
+func NewAuthHandler(authService *service.AuthService, projectService *service.ProjectService, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
-		cfg:         cfg,
+		authService:    authService,
+		projectService: projectService,
+		cfg:            cfg,
 	}
 }
 
@@ -284,38 +286,54 @@ func (h *AuthHandler) RequireAuth() gin.HandlerFunc {
 	}
 }
 
+// GetPermissions retourne les rôles et permissions de l'utilisateur authentifié
+func (h *AuthHandler) GetPermissions(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+
+	roles, _ := c.Get("user_roles")
+	rolesSlice, _ := roles.([]string)
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": userID,
+		"roles":   rolesSlice,
+	})
+}
+
 // RequireRole est un middleware qui vérifie qu'un utilisateur a un rôle spécifique
 func (h *AuthHandler) RequireRole(role string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		roles, exists := c.Get("user_roles")
-		if !exists {
-			c.JSON(http.StatusForbidden, gin.H{"error": "rôles non disponibles"})
-			c.Abort()
-			return
-		}
+    return func(c *gin.Context) {
+        roles, exists := c.Get("user_roles")
+        if !exists {
+            c.JSON(http.StatusForbidden, gin.H{"error": "rôles non disponibles"})
+            c.Abort()
+            return
+        }
 
-		rolesSlice, ok := roles.([]string)
-		if !ok {
-			c.JSON(http.StatusForbidden, gin.H{"error": "format de rôles invalide"})
-			c.Abort()
-			return
-		}
+        rolesSlice, ok := roles.([]string)
+        if !ok {
+            c.JSON(http.StatusForbidden, gin.H{"error": "format de rôles invalide"})
+            c.Abort()
+            return
+        }
 
-		// Vérifier si l'utilisateur a le rôle requis
-		hasRole := false
-		for _, r := range rolesSlice {
-			if r == role {
-				hasRole = true
-				break
-			}
-		}
+        hasRole := false
+        for _, r := range rolesSlice {
+            if r == role {
+                hasRole = true
+                break
+            }
+        }
 
-		if !hasRole {
-			c.JSON(http.StatusForbidden, gin.H{"error": "accès refusé: rôle requis: " + role})
-			c.Abort()
-			return
-		}
+        if !hasRole {
+            c.JSON(http.StatusForbidden, gin.H{"error": "accès refusé: rôle requis: " + role})
+            c.Abort()
+            return
+        }
 
-		c.Next()
-	}
+        c.Next()
+    }
 }

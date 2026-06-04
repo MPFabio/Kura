@@ -307,3 +307,116 @@ func (r *Repository) UserHasAccessToProject(userID, projectID string) (bool, err
 
 	return count > 0, nil
 }
+
+// CreateProjectMapping crée un mapping projet <-> ressource externe
+func (r *Repository) CreateProjectMapping(m *models.ProjectMapping) error {
+	query := `INSERT INTO project_mappings (id, project_id, github_repository, terraform_state_id, terraform_source_id, cluster_id, cluster_namespace, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	_, err := r.db.Exec(query,
+		m.ID, m.ProjectID, nullIfEmpty(m.GitHubRepository), nullIfEmpty(m.TerraformStateID),
+		nullIfEmpty(m.TerraformSourceID), nullIfEmpty(m.ClusterID), nullIfEmpty(m.ClusterNamespace),
+		m.CreatedAt, m.UpdatedAt,
+	)
+	return err
+}
+
+func nullIfEmpty(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+// ListProjectMappings récupère tous les mappings d'un projet
+func (r *Repository) ListProjectMappings(projectID string) ([]*models.ProjectMapping, error) {
+	query := `SELECT id, project_id, COALESCE(github_repository,''), COALESCE(terraform_state_id,''), COALESCE(terraform_source_id,''), COALESCE(cluster_id,''), COALESCE(cluster_namespace,''), created_at, updated_at
+		FROM project_mappings WHERE project_id = $1 ORDER BY created_at DESC`
+	rows, err := r.db.Query(query, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var mappings []*models.ProjectMapping
+	for rows.Next() {
+		m := &models.ProjectMapping{}
+		err := rows.Scan(&m.ID, &m.ProjectID, &m.GitHubRepository, &m.TerraformStateID, &m.TerraformSourceID, &m.ClusterID, &m.ClusterNamespace, &m.CreatedAt, &m.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		mappings = append(mappings, m)
+	}
+	return mappings, rows.Err()
+}
+
+// DeleteProjectMapping supprime un mapping par ID
+func (r *Repository) DeleteProjectMapping(projectID, mappingID string) error {
+	query := `DELETE FROM project_mappings WHERE project_id = $1 AND id = $2`
+	result, err := r.db.Exec(query, projectID, mappingID)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("mapping non trouvé")
+	}
+	return nil
+}
+
+// GetProjectMappingByID récupère un mapping par ID
+func (r *Repository) GetProjectMappingByID(projectID, mappingID string) (*models.ProjectMapping, error) {
+	query := `SELECT id, project_id, COALESCE(github_repository,''), COALESCE(terraform_state_id,''), COALESCE(terraform_source_id,''), COALESCE(cluster_id,''), COALESCE(cluster_namespace,''), created_at, updated_at
+		FROM project_mappings WHERE project_id = $1 AND id = $2`
+	m := &models.ProjectMapping{}
+	err := r.db.QueryRow(query, projectID, mappingID).Scan(&m.ID, &m.ProjectID, &m.GitHubRepository, &m.TerraformStateID, &m.TerraformSourceID, &m.ClusterID, &m.ClusterNamespace, &m.CreatedAt, &m.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("mapping non trouvé")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// GetProjectPermission récupère la permission d'un utilisateur pour un projet et un module
+func (r *Repository) GetProjectPermission(projectID, userID, module string) (*models.ProjectPermission, error) {
+	query := `SELECT id, project_id, user_id, module, scope, created_at, updated_at
+		FROM project_permissions WHERE project_id = $1 AND user_id = $2 AND module = $3`
+	pp := &models.ProjectPermission{}
+	err := r.db.QueryRow(query, projectID, userID, module).Scan(&pp.ID, &pp.ProjectID, &pp.UserID, &pp.Module, &pp.Scope, &pp.CreatedAt, &pp.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return pp, nil
+}
+
+// ListProjectPermissions récupère toutes les permissions pour un projet
+func (r *Repository) ListProjectPermissions(projectID string) ([]*models.ProjectPermission, error) {
+	query := `SELECT id, project_id, user_id, module, scope, created_at, updated_at
+		FROM project_permissions WHERE project_id = $1 ORDER BY user_id, module`
+	rows, err := r.db.Query(query, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []*models.ProjectPermission
+	for rows.Next() {
+		pp := &models.ProjectPermission{}
+		if err := rows.Scan(&pp.ID, &pp.ProjectID, &pp.UserID, &pp.Module, &pp.Scope, &pp.CreatedAt, &pp.UpdatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, pp)
+	}
+	return list, nil
+}
+
+// CreateProjectPermission crée une permission
+func (r *Repository) CreateProjectPermission(pp *models.ProjectPermission) error {
+	query := `INSERT INTO project_permissions (id, project_id, user_id, module, scope, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	_, err := r.db.Exec(query, pp.ID, pp.ProjectID, pp.UserID, pp.Module, pp.Scope, pp.CreatedAt, pp.UpdatedAt)
+	return err
+}

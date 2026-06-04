@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from internal.config.config import load_config
 from internal.cache.redis import RedisClient
 from internal.client.tower_client import AnsibleTowerClient
+from internal.client.semaphore_client import SemaphoreClient
 from internal.service.ansible_service import AnsibleService
 from internal.handler.ansible_handler import AnsibleHandler, create_router
 from internal.handler.webhook_handler import WebhookHandler, create_webhook_router
@@ -56,12 +57,16 @@ async def lifespan(app: FastAPI):
             logger.warning("Le service continuera sans cache")
             cache = None
 
-        # Initialiser le client Ansible Tower
-        tower_client = AnsibleTowerClient(config)
-        if config.ansible_tower_url:
+        # Initialiser le client Ansible : Semaphore en priorité, Tower en fallback
+        if config.semaphore_url:
+            tower_client = SemaphoreClient(config)
+            logger.info(f"Client Ansible Semaphore initialisé pour {config.semaphore_url}")
+        elif config.ansible_tower_url:
+            tower_client = AnsibleTowerClient(config)
             logger.info(f"Client Ansible Tower initialisé pour {config.ansible_tower_url}")
         else:
-            logger.warning("ANSIBLE_TOWER_URL non configuré - certaines fonctionnalités seront limitées")
+            tower_client = AnsibleTowerClient(config)
+            logger.warning("Aucun backend Ansible configuré (SEMAPHORE_URL ou ANSIBLE_TOWER_URL)")
 
         # Initialiser le service métier (cache peut être None)
         ansible_service = AnsibleService(tower_client, cache, config)

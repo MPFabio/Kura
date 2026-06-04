@@ -37,13 +37,17 @@ import {
   Edit as EditIcon,
   Search as SearchIcon,
   Refresh as RefreshIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProject } from '../contexts/ProjectContext'
+import { projectService } from '../services/projectService'
 import { k8sService } from '../services/k8sService'
 import { clusterService, KubernetesCluster, ClusterType } from '../services/clusterService'
 import { Deployment } from '../services/api'
 import ResourceDetailDialog from '../components/ResourceDetailDialog'
+import ScaleDeploymentDialog from '../components/ScaleDeploymentDialog'
+import EditEnvVarDialog from '../components/EditEnvVarDialog'
 import {
   Add as AddIcon,
   CheckCircle as CheckCircleIcon,
@@ -73,6 +77,11 @@ export default function K8sPage() {
     currentReplicas: 0,
   })
   const [scaleReplicas, setScaleReplicas] = useState<number>(1)
+  const [editEnvDialog, setEditEnvDialog] = useState<{
+    open: boolean
+    namespace: string
+    name: string
+  }>({ open: false, namespace: '', name: '' })
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'warning' }>({
     open: false,
     message: '',
@@ -241,11 +250,11 @@ export default function K8sPage() {
   const scaleDeploymentMutation = useMutation({
     mutationFn: ({ namespace, name, replicas }: { namespace: string; name: string; replicas: number }) =>
       k8sService.scaleDeployment(namespace, name, replicas),
-    onSuccess: async () => {
-      setScaleDialog({ ...scaleDialog, open: false })
+    onSuccess: async (_data, variables) => {
+      setScaleDialog((prev) => ({ ...prev, open: false }))
       setSnackbar({
         open: true,
-        message: `Deployment mis à jour: ${scaleReplicas} replicas`,
+        message: `Deployment mis à jour: ${variables.replicas} répliques`,
         severity: 'success',
       })
       
@@ -319,24 +328,75 @@ export default function K8sPage() {
     setScaleDialog({ open: true, namespace, name, currentReplicas })
   }
 
-  const handleScale = () => {
-    scaleDeploymentMutation.mutate({
-      namespace: scaleDialog.namespace,
-      name: scaleDialog.name,
-      replicas: scaleReplicas,
-    })
-  }
+  const restartDeploymentMutation = useMutation({
+    mutationFn: ({ namespace, name }: { namespace: string; name: string }) =>
+      k8sService.restartDeployment(namespace, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments', selectedNamespace] })
+      setSnackbar({ open: true, message: 'Rollout restart déclenché', severity: 'success' })
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.error || 'Erreur lors du restart',
+        severity: 'error',
+      })
+    },
+  })
+
+  const patchDeploymentEnvMutation = useMutation({
+    mutationFn: ({
+      namespace,
+      name,
+      container,
+      env,
+    }: {
+      namespace: string
+      name: string
+      container: string
+      env: Array<{ name: string; value: string }>
+    }) => k8sService.patchDeploymentEnv(namespace, name, container, env),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments', selectedNamespace] })
+      queryClient.invalidateQueries({ queryKey: ['deployment-detail', editEnvDialog.namespace, editEnvDialog.name] })
+      setEditEnvDialog({ open: false, namespace: '', name: '' })
+      setSnackbar({ open: true, message: 'Variables d\'environnement mises à jour', severity: 'success' })
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.error || 'Erreur lors de la mise à jour',
+        severity: 'error',
+      })
+    },
+  })
+
+  const { data: deploymentForEditEnv } = useQuery({
+    queryKey: ['deployment-detail', editEnvDialog.namespace, editEnvDialog.name],
+    queryFn: () => k8sService.getDeployment(editEnvDialog.namespace, editEnvDialog.name),
+    enabled: editEnvDialog.open && !!editEnvDialog.namespace && !!editEnvDialog.name,
+  })
 
   // Mutations pour les clusters
   const createClusterMutation = useMutation({
     mutationFn: (cluster: any) => clusterService.createCluster(cluster),
-    onSuccess: () => {
+    onSuccess: async (cluster) => {
       queryClient.invalidateQueries({ queryKey: ['clusters'] })
       queryClient.invalidateQueries({ queryKey: ['active-cluster'] })
       queryClient.invalidateQueries({ queryKey: ['namespaces'] })
       setClusterDialogOpen(false)
       resetClusterForm()
       setSnackbar({ open: true, message: 'Cluster créé avec succès', severity: 'success' })
+      if (currentProject && cluster?.id) {
+        try {
+          await projectService.createProjectMapping(currentProject.id, {
+            cluster_id: cluster.id,
+            cluster_namespace: 'default',
+          })
+        } catch (_) {
+          // Ignorer si mapping déjà existant ou autre erreur
+        }
+      }
     },
     onError: (error: any) => {
       setSnackbar({
@@ -780,6 +840,29 @@ export default function K8sPage() {
                       }}
                     >
                       <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Redémarrer">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        restartDeploymentMutation.mutate({ namespace: dep.namespace, name: dep.name })
+                      }}
+                      disabled={restartDeploymentMutation.isPending}
+                    >
+                      <RefreshIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Variables d'environnement">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditEnvDialog({ open: true, namespace: dep.namespace, name: dep.name })
+                      }}
+                    >
+                      <SettingsIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Supprimer">
@@ -1440,37 +1523,56 @@ export default function K8sPage() {
         name={detailDialog.name}
       />
 
-      <Dialog open={scaleDialog.open} onClose={() => setScaleDialog({ ...scaleDialog, open: false })}>
-        <DialogTitle>Scale Deployment</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Nombre de replicas"
-            type="number"
-            fullWidth
-            value={scaleReplicas}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10)
-              if (!isNaN(val) && val >= 0) {
-                setScaleReplicas(val)
-              } else if (e.target.value === '') {
-                setScaleReplicas(0)
-              }
-            }}
-            inputProps={{ min: 0, step: 1 }}
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setScaleDialog({ ...scaleDialog, open: false })}>Annuler</Button>
-          <Button
-            onClick={handleScale}
-            variant="contained"
-            disabled={scaleDeploymentMutation.isPending}
-          >
-            {scaleDeploymentMutation.isPending ? <CircularProgress size={20} /> : 'Appliquer'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ScaleDeploymentDialog
+        open={scaleDialog.open}
+        onClose={() => setScaleDialog({ ...scaleDialog, open: false })}
+        namespace={scaleDialog.namespace}
+        name={scaleDialog.name}
+        currentReplicas={scaleReplicas}
+        onConfirm={(replicas) => {
+          scaleDeploymentMutation.mutate({
+            namespace: scaleDialog.namespace,
+            name: scaleDialog.name,
+            replicas,
+          })
+        }}
+        isPending={scaleDeploymentMutation.isPending}
+      />
+
+      {editEnvDialog.open && deploymentForEditEnv && (
+        <EditEnvVarDialog
+          open={editEnvDialog.open}
+          onClose={() => setEditEnvDialog({ open: false, namespace: '', name: '' })}
+          namespace={editEnvDialog.namespace}
+          deploymentName={editEnvDialog.name}
+          containers={
+            (deploymentForEditEnv as any)?.spec?.template?.spec?.containers?.map((c: any) => ({ name: c.name })) ?? []
+          }
+          envVars={
+            (() => {
+              const containers = (deploymentForEditEnv as any)?.spec?.template?.spec?.containers ?? []
+              const first = containers[0]
+              if (!first?.env) return []
+              return first.env.map((e: any) => ({
+                name: e.name || '',
+                value: e.value ?? (e.valueFrom ? '[ref]' : ''),
+              }))
+            })()
+          }
+          containerName={
+            (deploymentForEditEnv as any)?.spec?.template?.spec?.containers?.[0]?.name ?? ''
+          }
+          onConfirm={(container, env) => {
+            patchDeploymentEnvMutation.mutate({
+              namespace: editEnvDialog.namespace,
+              name: editEnvDialog.name,
+              container,
+              env,
+            })
+          }}
+          isPending={patchDeploymentEnvMutation.isPending}
+        />
+      )}
 
       <Snackbar
         open={snackbar.open}

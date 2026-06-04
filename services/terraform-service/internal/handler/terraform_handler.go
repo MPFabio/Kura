@@ -36,6 +36,8 @@ func (h *TerraformHandler) UploadStateFile(c *gin.Context) {
 	if name == "" {
 		name = "terraform.tfstate"
 	}
+	// Récupérer project_id (optionnel) pour associer l'état au projet
+	projectID := c.PostForm("project_id")
 
 	// Récupérer le fichier
 	file, err := c.FormFile("file")
@@ -60,7 +62,7 @@ func (h *TerraformHandler) UploadStateFile(c *gin.Context) {
 	}
 
 	// Parser et stocker
-	stateFile, err := h.svc.ParseStateFile(ctx, name, stateData)
+	stateFile, err := h.svc.ParseStateFile(ctx, name, stateData, projectID)
 	if err != nil {
 		log.Printf("Erreur UploadStateFile: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -75,8 +77,9 @@ func (h *TerraformHandler) UploadStateFileJSON(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	var req struct {
-		Name  string          `json:"name" binding:"required"`
-		State json.RawMessage `json:"state" binding:"required"`
+		Name      string          `json:"name" binding:"required"`
+		State     json.RawMessage `json:"state" binding:"required"`
+		ProjectID string          `json:"project_id"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -85,7 +88,7 @@ func (h *TerraformHandler) UploadStateFileJSON(c *gin.Context) {
 	}
 
 	// Parser et stocker
-	stateFile, err := h.svc.ParseStateFile(ctx, req.Name, req.State)
+	stateFile, err := h.svc.ParseStateFile(ctx, req.Name, req.State, req.ProjectID)
 	if err != nil {
 		log.Printf("Erreur UploadStateFileJSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

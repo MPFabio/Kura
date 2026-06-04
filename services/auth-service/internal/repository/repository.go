@@ -103,6 +103,36 @@ func (r *Repository) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_project_members_project_id ON project_members(project_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_project_members_user_id ON project_members(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_project_members_role ON project_members(role)`,
+		`CREATE TABLE IF NOT EXISTS project_mappings (
+			id VARCHAR(36) PRIMARY KEY,
+			project_id VARCHAR(36) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+			github_repository VARCHAR(255),
+			terraform_state_id VARCHAR(255),
+			terraform_source_id VARCHAR(255),
+			cluster_id VARCHAR(255),
+			cluster_namespace VARCHAR(255),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_mappings_github ON project_mappings(project_id, github_repository) WHERE github_repository IS NOT NULL`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_mappings_terraform ON project_mappings(project_id, terraform_state_id) WHERE terraform_state_id IS NOT NULL`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_mappings_cluster ON project_mappings(project_id, cluster_id, cluster_namespace) WHERE cluster_id IS NOT NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_project_mappings_project_id ON project_mappings(project_id)`,
+		`CREATE TABLE IF NOT EXISTS project_permissions (
+			id VARCHAR(36) PRIMARY KEY,
+			project_id VARCHAR(36) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+			user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			module VARCHAR(50) NOT NULL,
+			scope VARCHAR(20) NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(project_id, user_id, module)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_permissions_project_id ON project_permissions(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_permissions_user_id ON project_permissions(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_permissions_module ON project_permissions(module)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_mappings_github_repo ON project_mappings(github_repository)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_mappings_terraform_state ON project_mappings(terraform_state_id)`,
 	}
 
 	for _, query := range queries {

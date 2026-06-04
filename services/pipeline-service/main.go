@@ -30,6 +30,10 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	// Contexte racine annulé à l'arrêt du service : propagé à toutes les goroutines.
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	defer rootCancel()
+
 	pipelineService := service.NewPipelineService(redisClient, cfg)
 	pipelineHandler := handler.NewPipelineHandler(pipelineService, cfg)
 	webhookHandler := handler.NewWebhookHandler(pipelineService, cfg)
@@ -48,17 +52,23 @@ func main() {
 		}
 	}()
 
-	// Sync périodique GitHub (config UI ou env)
+	// Sync périodique GitHub respectant le contexte d'arrêt.
+	syncDone := make(chan struct{})
 	go func() {
+		defer close(syncDone)
 		ticker := time.NewTicker(2 * time.Minute)
 		defer ticker.Stop()
-		ctx := context.Background()
-		if _, err := pipelineService.SyncFromGitHub(ctx); err != nil {
+		if _, err := pipelineService.SyncFromGitHub(rootCtx); err != nil {
 			log.Printf("Sync GitHub initial: %v", err)
 		}
-		for range ticker.C {
-			if _, err := pipelineService.SyncFromGitHub(ctx); err != nil {
-				log.Printf("Sync GitHub: %v", err)
+		for {
+			select {
+			case <-rootCtx.Done():
+				return
+			case <-ticker.C:
+				if _, err := pipelineService.SyncFromGitHub(rootCtx); err != nil {
+					log.Printf("Sync GitHub: %v", err)
+				}
 			}
 		}
 	}()
@@ -69,10 +79,14 @@ func main() {
 
 	log.Println("Arrêt du service Pipeline...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Annuler le contexte racine pour stopper les goroutines de sync.
+	rootCancel()
+	<-syncDone
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Fatalf("Erreur lors de l'arrêt du serveur: %v", err)
 	}
 

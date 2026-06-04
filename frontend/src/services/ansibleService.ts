@@ -344,7 +344,7 @@ export const ansibleService = {
   // Jobs
   getJobs: async (): Promise<AnsibleJobResponse> => {
     try {
-      const response = await apiClient.get<AnsibleJobResponse & { results?: AnsibleJobSummary[] }>('/api/v1/ansible/jobs')
+      const response = await apiClient.get<AnsibleJobResponse & { results?: AnsibleJobSummary[] }>('/v1/ansible/jobs')
       if (!response.data) return { items: [] }
       const items = response.data.items ?? response.data.results ?? []
       return { items }
@@ -357,7 +357,7 @@ export const ansibleService = {
   getJob: async (jobId: number, includeStdout = false): Promise<AnsibleJobDetail> => {
     try {
       const params = includeStdout ? '?include_stdout=true' : ''
-      const response = await apiClient.get<AnsibleJobDetail>(`/api/v1/ansible/jobs/${jobId}${params}`)
+      const response = await apiClient.get<AnsibleJobDetail>(`/v1/ansible/jobs/${jobId}${params}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du job ${jobId}:`, error)
@@ -370,7 +370,7 @@ export const ansibleService = {
       const params = pageSize ? `?page_size=${pageSize}` : ''
       const response = await apiClient.get<
         AnsibleJobHistoryResponse & { results?: AnsibleJobSummary[]; count?: number }
-      >(`/api/v1/ansible/jobs/history${params}`)
+      >(`/v1/ansible/jobs/history${params}`)
       if (!response.data) return { items: [], total: 0 }
       const items = response.data.items ?? response.data.results ?? []
       const total = response.data.total ?? response.data.count ?? items.length
@@ -386,7 +386,7 @@ export const ansibleService = {
     try {
       const response = await apiClient.get<
         AnsibleInventoryResponse & { results?: AnsibleInventorySummary[] }
-      >('/api/v1/ansible/inventories')
+      >('/v1/ansible/inventories')
       if (!response.data) return { items: [] }
       const items = response.data.items ?? response.data.results ?? []
       return { items }
@@ -398,7 +398,7 @@ export const ansibleService = {
 
   getInventory: async (inventoryId: number): Promise<AnsibleInventoryDetail> => {
     try {
-      const response = await apiClient.get<AnsibleInventoryDetail>(`/api/v1/ansible/inventories/${inventoryId}`)
+      const response = await apiClient.get<AnsibleInventoryDetail>(`/v1/ansible/inventories/${inventoryId}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération de l'inventaire ${inventoryId}:`, error)
@@ -409,7 +409,7 @@ export const ansibleService = {
   getInventoryHosts: async (inventoryId: number): Promise<AnsibleHostResponse> => {
     try {
       const response = await apiClient.get<AnsibleHostResponse & { results?: AnsibleHost[] }>(
-        `/api/v1/ansible/inventories/${inventoryId}/hosts`
+        `/v1/ansible/inventories/${inventoryId}/hosts`
       )
       if (!response.data) return { items: [] }
       const items = response.data.items ?? response.data.results ?? []
@@ -424,7 +424,7 @@ export const ansibleService = {
   getJobTemplates: async (): Promise<AnsibleJobTemplateResponse> => {
     try {
       const response = await apiClient.get<AnsibleJobTemplateResponse & { results?: AnsibleJobTemplateSummary[] }>(
-        '/api/v1/ansible/job-templates'
+        '/v1/ansible/job-templates'
       )
       if (!response.data) return { items: [] }
       // AWX retourne "results", le frontend attend "items"
@@ -438,7 +438,7 @@ export const ansibleService = {
 
   getJobTemplate: async (templateId: number): Promise<AnsibleJobTemplateDetail> => {
     try {
-      const response = await apiClient.get<AnsibleJobTemplateDetail>(`/api/v1/ansible/job-templates/${templateId}`)
+      const response = await apiClient.get<AnsibleJobTemplateDetail>(`/v1/ansible/job-templates/${templateId}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du template ${templateId}:`, error)
@@ -449,7 +449,7 @@ export const ansibleService = {
   launchJobTemplate: async (templateId: number, launchData?: AnsibleJobLaunchRequest): Promise<AnsibleJobLaunchResponse> => {
     try {
       const response = await apiClient.post<AnsibleJobLaunchResponse>(
-        `/api/v1/ansible/job-templates/${templateId}/launch`,
+        `/v1/ansible/job-templates/${templateId}/launch`,
         launchData || {}
       )
       return response.data
@@ -463,7 +463,7 @@ export const ansibleService = {
   getProjects: async (): Promise<AnsibleProjectResponse> => {
     try {
       const response = await apiClient.get<AnsibleProjectResponse & { results?: AnsibleProjectSummary[] }>(
-        '/api/v1/ansible/projects'
+        '/v1/ansible/projects'
       )
       if (!response.data) return { items: [] }
       const items = response.data.items ?? response.data.results ?? []
@@ -476,7 +476,7 @@ export const ansibleService = {
 
   getProject: async (projectId: number): Promise<AnsibleProjectDetail> => {
     try {
-      const response = await apiClient.get<AnsibleProjectDetail>(`/api/v1/ansible/projects/${projectId}`)
+      const response = await apiClient.get<AnsibleProjectDetail>(`/v1/ansible/projects/${projectId}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du projet ${projectId}:`, error)
@@ -487,7 +487,7 @@ export const ansibleService = {
   getProjectPlaybooks: async (projectId: number): Promise<AnsiblePlaybookResponse> => {
     try {
       const response = await apiClient.get<AnsiblePlaybookResponse & { results?: string[] }>(
-        `/api/v1/ansible/projects/${projectId}/playbooks`
+        `/v1/ansible/projects/${projectId}/playbooks`
       )
       if (!response.data) return { items: [] }
       const items = response.data.items ?? response.data.results ?? []
@@ -503,7 +503,7 @@ export const ansibleService = {
     try {
       const response = await apiClient.get<
         AnsibleCredentialResponse & { results?: AnsibleCredentialSummary[] }
-      >('/api/v1/ansible/credentials')
+      >('/v1/ansible/credentials')
       if (!response.data) return { items: [] }
       const items = response.data.items ?? response.data.results ?? []
       return { items }
@@ -515,7 +515,7 @@ export const ansibleService = {
 
   getCredential: async (credentialId: number): Promise<AnsibleCredentialDetail> => {
     try {
-      const response = await apiClient.get<AnsibleCredentialDetail>(`/api/v1/ansible/credentials/${credentialId}`)
+      const response = await apiClient.get<AnsibleCredentialDetail>(`/v1/ansible/credentials/${credentialId}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du credential ${credentialId}:`, error)
@@ -525,7 +525,7 @@ export const ansibleService = {
 
   createCredential: async (credential: AnsibleCredentialCreate): Promise<AnsibleCredentialDetail> => {
     try {
-      const response = await apiClient.post<AnsibleCredentialDetail>('/api/v1/ansible/credentials', credential)
+      const response = await apiClient.post<AnsibleCredentialDetail>('/v1/ansible/credentials', credential)
       return response.data
     } catch (error) {
       console.error('Erreur lors de la création du credential:', error)
@@ -535,7 +535,7 @@ export const ansibleService = {
 
   updateCredential: async (credentialId: number, credential: AnsibleCredentialUpdate): Promise<AnsibleCredentialDetail> => {
     try {
-      const response = await apiClient.put<AnsibleCredentialDetail>(`/api/v1/ansible/credentials/${credentialId}`, credential)
+      const response = await apiClient.put<AnsibleCredentialDetail>(`/v1/ansible/credentials/${credentialId}`, credential)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la mise à jour du credential ${credentialId}:`, error)
@@ -545,7 +545,7 @@ export const ansibleService = {
 
   deleteCredential: async (credentialId: number): Promise<void> => {
     try {
-      await apiClient.delete(`/api/v1/ansible/credentials/${credentialId}`)
+      await apiClient.delete(`/v1/ansible/credentials/${credentialId}`)
     } catch (error) {
       console.error(`Erreur lors de la suppression du credential ${credentialId}:`, error)
       throw error
@@ -557,7 +557,7 @@ export const ansibleService = {
     try {
       const response = await apiClient.get<
         AnsibleOrganizationResponse & { results?: AnsibleOrganizationSummary[] }
-      >('/api/v1/ansible/organizations')
+      >('/v1/ansible/organizations')
       if (!response.data) return { items: [] }
       const items = response.data.items ?? response.data.results ?? []
       return { items }
@@ -569,7 +569,7 @@ export const ansibleService = {
 
   getOrganization: async (organizationId: number): Promise<AnsibleOrganizationDetail> => {
     try {
-      const response = await apiClient.get<AnsibleOrganizationDetail>(`/api/v1/ansible/organizations/${organizationId}`)
+      const response = await apiClient.get<AnsibleOrganizationDetail>(`/v1/ansible/organizations/${organizationId}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération de l'organisation ${organizationId}:`, error)
@@ -579,7 +579,7 @@ export const ansibleService = {
 
   createOrganization: async (organization: AnsibleOrganizationCreate): Promise<AnsibleOrganizationDetail> => {
     try {
-      const response = await apiClient.post<AnsibleOrganizationDetail>('/api/v1/ansible/organizations', organization)
+      const response = await apiClient.post<AnsibleOrganizationDetail>('/v1/ansible/organizations', organization)
       return response.data
     } catch (error) {
       console.error('Erreur lors de la création de l\'organisation:', error)
@@ -589,7 +589,7 @@ export const ansibleService = {
 
   updateOrganization: async (organizationId: number, organization: AnsibleOrganizationUpdate): Promise<AnsibleOrganizationDetail> => {
     try {
-      const response = await apiClient.put<AnsibleOrganizationDetail>(`/api/v1/ansible/organizations/${organizationId}`, organization)
+      const response = await apiClient.put<AnsibleOrganizationDetail>(`/v1/ansible/organizations/${organizationId}`, organization)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la mise à jour de l'organisation ${organizationId}:`, error)
@@ -599,7 +599,7 @@ export const ansibleService = {
 
   deleteOrganization: async (organizationId: number): Promise<void> => {
     try {
-      await apiClient.delete(`/api/v1/ansible/organizations/${organizationId}`)
+      await apiClient.delete(`/v1/ansible/organizations/${organizationId}`)
     } catch (error) {
       console.error(`Erreur lors de la suppression de l'organisation ${organizationId}:`, error)
       throw error
@@ -609,7 +609,7 @@ export const ansibleService = {
   // Analyse de playbook
   analyzePlaybook: async (playbookContent: string): Promise<AnsiblePlaybookAnalysis> => {
     try {
-      const response = await apiClient.post<AnsiblePlaybookAnalysis>('/api/v1/ansible/playbooks/analyze', {
+      const response = await apiClient.post<AnsiblePlaybookAnalysis>('/v1/ansible/playbooks/analyze', {
         playbook_content: playbookContent,
       })
       return response.data

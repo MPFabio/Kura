@@ -1,0 +1,151 @@
+name: Deploy to GCP VM
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+env:
+  RELEASE_DIR: /opt/kura
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure/terraform/gcp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.2
+
+      - name: Configure GCP credentials
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          echo "$GCP_SA_KEY" > $HOME/gcp-sa.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcp-sa.json" >> $GITHUB_ENV
+
+      - name: Inject Terraform variables
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_SSH_PRIVATE_KEY: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          tmp_key=$(mktemp)
+          printf '%s\n' "$GCP_SSH_PRIVATE_KEY" > "$tmp_key"
+          chmod 600 "$tmp_key"
+
+          pub_key=$(ssh-keygen -y -f "$tmp_key")
+          rm -f "$tmp_key"
+
+          cat > terraform.auto.tfvars <<EOF
+          gcp_project             = "${GCP_PROJECT_ID}"
+          instance_ssh_public_key = "${pub_key} github-actions"
+          EOF
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve tfplan
+
+  deploy:
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write production env file
+        run: |
+          if [ -n "${{ secrets.PROD_ENV_FILE }}" ]; then
+            echo "${{ secrets.PROD_ENV_FILE }}" | base64 --decode > .env.production
+            echo "PROD_ENV_GENERATED=1" >> $GITHUB_ENV
+          fi
+
+      - name: Check env file presence
+        run: |
+          if [ -z "${{ env.PROD_ENV_GENERATED }}" ]; then
+            echo "No .env.production generated (PROD_ENV_FILE secret empty)"
+          else
+            echo ".env.production generated successfully"
+          fi
+
+      - name: Create deployment archive
+        run: |
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='release.tar.gz' \
+            ./ /tmp/modulops-release
+
+          tar \
+            -C /tmp/modulops-release \
+            -czf release.tar.gz \
+            .
+
+      - name: Copy archive to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          source: release.tar.gz
+          target: /tmp/
+
+      - name: Deploy on VM
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.GCP_VM_IP }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            set -euo pipefail
+
+            RELEASE_DIR="${{ env.RELEASE_DIR }}"
+            RELEASE_SHA="${{ github.sha }}"
+            ARCHIVE="/tmp/release.tar.gz"
+            RELEASE_PATH="${RELEASE_DIR}/releases/${RELEASE_SHA}"
+
+            sudo mkdir -p "${RELEASE_DIR}/releases"
+            sudo rm -rf "${RELEASE_PATH}"
+            sudo mkdir -p "${RELEASE_PATH}"
+            sudo tar xzf "${ARCHIVE}" -C "${RELEASE_PATH}"
+            sudo rm -f "${ARCHIVE}"
+
+            if [ -f "${RELEASE_PATH}/.env.production" ]; then
+              sudo mv "${RELEASE_PATH}/.env.production" "${RELEASE_PATH}/.env"
+            fi
+
+            sudo ln -sfn "${RELEASE_PATH}" "${RELEASE_DIR}/current"
+            cd "${RELEASE_DIR}/current"
+
+            if [ ! -f ".env" ]; then
+              echo "Missing .env file in ${RELEASE_DIR}/current" >&2
+              exit 1
+            fi
+
+            sudo docker compose --env-file .env \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              down || true
+
+            sudo docker compose --env-file .env \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              up -d --build
+
+            sudo docker system prune -af || true
+
+            find "${RELEASE_DIR}/releases" -maxdepth 1 -mindepth 1 -type d | sort | head -n -2 | xargs -r sudo rm -rf
+# trigger redeploy

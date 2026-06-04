@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box,
   Drawer,
@@ -12,6 +12,7 @@ import {
   Paper,
 } from '@mui/material'
 import { Menu as MenuIcon } from '@mui/icons-material'
+import { useSearchParams } from 'react-router-dom'
 import ModuleTitle from '../components/ModuleTitle'
 import CodeBlock from '../components/CodeBlock'
 import { jellyfishColors } from '../theme'
@@ -251,6 +252,24 @@ provider "google" {
           <Typography>
             Le module Pipelines permet de suivre les pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) et de gérer les webhooks. Les exécutions et statuts sont agrégés dans la plateforme pour une vue transversale avec les autres modules (Kubernetes, Terraform, Ansible).
           </Typography>
+
+          <Typography component="h2">Option recommandée : Webhooks (temps réel)</Typography>
+          <Typography>
+            Les webhooks permettent une mise à jour <strong>immédiate</strong> des exécutions dès qu&apos;un workflow GitHub se termine. Aucun polling, aucune latence.
+          </Typography>
+          <Typography component="h3">Configurer le webhook sur GitHub</Typography>
+          <Box component="ol" sx={{ pl: 2.5, mb: 2, '& li': { mb: 1 } }}>
+            <li>Dans votre dépôt : <strong>Settings</strong> → <strong>Webhooks</strong> → <strong>Add webhook</strong></li>
+            <li><strong>Payload URL</strong> : saisissez l&apos;URL de votre instance Kura. L&apos;URL complète est affichée dans la page Pipelines (section « Connecter un dépôt GitHub » → « Option temps réel »). Exemple : <code>https://votre-domaine/api/v1/pipeline/webhooks/github</code></li>
+            <li><strong>Content type</strong> : <code>application/json</code></li>
+            <li><strong>Events</strong> : sélectionnez « Let me select individual events » puis cochez <code>Workflow run</code> (GitHub Actions)</li>
+          </Box>
+
+          <Typography component="h2">Option alternative : Synchronisation par API</Typography>
+          <Typography>
+            Si les webhooks ne peuvent pas être utilisés, utilisez la synchronisation par API : créez un Personal Access Token GitHub (scope <code>repo</code> ou <code>actions:read</code>), puis dans la page Pipelines, section « Connecter un dépôt GitHub », collez le token et indiquez les dépôts au format <code>owner/repo</code>. Les runs sont récupérés périodiquement ou manuellement via le bouton « Synchroniser ».
+          </Typography>
+
           <Typography component="h2">Intégration</Typography>
           <Typography>
             Le pipeline-service peut recevoir des webhooks des plateformes CI/CD, enregistrer les exécutions et les afficher dans l&apos;interface. La corrélation avec les déploiements (K8s, Terraform) et les alertes est assurée via le bus d&apos;événements (Kafka) lorsque les services publient les événements correspondants.
@@ -333,8 +352,19 @@ provider "google" {
 }
 
 export default function DocumentationPage() {
-  const [selectedId, setSelectedId] = useState('intro')
+  const [searchParams] = useSearchParams()
+  const sectionParam = searchParams.get('section')
+  const [selectedId, setSelectedId] = useState(sectionParam || 'intro')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    if (sectionParam) {
+      const validIds = ['intro', 'getting-started', 'modules', 'k8s', 'terraform', 'ansible', 'pipelines', 'architecture', 'production', 'users', 'gke']
+      if (validIds.includes(sectionParam)) {
+        setSelectedId(sectionParam)
+      }
+    }
+  }, [sectionParam])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 

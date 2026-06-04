@@ -88,6 +88,63 @@ graph TB
     Metrics --> Grafana[Grafana]
 ```
 
+## Bus d’événements Kafka — Flux implémentés
+
+Kafka est le bus d’événements central de Kura. Il découple les producteurs (services qui détectent des changements) des consommateurs (services qui réagissent à ces changements).
+
+### Topics actifs
+
+| Topic | Producteur | Description | Implémenté |
+|-------|-----------|-------------|:----------:|
+| `terraform.drift.detected` | `terraform-service` (drift_worker) | Émis quand un drift est détecté entre l’état Terraform stocké et la réalité cloud | ✅ |
+| `pipeline.run.updated` | `pipeline-service` | Émis quand un run CI/CD change de statut (via webhook GitHub/GitLab) | 🔜 |
+| `k8s.deployment.changed` | `k8s-service` | Émis quand un déploiement Kubernetes change d’état | 🔜 |
+
+### Flux : Détection de drift Terraform
+
+```mermaid
+sequenceDiagram
+    participant DW as DriftWorker (terraform-service)
+    participant SS as SyncService
+    participant TF as TerraformService
+    participant K as Kafka (terraform.drift.detected)
+    participant AS as AlertService (futur)
+
+    DW->>SS: ListSources() — sources avec auto_sync=true
+    SS-->>DW: [source1, source2, ...]
+    DW->>TF: DetectDrift(ctx, stateFileID, credentials, provider)
+    TF-->>DW: [DriftResult{status="modified"}, ...]
+    Note over DW: drifted = true → emitDriftEvent()
+    DW->>K: WriteMessages(DriftEventPayload{<br/>event_type: "terraform.drift.detected",<br/>state_file_id, source_id,<br/>drift_count, results})
+    K-->>AS: Consume → déclencher alerte (futur)
+```
+
+### Structure du payload `terraform.drift.detected`
+
+```json
+{
+  "event_type": "terraform.drift.detected",
+  "state_file_id": "abc123",
+  "source_id": "source-gcp-prod",
+  "detected_at": "2026-06-03T14:32:00Z",
+  "drift_count": 3,
+  "results": [
+    { "resource_address": "google_compute_instance.web", "status": "modified" },
+    { "resource_address": "google_storage_bucket.assets", "status": "deleted" }
+  ]
+}
+```
+
+La **clé du message Kafka** est le `state_file_id`, ce qui garantit que les événements pour un même état Terraform sont traités dans l’ordre par le même consommateur (ordonnancement de partition).
+
+### Graceful shutdown
+
+Le `DriftWorker` démarre avec un `context.WithCancel`. Lors d’un `SIGTERM`, `Stop()` annule le contexte et attend que la goroutine `run()` termine proprement (via le canal `done`). Cela évite de laisser une détection de drift en cours être interrompue à mi-chemin.
+
+Le `pipeline-service` utilise le même pattern : un `context.WithCancel` racine est propagé à la goroutine de sync GitHub. À l’arrêt, `rootCancel()` est appelé et `main` attend la fermeture de `syncDone` avant de continuer le shutdown HTTP.
+
+---
+
 ## Architecture détaillée du service d’authentification
 
 Cette vue se concentre uniquement sur `auth-service` et ses dépendances directes.

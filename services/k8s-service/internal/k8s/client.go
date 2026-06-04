@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/modulops/k8s-service/internal/config"
 
@@ -352,6 +353,47 @@ func (c *Client) DeletePod(ctx context.Context, namespace, name string) error {
 // DeleteDeployment supprime un deployment.
 func (c *Client) DeleteDeployment(ctx context.Context, namespace, name string) error {
 	return c.clientset.AppsV1().Deployments(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// RestartDeployment déclenche un rollout restart (équivalent kubectl rollout restart).
+func (c *Client) RestartDeployment(ctx context.Context, namespace, name string) error {
+	deployment, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("erreur lors de la récupération du deployment: %w", err)
+	}
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+	deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = time.Now().Format(time.RFC3339)
+	_, err = c.clientset.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("erreur lors du rollout restart: %w", err)
+	}
+	return nil
+}
+
+// PatchDeploymentEnv met à jour les variables d'environnement d'un container d'un deployment.
+func (c *Client) PatchDeploymentEnv(ctx context.Context, namespace, name, containerName string, envVars []corev1.EnvVar) error {
+	deployment, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("erreur lors de la récupération du deployment: %w", err)
+	}
+	containerIdx := -1
+	for i, co := range deployment.Spec.Template.Spec.Containers {
+		if co.Name == containerName {
+			containerIdx = i
+			break
+		}
+	}
+	if containerIdx < 0 {
+		return fmt.Errorf("container %s non trouvé", containerName)
+	}
+	deployment.Spec.Template.Spec.Containers[containerIdx].Env = envVars
+	_, err = c.clientset.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("erreur lors de la mise à jour des env vars: %w", err)
+	}
+	return nil
 }
 
 // DeleteService supprime un service.

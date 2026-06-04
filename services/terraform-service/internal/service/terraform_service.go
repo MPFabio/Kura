@@ -45,14 +45,14 @@ func NewTerraformService(cache Cache, cfg *config.Config, backendWriter storage.
 }
 
 // ParseStateFile parse un fichier tfstate et le stocke.
-// Si stateFileID est fourni et existe, l'état est mis à jour au lieu d'être créé.
-func (s *TerraformService) ParseStateFile(ctx context.Context, name string, stateData []byte) (*models.StateFile, error) {
-	return s.ParseStateFileWithID(ctx, "", name, stateData)
+// projectID optionnel : si fourni, associe l'état au projet.
+func (s *TerraformService) ParseStateFile(ctx context.Context, name string, stateData []byte, projectID string) (*models.StateFile, error) {
+	return s.ParseStateFileWithID(ctx, "", name, stateData, projectID)
 }
 
 // ParseStateFileWithID parse un fichier tfstate et le stocke avec un ID spécifique.
 // Si l'ID existe déjà, l'état est mis à jour.
-func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID, name string, stateData []byte) (*models.StateFile, error) {
+func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID, name string, stateData []byte, projectID string) (*models.StateFile, error) {
 	// Parser le tfstate
 	state, err := s.parser.ParseStateFromBytes(stateData)
 	if err != nil {
@@ -88,7 +88,7 @@ func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID
 			ID:         stateFileID,
 			Name:       name,
 			State:      state,
-			ProjectID:  "", // Sera défini par le handler
+			ProjectID:  projectID,
 			UploadedAt: time.Now(),
 		}
 	} else {
