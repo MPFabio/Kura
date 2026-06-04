@@ -8,6 +8,7 @@ on:
 
 env:
   RELEASE_DIR: /opt/kura
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   terraform:
@@ -138,7 +139,10 @@ jobs:
             sudo docker compose --env-file .env \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
-              down || true
+              down --remove-orphans 2>/dev/null || true
+
+            # Forcer la suppression des conteneurs kura résiduels si conflit
+            sudo docker ps -a --filter "name=kura-" -q | xargs -r sudo docker rm -f
 
             sudo docker compose --env-file .env \
               -f docker-compose.yml \
