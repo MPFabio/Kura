@@ -35,6 +35,50 @@ class AnsibleService:
         """Génère une clé de cache."""
         return f"ansible:{prefix}:{':'.join(str(a) for a in args)}"
 
+    # ── Configuration Semaphore (persistée en Redis) ───────────────────────────
+
+    def get_config(self) -> Dict[str, Any]:
+        """Retourne la configuration Semaphore active."""
+        semaphore_url = (self.cache.get("ansible:config:semaphore_url") if self.cache else None) \
+            or self.config.semaphore_url or ""
+        project_id = (self.cache.get("ansible:config:semaphore_project_id") if self.cache else None) \
+            or str(self.config.semaphore_project_id)
+        has_token = bool(
+            (self.cache.get("ansible:config:semaphore_token") if self.cache else None)
+            or self.config.semaphore_api_token
+        )
+        return {
+            "semaphore_url": semaphore_url,
+            "semaphore_project_id": int(project_id) if project_id else 1,
+            "has_token": has_token,
+            "configured": bool(semaphore_url and has_token),
+        }
+
+    def set_config(self, semaphore_url: str = "", token: str = "", project_id: int = 1) -> Dict[str, Any]:
+        """Met à jour la configuration Semaphore et réinitialise le client."""
+        from internal.client.semaphore_client import SemaphoreClient
+
+        # Persistance en Redis (sans TTL pour que la config survive aux redémarrages)
+        if self.cache:
+            if semaphore_url:
+                self.cache.client.set("ansible:config:semaphore_url", semaphore_url)
+            if token:
+                self.cache.client.set("ansible:config:semaphore_token", token)
+            self.cache.client.set("ansible:config:semaphore_project_id", str(project_id))
+
+        # Mise à jour de la config en mémoire
+        if semaphore_url:
+            self.config.semaphore_url = semaphore_url
+        if token:
+            self.config.semaphore_api_token = token
+        self.config.semaphore_project_id = project_id
+
+        # Réinitialisation du client à chaud
+        self.tower_client = SemaphoreClient(self.config)
+        logger.info(f"Client Semaphore réinitialisé → {semaphore_url}, projet {project_id}")
+
+        return self.get_config()
+
     def get_jobs(self, page: int = 1, page_size: int = 20) -> Optional[Dict[str, Any]]:
         """Récupère la liste des jobs avec cache."""
         from internal.metrics.prometheus import cache_hits_total, cache_misses_total
