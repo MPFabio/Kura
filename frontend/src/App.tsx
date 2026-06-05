@@ -75,7 +75,7 @@ function AppRoot() {
         role="status"
         aria-live="polite"
       >
-        <div style={{ width: 48, height: 48, border: '4px solid rgba(0,229,255,0.3)', borderTopColor: '#00E5FF', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+        <div style={{ width: 48, height: 48, border: '4px solid #4F8EF7', borderTopColor: '#4F8EF7', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
         <span style={{ color: '#ffffff', fontWeight: 600 }}>Chargement...</span>
       </div>
     )

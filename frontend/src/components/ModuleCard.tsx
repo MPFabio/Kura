@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
-import { Card, CardContent, Box, SxProps, Theme } from '@mui/material'
-import { jellyfishColors } from '../theme'
+import { Box, SxProps, Theme } from '@mui/material'
+import { kuraColors } from '../theme'
 
 interface ModuleCardProps {
   children: ReactNode
@@ -11,55 +11,38 @@ interface ModuleCardProps {
   onClick?: () => void
 }
 
-export default function ModuleCard({ 
-  children, 
-  sx, 
-  active = false, 
+export default function ModuleCard({
+  children,
+  sx,
+  active = false,
   inactive = false,
-  deploying = false, 
-  onClick 
+  deploying = false,
+  onClick,
 }: ModuleCardProps) {
   return (
-    <Card
+    <Box
       onClick={onClick}
       sx={{
-        position: 'relative',
+        background: kuraColors.bg2,
+        border: `1px solid ${kuraColors.border1}`,
+        borderRadius: '8px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
         overflow: 'hidden',
         cursor: onClick ? 'pointer' : 'default',
-        minHeight: '300px',
-        height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'all 0.4s ease',
-        ...(inactive && {
-          opacity: 0.6,
-          '&:hover': { opacity: 0.75 },
-        }),
-        ...(active && {
-          borderLeftColor: jellyfishColors.cyanSoft,
-          borderLeftWidth: '4px',
-          '&:hover': { borderLeftWidth: '5px' },
-        }),
-        ...(deploying && {
-          borderLeftColor: jellyfishColors.cyanSoft,
-          borderLeftWidth: '4px',
+        ...(inactive && { opacity: 0.45 }),
+        ...(onClick && {
+          '&:hover': {
+            borderColor: kuraColors.border2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          },
         }),
         ...sx,
       }}
     >
-      <CardContent 
-        sx={{ 
-          position: 'relative', 
-          zIndex: 1, 
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          '&:last-child': { pb: 2 } 
-        }}
-      >
-        {children}
-      </CardContent>
-    </Card>
+      {children}
+    </Box>
   )
 }

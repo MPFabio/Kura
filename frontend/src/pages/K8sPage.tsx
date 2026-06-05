@@ -573,19 +573,22 @@ export default function K8sPage() {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'running':
-      case 'ready':
-      case 'active':
-        return 'success'
-      case 'pending':
-        return 'warning'
-      case 'failed':
-      case 'error':
-      case 'notready':
-        return 'error'
-      default:
-        return 'default'
+      case 'running': case 'ready': case 'active': case 'succeeded': return 'success'
+      case 'pending': case 'containercreating': case 'init': return 'warning'
+      case 'failed': case 'error': case 'notready': case 'crashloopbackoff': case 'oomkilled': return 'error'
+      default: return 'default'
     }
+  }
+
+  const getStatusSx = (status: string) => {
+    const s = status.toLowerCase()
+    if (['running','ready','active','succeeded'].includes(s))
+      return { bgcolor: 'rgba(52,211,153,0.15)', border: '1px solid #34D399', color: '#34D399' }
+    if (['pending','containercreating','init'].includes(s))
+      return { bgcolor: 'rgba(251,191,36,0.15)', border: '1px solid #FBBF24', color: '#FBBF24' }
+    if (['failed','error','notready','crashloopbackoff','oomkilled'].includes(s))
+      return { bgcolor: 'rgba(248,113,113,0.15)', border: '1px solid #F87171', color: '#F87171' }
+    return { bgcolor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#8C94A6' }
   }
 
   const renderPodsTable = () => {
@@ -679,7 +682,7 @@ export default function K8sPage() {
                   <ModuleBodyText>{pod.namespace}</ModuleBodyText>
                 </TableCell>
                 <TableCell>
-                  <Chip label={pod.status} color={getStatusColor(pod.status) as any} size="small" />
+                  <Chip label={pod.status} size="small" sx={{ fontWeight: 600, fontSize: '0.6875rem', ...getStatusSx(pod.status) }} />
                 </TableCell>
                 <TableCell>
                   <ModuleBodyText>{pod.node || '-'}</ModuleBodyText>
@@ -1227,10 +1230,14 @@ export default function K8sPage() {
                       {cluster.is_active && (
                         <Chip
                           label="Actif"
-                          color="success"
                           size="small"
-                          icon={<CheckCircleIcon />}
-                          sx={{ fontSize: '0.75rem', fontWeight: 500 }}
+                          sx={{
+                            fontSize: '0.6875rem',
+                            fontWeight: 600,
+                            backgroundColor: 'rgba(52,211,153,0.15)',
+                            border: '1px solid #34D399',
+                            color: '#34D399',
+                          }}
                         />
                       )}
                     </Box>
@@ -1365,7 +1372,7 @@ export default function K8sPage() {
                   <ModuleBodyText>{node.name}</ModuleBodyText>
                 </TableCell>
                 <TableCell>
-                  <Chip label={node.status} color={getStatusColor(node.status) as any} size="small" />
+                  <Chip label={node.status} size="small" sx={{ fontWeight: 600, fontSize: '0.6875rem', ...getStatusSx(node.status) }} />
                 </TableCell>
                 <TableCell>
                   <ModuleBodyText>{node.kubeletVersion}</ModuleBodyText>
@@ -1616,10 +1623,10 @@ export default function K8sPage() {
                       setBulkActionDialog({ open: true, action: 'restart', count: selectedResources.size })
                     }}
                     sx={{
-                      borderColor: '#00FFFF',
-                      color: '#00FFFF',
+                      borderColor: '#4F8EF7',
+                      color: '#4F8EF7',
                       '&:hover': {
-                        borderColor: '#00FFFF',
+                        borderColor: '#4F8EF7',
                         backgroundColor: 'rgba(0, 255, 255, 0.1)',
                       },
                     }}
@@ -1637,10 +1644,10 @@ export default function K8sPage() {
                       setBulkActionDialog({ open: true, action: 'scale', count: selectedResources.size })
                     }}
                     sx={{
-                      borderColor: '#00FFFF',
-                      color: '#00FFFF',
+                      borderColor: '#4F8EF7',
+                      color: '#4F8EF7',
                       '&:hover': {
-                        borderColor: '#00FFFF',
+                        borderColor: '#4F8EF7',
                         backgroundColor: 'rgba(0, 255, 255, 0.1)',
                       },
                     }}
