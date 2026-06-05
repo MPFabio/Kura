@@ -125,6 +125,9 @@ func setupRouter(pipelineHandler *handler.PipelineHandler, webhookHandler *handl
 			// Sync manuel (API GitHub - token + GITHUB_REPOS)
 			pipelineGroup.POST("/sync", pipelineHandler.SyncGitHub)
 
+			// Relance d'un run (scope GitHub `workflow` requis)
+			pipelineGroup.POST("/runs/:id/rerun", pipelineHandler.RerunRun)
+
 			// Webhooks
 			pipelineGroup.POST("/webhooks", webhookHandler.HandleGeneric)
 			pipelineGroup.POST("/webhooks/github", webhookHandler.HandleGitHub)

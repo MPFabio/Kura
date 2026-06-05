@@ -1,35 +1,50 @@
 import { Box, SxProps, Theme } from '@mui/material'
 import ansibleLogo from '../../assets/ansible_logo.png'
 
-const ICON_COLOR_ACTIVE = '#00E5FF'
-const ICON_COLOR_INACTIVE = '#b8b8b8'
-
 interface AnsibleIconProps {
   sx?: SxProps<Theme>
   active?: boolean
 }
 
 export default function AnsibleIcon({ sx, active = false }: AnsibleIconProps) {
+  const size = (sx as any)?.width ?? (sx as any)?.fontSize ?? 24
+
+  if (!active) {
+    return (
+      <Box
+        aria-hidden
+        sx={{
+          width: size,
+          height: size,
+          backgroundColor: '#6B7385',
+          mask: `url(${ansibleLogo}) center/contain no-repeat`,
+          WebkitMask: `url(${ansibleLogo}) center/contain no-repeat`,
+          flexShrink: 0,
+          opacity: 0.5,
+          ...sx,
+        }}
+      />
+    )
+  }
+
+  // Actif : cercle noir + A blanc (double couche)
+  // Couche 1 (derrière) : cercle blanc visible à travers le A transparent du stencil
+  // Couche 2 (devant) : masque noir = le cercle
   return (
-    <Box
-      aria-hidden
-      sx={{
-        width: 24,
-        height: 24,
-        backgroundColor: active ? ICON_COLOR_ACTIVE : ICON_COLOR_INACTIVE,
-        mask: `url(${ansibleLogo}) center/contain no-repeat`,
-        WebkitMask: `url(${ansibleLogo}) center/contain no-repeat`,
-        maskSize: 'contain',
-        WebkitMaskSize: 'contain',
-        maskRepeat: 'no-repeat',
-        WebkitMaskRepeat: 'no-repeat',
-        maskPosition: 'center',
-        WebkitMaskPosition: 'center',
-        filter: active ? 'drop-shadow(0 0 6px rgba(0, 229, 255, 0.6))' : 'none',
-        transition: 'all 0.3s ease',
-        flexShrink: 0,
-        ...sx,
-      }}
-    />
+    <Box sx={{ position: 'relative', width: size, height: size, flexShrink: 0, ...sx }}>
+      {/* Fond blanc — visible seulement à travers le A (zone transparente du stencil) */}
+      <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'white', borderRadius: '50%' }} />
+      {/* Masque noir au-dessus = cercle noir, A = transparent → fond blanc visible */}
+      <Box
+        aria-hidden
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: '#1A1A1A',
+          mask: `url(${ansibleLogo}) center/contain no-repeat`,
+          WebkitMask: `url(${ansibleLogo}) center/contain no-repeat`,
+        }}
+      />
+    </Box>
   )
 }

@@ -60,7 +60,7 @@ const contentSx = {
     px: 0.75,
     py: 0.25,
     borderRadius: 0.5,
-    border: '1px solid rgba(0,229,255,0.15)',
+    border: '1px solid rgba(79,142,247,0.12)',
   },
   '& .code': {
     fontFamily: '"JetBrains Mono", Consolas, monospace',
@@ -75,7 +75,7 @@ const contentSx = {
   },
   '& .card': {
     borderLeft: `4px solid ${jellyfishColors.cyanSoft}`,
-    bgcolor: 'rgba(0,229,255,0.06)',
+    bgcolor: 'rgba(79,142,247,0.06)',
     borderRadius: 1,
     p: 2,
     mb: 2,
@@ -444,19 +444,10 @@ export default function DocumentationPage() {
           <Box key={section.id}>
             {section.children ? (
               <>
-                <ListItemButton
-                  selected={selectedId === section.id}
-                  onClick={() => {
-                    setSelectedId(section.id)
-                    if (isMobile) setSidebarOpen(false)
-                  }}
-                  sx={{
-                    py: 0.75,
-                    '&.Mui-selected': { bgcolor: 'rgba(0,229,255,0.15)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
-                  }}
-                >
-                  <ListItemText primary={section.label} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
-                </ListItemButton>
+                {/* Groupe parent — non cliquable, label seul */}
+                <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+                  <ListItemText primary={section.label} primaryTypographyProps={{ fontSize: '0.7rem', fontWeight: 700, color: jellyfishColors.grayLight, textTransform: 'uppercase', letterSpacing: '0.08em' }} />
+                </Box>
                 {section.children.map((child) => (
                   <ListItemButton
                     key={child.id}
@@ -468,7 +459,7 @@ export default function DocumentationPage() {
                     sx={{
                       pl: 3,
                       py: 0.6,
-                      '&.Mui-selected': { bgcolor: 'rgba(0,229,255,0.12)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
+                      '&.Mui-selected': { bgcolor: 'rgba(79,142,247,0.10)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
                     }}
                   >
                     <ListItemText primary={child.label} primaryTypographyProps={{ fontSize: '0.85rem' }} />
@@ -484,7 +475,7 @@ export default function DocumentationPage() {
                 }}
                 sx={{
                   py: 0.75,
-                  '&.Mui-selected': { bgcolor: 'rgba(0,229,255,0.15)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
+                  '&.Mui-selected': { bgcolor: 'rgba(79,142,247,0.12)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
                 }}
               >
                 <ListItemText primary={section.label} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
@@ -541,7 +532,7 @@ export default function DocumentationPage() {
             border: `1px solid ${jellyfishColors.cyanSubtle}`,
             borderRadius: 2,
             overflowY: 'auto',
-            boxShadow: `inset 0 1px 0 rgba(0,229,255,0.08)`,
+            boxShadow: `inset 0 1px 0 rgba(79,142,247,0.05)`,
           }}
         >
           <DocContent docId={selectedId} />

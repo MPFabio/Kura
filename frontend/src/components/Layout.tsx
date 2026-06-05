@@ -4,11 +4,8 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
   Drawer,
-  Toolbar,
   List,
   Typography,
-  Divider,
-  IconButton,
   ListItem,
   ListItemButton,
   ListItemIcon,
@@ -17,17 +14,19 @@ import {
   Menu,
   MenuItem,
   Select,
-  FormControl,
-  Chip,
+  Divider,
+  Tooltip,
 } from '@mui/material'
 import {
-  AccountCircle,
   Logout,
   Folder as FolderIcon,
+  KeyboardArrowDown,
+  ChevronRight,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
-import { useSocket } from '../contexts/SocketContext'
 import { useProject } from '../contexts/ProjectContext'
+import { useSocket } from '../contexts/SocketContext'
+import { kuraColors } from '../theme'
 import Logo from './Logo'
 import AnimatedBackground from './AnimatedBackground'
 import TerraformIcon from './icons/TerraformIcon'
@@ -40,330 +39,257 @@ import AlertsIcon from './icons/AlertsIcon'
 import SettingsIcon from './icons/SettingsIcon'
 import { MenuBook as MenuBookIcon } from '@mui/icons-material'
 
-const drawerWidth = 240
+const DRAWER_WIDTH = 220
 
-const menuItems = [
-  { text: 'Modules', icon: <ModulesIcon />, path: '/modules', useCustomIcon: true },
-  { text: 'Terraform', icon: <TerraformIcon />, path: '/terraform', useCustomIcon: true },
-  { text: 'Kubernetes', icon: <KubernetesIcon />, path: '/k8s', useCustomIcon: true },
-  { text: 'Ansible', icon: <AnsibleIcon />, path: '/ansible', useCustomIcon: true },
-  { text: 'Monitoring', icon: <MonitoringIcon />, path: '/metrics', useCustomIcon: true },
-  { text: 'Pipelines', icon: <PipelinesIcon />, path: '/pipelines', useCustomIcon: true },
-  { text: 'Alertes', icon: <AlertsIcon />, path: '/alerts', useCustomIcon: true },
-  { text: 'Documentation', icon: <MenuBookIcon />, path: '/documentation', useCustomIcon: false },
-  { text: 'Paramètres', icon: <SettingsIcon />, path: '/settings', useCustomIcon: true },
+const navItems = [
+  { text: 'Modules',       icon: <ModulesIcon />,    path: '/modules',        custom: true },
+  { text: 'Terraform',     icon: <TerraformIcon />,  path: '/terraform',      custom: true },
+  { text: 'Kubernetes',    icon: <KubernetesIcon />, path: '/k8s',            custom: true },
+  { text: 'Ansible',       icon: <AnsibleIcon />,    path: '/ansible',        custom: true },
+  { text: 'Monitoring',    icon: <MonitoringIcon />, path: '/metrics',        custom: true },
+  { text: 'Pipelines',     icon: <PipelinesIcon />,  path: '/pipelines',      custom: true },
+  { text: 'Alertes',       icon: <AlertsIcon />,     path: '/alerts',         custom: true },
+]
+
+const bottomItems = [
+  { text: 'Documentation', icon: <MenuBookIcon sx={{ fontSize: 18 }} />, path: '/documentation', custom: false },
+  { text: 'Paramètres',    icon: <SettingsIcon />,   path: '/settings',       custom: true },
 ]
 
 export default function Layout() {
-  const [mobileOpen, setMobileOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
-  const { connected } = useSocket()
   const { currentProject, projects, setCurrentProject } = useProject()
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen)
-  }
-
-  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null)
-  }
+  const { connected } = useSocket()
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
-    handleMenuClose()
+    setAnchorEl(null)
   }
 
-  const drawer = (
-    <div style={{ background: 'transparent' }}>
-      <Box
-        sx={{
-          background: 'rgba(0, 229, 255, 0.05)',
-          borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
-          px: 2,
-          py: 2,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: connected ? '#00FFFF' : '#FF4500',
-                boxShadow: connected 
-                  ? '0 0 8px rgba(0, 255, 255, 0.8), 0 0 16px rgba(0, 255, 255, 0.4)'
-                  : '0 0 8px rgba(255, 69, 0, 0.8), 0 0 16px rgba(255, 69, 0, 0.4)',
-                animation: connected ? 'breathingGlow 2s ease-in-out infinite' : 'none',
-              }}
-            />
-            <IconButton
-              size="small"
-              edge="end"
-              aria-label="account menu"
-              aria-controls="account-menu"
-              aria-haspopup="true"
-              onClick={handleMenuClick}
-              sx={{ p: 0.5 }}
-            >
-              <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem' }}>
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </Avatar>
-            </IconButton>
-            <Menu
-              id="account-menu"
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-            >
-              <MenuItem onClick={() => navigate('/settings')}>
-                <AccountCircle sx={{ mr: 1 }} />
-                Profil
-              </MenuItem>
-              <MenuItem onClick={handleLogout}>
-                <Logout sx={{ mr: 1 }} />
-                Déconnexion
-              </MenuItem>
-            </Menu>
-          </Box>
-        </Box>
-      </Box>
-      <Toolbar
-        disableGutters
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 0,
-          height: 120,
-          minHeight: 120,
-          overflow: 'hidden',
-          background: 'rgba(0, 0, 0, 0.3)',
-          borderTop: '1px solid rgba(0, 229, 255, 0.2)',
-          borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
-          boxSizing: 'border-box',
-          '&.MuiToolbar-root': { minHeight: 120, padding: 0 },
-        }}
-      >
-        <Box sx={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          {/* Marge au-dessus du logo (en px) pour l’équilibre vertical ; augmenter pour descendre le bloc */}
-          <Logo variant="full" size="small" sx={{ margin: 0 }} />
-        </Box>
-      </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(0, 184, 212, 0.2)' }} />
-      <Box sx={{ px: 2, py: 2, background: 'rgba(171, 71, 188, 0.05)', borderBottom: '2px solid rgba(171, 71, 188, 0.3)' }}>
-        <FormControl fullWidth size="small">
-          <Select
-            value={currentProject?.id || ''}
-            onChange={(e) => {
-              const project = projects.find(p => p.id === e.target.value)
-              if (project) {
-                setCurrentProject(project)
-                if (location.pathname === '/projects') {
-                  navigate('/modules')
-                }
-              }
-            }}
-            displayEmpty
-            MenuProps={{
-              PaperProps: {
-                sx: {
-                  backgroundColor: 'rgba(26, 35, 50, 0.98)',
-                  backdropFilter: 'blur(30px) saturate(180%)',
-                  border: '1px solid rgba(0, 229, 255, 0.3)',
-                  borderRadius: '12px',
-                  mt: 1,
-                },
-              },
-            }}
-            sx={{
-              color: '#f0f0f0',
-              backgroundColor: 'rgba(26, 35, 50, 0.8)',
-              backdropFilter: 'blur(10px)',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(0, 229, 255, 0.3)',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(0, 229, 255, 0.5)',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(0, 229, 255, 0.8)',
-              },
-              '& .MuiSelect-icon': {
-                color: '#b8b8b8',
-              },
-              '& .MuiSelect-select': {
-                backgroundColor: 'transparent',
-              },
-            }}
-            renderValue={(selected) => {
-              if (!selected) {
-                return (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FolderIcon sx={{ fontSize: 16, color: '#b8b8b8' }} />
-                    <Typography variant="body2" sx={{ color: '#b8b8b8', fontWeight: 500 }}>
-                      Sélectionner un projet
-                    </Typography>
-                  </Box>
-                )
-              }
-              const project = projects.find(p => p.id === selected)
-              return (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <FolderIcon sx={{ fontSize: 16, color: '#00E5FF' }} />
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#f0f0f0' }}>
-                    {project?.name || 'Projet'}
-                  </Typography>
-                </Box>
-              )
-            }}
-          >
-            <MenuItem 
-              value="" 
-              onClick={() => navigate('/projects')}
-              sx={{
-                backgroundColor: 'transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.12)',
-                },
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                <FolderIcon sx={{ fontSize: 16, mr: 1 }} />
-                <Typography variant="body2">Gérer les projets</Typography>
-              </Box>
-            </MenuItem>
-            {projects.map((project) => (
-              <MenuItem 
-                key={project.id} 
-                value={project.id}
-                sx={{
-                  backgroundColor: currentProject?.id === project.id ? 'rgba(0, 229, 255, 0.15)' : 'transparent',
-                  '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-                  },
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                  <FolderIcon sx={{ fontSize: 16, mr: 1, color: '#00E5FF' }} />
-                  <Typography variant="body2">{project.name}</Typography>
-                  {currentProject?.id === project.id && (
-                    <Chip
-                      label="Actif"
-                      size="small"
-                      sx={{
-                        ml: 'auto',
-                        background: 'transparent',
-                        border: '1px solid #66BB6A',
-                        color: '#66BB6A',
-                        fontSize: '0.65rem',
-                        height: '20px',
-                        fontWeight: 700,
-                      }}
-                    />
-                  )}
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-      <List sx={{ px: 1, py: 2, background: 'rgba(0, 0, 0, 0.2)' }}>
-        {menuItems.map((item) => {
-          const isSelected = location.pathname === item.path ||
-            (item.path === '/k8s' && location.pathname.startsWith('/k8s')) ||
-            (item.path === '/documentation' && location.pathname.startsWith('/documentation'))
-          return (
-            <ListItem key={item.text} disablePadding>
-              <ListItemButton
-                selected={isSelected}
-                onClick={() => {
-                  navigate(item.path)
-                  setMobileOpen(false)
-                }}
-              >
-                <ListItemIcon>
-                  {item.useCustomIcon ? (
-                    React.cloneElement(item.icon as React.ReactElement, { active: isSelected })
-                  ) : (
-                    item.icon
-                  )}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.text}
-                  primaryTypographyProps={{
-                    sx: isSelected
-                      ? { color: '#f0f0f0', fontWeight: 600 }
-                      : {
-                          color: '#b8b8b8',
-                          fontWeight: 500,
-                        },
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          )
-        })}
-      </List>
-    </div>
-  )
+  const isActive = (path: string) =>
+    location.pathname === path ||
+    (path === '/k8s' && location.pathname.startsWith('/k8s')) ||
+    (path === '/documentation' && location.pathname.startsWith('/documentation'))
 
-  return (
-    <Box sx={{ display: 'flex', position: 'relative', minHeight: '100vh' }}>
-      <AnimatedBackground />
-      <Box
-        component="nav"
-        sx={{ 
-          width: { sm: drawerWidth }, 
-          flexShrink: { sm: 0 }, 
-          position: 'relative', 
-          zIndex: 1,
-          background: 'transparent',
-        }}
-        aria-label="navigation"
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
+  const NavItem = ({ item }: { item: typeof navItems[0] }) => {
+    const active = isActive(item.path)
+    return (
+      <ListItem disablePadding sx={{ mb: 0.25 }}>
+        <ListItemButton
+          selected={active}
+          onClick={() => navigate(item.path)}
           sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              background: 'transparent !important',
-              backgroundColor: 'transparent !important',
+            borderRadius: '6px',
+            mx: 1,
+            px: 1.5,
+            py: 0.875,
+            minHeight: 36,
+            '&.Mui-selected': {
+              bgcolor: kuraColors.accentMuted,
+              '&:hover': { bgcolor: kuraColors.accentMuted },
             },
           }}
         >
-          {drawer}
-        </Drawer>
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            {item.custom
+              ? React.cloneElement(item.icon as React.ReactElement, { active })
+              : React.cloneElement(item.icon as React.ReactElement, {
+                  sx: { fontSize: 18, color: active ? kuraColors.accent : kuraColors.text2 },
+                })}
+          </ListItemIcon>
+          <ListItemText
+            primary={item.text}
+            primaryTypographyProps={{
+              sx: {
+                fontSize: '0.875rem',
+                fontWeight: active ? 500 : 400,
+                color: active ? kuraColors.text0 : kuraColors.text1,
+              },
+            }}
+          />
+          {active && <ChevronRight sx={{ fontSize: 14, color: kuraColors.accent, opacity: 0.6 }} />}
+        </ListItemButton>
+      </ListItem>
+    )
+  }
+
+  const sidebar = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: kuraColors.bg1 }}>
+      {/* Logo */}
+      <Box sx={{
+        height: 72,
+        borderBottom: `1px solid ${kuraColors.border1}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        pl: 3,
+        bgcolor: kuraColors.bg1,
+      }}>
+        <Logo variant="icon" size="small" />
+      </Box>
+
+      {/* Project selector */}
+      <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${kuraColors.border0}` }}>
+        <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: kuraColors.text2, textTransform: 'uppercase', letterSpacing: '0.08em', mb: 0.75 }}>
+          Projet
+        </Typography>
+        <Select
+          value={currentProject?.id || ''}
+          onChange={(e) => {
+            const project = projects.find(p => p.id === e.target.value)
+            if (project) {
+              setCurrentProject(project)
+              if (location.pathname === '/projects') navigate('/modules')
+            }
+          }}
+          displayEmpty
+          size="small"
+          fullWidth
+          IconComponent={KeyboardArrowDown}
+          MenuProps={{
+            PaperProps: {
+              sx: {
+                bgcolor: kuraColors.bg2,
+                border: `1px solid ${kuraColors.border2}`,
+                borderRadius: '8px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                mt: 0.5,
+              },
+            },
+          }}
+          sx={{
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            color: kuraColors.text0,
+            bgcolor: kuraColors.bg2,
+            borderRadius: '6px',
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: kuraColors.border1 },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: kuraColors.border2 },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: kuraColors.accent, borderWidth: 1 },
+            '& .MuiSelect-icon': { color: kuraColors.text2, fontSize: 18 },
+            '& .MuiSelect-select': { py: 1, px: 1.5 },
+          }}
+          renderValue={(selected) => {
+            if (!selected) return <Typography sx={{ fontSize: '0.875rem', color: kuraColors.text2 }}>Sélectionner...</Typography>
+            const project = projects.find(p => p.id === selected)
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FolderIcon sx={{ fontSize: 14, color: kuraColors.accent }} />
+                <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: kuraColors.text0 }}>{project?.name}</Typography>
+              </Box>
+            )
+          }}
+        >
+          <MenuItem value="" onClick={() => navigate('/projects')} sx={{ fontSize: '0.875rem', color: kuraColors.text1 }}>
+            <FolderIcon sx={{ fontSize: 14, mr: 1.5 }} /> Gérer les projets
+          </MenuItem>
+          <Divider sx={{ my: 0.5, borderColor: kuraColors.border0 }} />
+          {projects.map((p) => (
+            <MenuItem key={p.id} value={p.id} sx={{ fontSize: '0.875rem', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FolderIcon sx={{ fontSize: 14, color: currentProject?.id === p.id ? kuraColors.accent : kuraColors.text2 }} />
+                {p.name}
+              </Box>
+              {currentProject?.id === p.id && (
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: kuraColors.success, ml: 1 }} />
+              )}
+            </MenuItem>
+          ))}
+        </Select>
+      </Box>
+
+      {/* Navigation principale */}
+      <List sx={{ flex: 1, py: 1, overflowY: 'auto' }}>
+        {navItems.map((item) => <NavItem key={item.path} item={item} />)}
+      </List>
+
+      {/* Navigation secondaire + user */}
+      <Box sx={{ borderTop: `1px solid ${kuraColors.border0}`, pb: 1 }}>
+        <List sx={{ py: 1 }}>
+          {bottomItems.map((item) => <NavItem key={item.path} item={item} />)}
+        </List>
+
+        {/* User */}
+        <Box
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          sx={{
+            mx: 1,
+            px: 1.5,
+            py: 1,
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            cursor: 'pointer',
+            transition: 'background 0.12s',
+            '&:hover': { bgcolor: kuraColors.bg3 },
+          }}
+        >
+          <Box sx={{ position: 'relative' }}>
+            <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: kuraColors.accent, color: '#fff' }}>
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            </Avatar>
+            <Tooltip title={connected ? 'Connecté' : 'Déconnecté'}>
+              <Box sx={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: connected ? kuraColors.success : kuraColors.error,
+                border: `2px solid ${kuraColors.bg1}`,
+              }} />
+            </Tooltip>
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: kuraColors.text0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.username || user?.email?.split('@')[0]}
+            </Typography>
+            <Typography sx={{ fontSize: '0.7rem', color: kuraColors.text2, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.email}
+            </Typography>
+          </Box>
+          <KeyboardArrowDown sx={{ fontSize: 14, color: kuraColors.text2 }} />
+        </Box>
+
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <MenuItem onClick={handleLogout} sx={{ color: kuraColors.error, gap: 1 }}>
+            <Logout sx={{ fontSize: 16 }} /> Déconnexion
+          </MenuItem>
+        </Menu>
+      </Box>
+    </Box>
+  )
+
+  return (
+    <Box sx={{ display: 'flex', minHeight: '100vh', position: 'relative' }}>
+      <AnimatedBackground />
+      <Box component="nav" sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 }, zIndex: 1 }}>
         <Drawer
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              background: 'transparent !important',
-              backgroundColor: 'transparent !important',
+            '& .MuiDrawer-paper': {
+              width: DRAWER_WIDTH,
+              bgcolor: kuraColors.bg1,
+              borderRight: `1px solid ${kuraColors.border1}`,
+              boxSizing: 'border-box',
             },
           }}
           open
         >
-          {drawer}
+          {sidebar}
         </Drawer>
       </Box>
       <Box
@@ -371,12 +297,11 @@ export default function Layout() {
         sx={{
           flexGrow: 1,
           p: 4,
-          pt: 5,
-          width: '100%',
-          backgroundColor: 'transparent',
+          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
           minHeight: '100vh',
           position: 'relative',
           zIndex: 1,
+          bgcolor: 'transparent',
         }}
       >
         <Outlet />

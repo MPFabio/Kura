@@ -11,16 +11,11 @@ export default function ModuleButton({ children, sx, ...props }: ModuleButtonPro
       variant="contained"
       {...props}
       sx={{
-        background: '#00E5FF',
-        color: '#2c2f3f',
-        '&:hover': {
-          background: '#26C6DA',
-        },
         fontFamily: '"Inter", sans-serif',
-        fontWeight: 700,
+        fontWeight: 500,
         textTransform: 'none',
-        px: 3,
-        py: 1.5,
+        px: 2,
+        py: 0.875,
         boxShadow: 'none',
         ...sx,
       }}
