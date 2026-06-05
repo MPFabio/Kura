@@ -145,6 +145,29 @@ func (h *PipelineHandler) SetConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "configuration enregistrée", "config": cfg})
 }
 
+// RerunRun relance un workflow run GitHub Actions.
+// POST /api/v1/pipeline/runs/:id/rerun
+// Sécurité : nécessite un token GitHub avec le scope `workflow`.
+// TODO : conditionner à un rôle admin projet (least privilege).
+func (h *PipelineHandler) RerunRun(c *gin.Context) {
+	runID := c.Param("id")
+	if runID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du run requis"})
+		return
+	}
+
+	if err := h.svc.RerunRun(c.Request.Context(), runID); err != nil {
+		// Distinguer les erreurs métier des erreurs internes
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"message": "relance déclenchée avec succès",
+		"run_id":  runID,
+	})
+}
+
 // SyncGitHub déclenche une synchronisation manuelle depuis l'API GitHub
 // POST /api/v1/pipeline/sync
 func (h *PipelineHandler) SyncGitHub(c *gin.Context) {

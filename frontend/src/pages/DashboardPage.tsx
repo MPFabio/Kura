@@ -33,7 +33,7 @@ export default function DashboardPage() {
       title: 'Namespaces K8s',
       value: namespaces?.items?.length || 0,
       icon: <CloudIcon sx={{ fontSize: 40 }} />,
-      color: '#00FFFF',
+      color: '#4F8EF7',
       active: true,
     },
     {
@@ -47,7 +47,7 @@ export default function DashboardPage() {
       title: 'WebSocket',
       value: connected ? 'Connecté' : 'Déconnecté',
       icon: <TimelineIcon sx={{ fontSize: 40 }} />,
-      color: connected ? '#00FFFF' : '#FF4500',
+      color: connected ? '#4F8EF7' : '#FF4500',
       active: connected,
     },
   ]

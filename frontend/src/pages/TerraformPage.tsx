@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { kuraColors } from '../theme'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
   Grid,
   Button,
+  Typography,
   CircularProgress,
   Alert,
   Chip,
@@ -448,10 +450,10 @@ export default function TerraformPage() {
             onClick={handleAddSource}
             sx={{ 
               mr: 1,
-              borderColor: 'rgba(0, 229, 255, 0.5)',
-              color: '#00E5FF',
+              borderColor: 'rgba(79,142,247,0.4)',
+              color: '#4F8EF7',
               '&:hover': {
-                borderColor: 'rgba(0, 229, 255, 0.8)',
+                borderColor: 'rgba(79,142,247,0.7)',
                 background: 'rgba(0, 229, 255, 0.1)',
               },
             }}
@@ -492,57 +494,48 @@ export default function TerraformPage() {
         </ModuleCard>
       ) : (
         <Grid container spacing={3}>
-          {states.items.map((state, idx) => (
+          {states.items.map((state) => (
             <Grid item xs={12} md={6} lg={4} key={state.id}>
-              <ModuleCard
-                active={true}
-                sx={{ 
-                  height: '100%', 
-                  '--card-delay': `${idx * 0.3}s`,
-                }}
-              >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2.5 }}>
-                    <ModuleSubtitle component="div">
+              <ModuleCard sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  {/* Header */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: kuraColors.text0, lineHeight: 1.3 }}>
                       {state.name}
-                    </ModuleSubtitle>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(state.id)}
-                      sx={{ ml: 1 }}
-                    >
-                      <DeleteIcon />
+                    </Typography>
+                    <IconButton size="small" onClick={() => handleDelete(state.id)}
+                      sx={{ color: kuraColors.error, '&:hover': { bgcolor: kuraColors.errorBg }, ml: 1 }}>
+                      <DeleteIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                   </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <ModuleBodyText sx={{ mb: 1 }}>
-                      Version: <span style={{ color: '#e8e8e8', fontWeight: 400 }}>{state.state?.version || 'N/A'}</span>
-                    </ModuleBodyText>
-                    <ModuleBodyText sx={{ mb: 1 }}>
-                      Ressources: <span style={{ color: '#e8e8e8', fontWeight: 400 }}>{(state as any)._resourceCount !== undefined 
-                        ? (state as any)._resourceCount 
-                        : (state.state?.resources?.length || 0)}</span>
-                    </ModuleBodyText>
-                    <ModuleBodyText sx={{ mb: 1 }}>
-                      Sorties: <span style={{ color: '#e8e8e8', fontWeight: 400 }}>{Object.keys(state.state?.outputs || {}).length}</span>
-                    </ModuleBodyText>
-                    <ModuleCaption sx={{ mt: 1.5, display: 'block' }}>
-                      {new Date(state.uploaded_at).toLocaleString('fr-FR')}
-                    </ModuleCaption>
+
+                  {/* Stats */}
+                  <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
+                    {[
+                      { label: 'Version', value: state.state?.version || 'N/A' },
+                      { label: 'Ressources', value: (state as any)._resourceCount ?? (state.state?.resources?.length || 0) },
+                      { label: 'Sorties', value: Object.keys(state.state?.outputs || {}).length },
+                    ].map((s) => (
+                      <Box key={s.label} sx={{ flex: 1, textAlign: 'center', py: 1.5, borderRadius: '6px', bgcolor: 'rgba(255,255,255,0.04)', border: `1px solid ${kuraColors.border0}` }}>
+                        <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: kuraColors.text0, lineHeight: 1 }}>{s.value}</Typography>
+                        <Typography sx={{ fontSize: '0.65rem', color: kuraColors.text2, textTransform: 'uppercase', letterSpacing: '0.07em', mt: 0.25 }}>{s.label}</Typography>
+                      </Box>
+                    ))}
                   </Box>
-                  <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, pt: 2.5 }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => handleViewDetails(state)}
-                    >
+
+                  {/* Date */}
+                  <Typography sx={{ fontSize: '0.75rem', color: kuraColors.text2, fontFamily: '"JetBrains Mono", monospace', mb: 2 }}>
+                    {new Date(state.uploaded_at).toLocaleString('fr-FR')}
+                  </Typography>
+
+                  {/* Actions */}
+                  <Box sx={{ mt: 'auto', display: 'flex', gap: 1 }}>
+                    <Button size="small" variant="outlined" onClick={() => handleViewDetails(state)} sx={{ flex: 1 }}>
                       Détails
                     </Button>
                     <Button
-                      size="small"
-                      variant="outlined"
-                      color="warning"
-                      startIcon={<WarningIcon />}
+                      size="small" variant="outlined"
+                      startIcon={<WarningIcon sx={{ fontSize: 14 }} />}
                       onClick={async () => {
                         setDetectingDrift(true)
                         try {
@@ -550,17 +543,19 @@ export default function TerraformPage() {
                           setDriftResults(result.items || [])
                           setSelectedState(state)
                           setDriftDialogOpen(true)
-                        } catch (error) {
+                        } catch {
                           setSnackbar({ open: true, message: 'Erreur lors de la détection de drift', severity: 'error' })
                         } finally {
                           setDetectingDrift(false)
                         }
                       }}
                       disabled={detectingDrift}
+                      sx={{ flex: 1, borderColor: kuraColors.warning, color: kuraColors.warning, '&:hover': { bgcolor: kuraColors.warningBg, borderColor: kuraColors.warning } }}
                     >
-                      {detectingDrift ? 'Vérification...' : 'Drift'}
+                      {detectingDrift ? 'Analyse...' : 'Drift'}
                     </Button>
                   </Box>
+                </Box>
               </ModuleCard>
             </Grid>
           ))}
@@ -619,85 +614,77 @@ export default function TerraformPage() {
         <DialogContent>
           {selectedState && (
             <Box>
-              <ModuleSubtitle sx={{ mt: 2, mb: 1 }}>
-                Informations générales
-              </ModuleSubtitle>
-              <List>
-                <ListItem>
-                  <ListItemText primary="Version" secondary={selectedState.state?.version} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Version Terraform" secondary={selectedState.state?.terraform_version || 'N/A'} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Serial" secondary={selectedState.state?.serial} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Nombre de ressources" secondary={selectedState.state?.resources?.length || 0} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Nombre de sorties" secondary={Object.keys(selectedState.state?.outputs || {}).length} />
-                </ListItem>
-              </List>
-              <Divider sx={{ my: 2 }} />
-              <ModuleSubtitle sx={{ mb: 2 }}>
+              {/* Infos générales — grid de stats */}
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 3, mt: 1 }}>
+                {[
+                  { label: 'Version Terraform', value: selectedState.state?.terraform_version || 'N/A' },
+                  { label: 'Révision', value: selectedState.state?.serial },
+                  { label: 'Ressources', value: selectedState.state?.resources?.length || 0 },
+                  { label: 'Sorties', value: Object.keys(selectedState.state?.outputs || {}).length },
+                ].map((s) => (
+                  <Box key={s.label} sx={{ flex: '1 1 80px', textAlign: 'center', py: 1.5, px: 1, borderRadius: '6px', bgcolor: 'rgba(255,255,255,0.04)', border: `1px solid ${kuraColors.border0}` }}>
+                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: kuraColors.text0, lineHeight: 1 }}>{s.value}</Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: kuraColors.text2, textTransform: 'uppercase', letterSpacing: '0.07em', mt: 0.25 }}>{s.label}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: kuraColors.text1, mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Ressources ({selectedState.state?.resources?.length || 0})
-              </ModuleSubtitle>
+              </Typography>
+
               {selectedState.state?.resources && selectedState.state.resources.length > 0 ? (
                 <TableContainer component={Paper} sx={{ maxHeight: 400, mt: 1 }}>
                   <Table size="small" stickyHeader>
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ width: 60 }}>#</TableCell>
+                        <TableCell sx={{ width: 40 }}>#</TableCell>
                         <TableCell>Type</TableCell>
                         <TableCell>Nom</TableCell>
                         <TableCell>Provider</TableCell>
                         <TableCell>Mode</TableCell>
                         <TableCell>Module</TableCell>
-                        <TableCell>Instances</TableCell>
+                        <TableCell>Inst.</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {selectedState.state.resources.map((resource, idx) => (
-                        <TableRow 
+                        <TableRow
                           key={idx}
                           hover
                           sx={{ cursor: 'pointer' }}
-                          onClick={() => {
-                            setSelectedResource(resource)
-                            setResourceDialogOpen(true)
-                          }}
+                          onClick={() => { setSelectedResource(resource); setResourceDialogOpen(true) }}
                         >
-                          <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>{idx + 1}</TableCell>
-                          <TableCell>
-                            <ModuleBodyText sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
-                              {resource.type}
-                            </ModuleBodyText>
+                          <TableCell sx={{ color: kuraColors.text2, fontSize: '0.75rem', fontFamily: '"JetBrains Mono", monospace' }}>{idx + 1}</TableCell>
+                          <TableCell sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: kuraColors.accent, fontWeight: 500 }}>
+                            {resource.type}
+                          </TableCell>
+                          <TableCell sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: kuraColors.text0 }}>
+                            {resource.name}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.75rem', color: kuraColors.text2, maxWidth: 160 }}>
+                            {resource.provider}
                           </TableCell>
                           <TableCell>
-                            <ModuleBodyText sx={{ fontFamily: 'monospace' }}>
-                              {resource.name}
-                            </ModuleBodyText>
+                            <Chip
+                              label={resource.mode}
+                              size="small"
+                              sx={{
+                                fontSize: '0.6875rem', fontWeight: 600,
+                                bgcolor: resource.mode === 'managed' ? `${kuraColors.success}22` : `${kuraColors.info}22`,
+                                border: `1px solid ${resource.mode === 'managed' ? kuraColors.success : kuraColors.info}`,
+                                color: resource.mode === 'managed' ? kuraColors.success : kuraColors.info,
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ color: kuraColors.text2, fontSize: '0.75rem' }}>
+                            {resource.module || '—'}
                           </TableCell>
                           <TableCell>
-                            <ModuleCaption>
-                              {resource.provider}
-                            </ModuleCaption>
-                          </TableCell>
-                          <TableCell>
-                            <Chip label={resource.mode} size="small" color={resource.mode === 'managed' ? 'primary' : 'secondary'} />
-                          </TableCell>
-                          <TableCell>
-                            <ModuleCaption>
-                              {resource.module || '-'}
-                            </ModuleCaption>
-                          </TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={resource.instances?.length || 0} 
-                              size="small" 
-                              variant="outlined"
-                              color="default"
+                            <Chip
+                              label={resource.instances?.length || 0}
+                              size="small"
+                              sx={{ fontSize: '0.6875rem', bgcolor: kuraColors.bg3, color: kuraColors.text1, border: `1px solid ${kuraColors.border1}` }}
                             />
                           </TableCell>
                         </TableRow>
@@ -706,11 +693,9 @@ export default function TerraformPage() {
                   </Table>
                 </TableContainer>
               ) : (
-                <ModuleSecondaryText>
-                  Aucune ressource
-                </ModuleSecondaryText>
+                <Typography sx={{ color: kuraColors.text2, fontSize: '0.875rem' }}>Aucune ressource</Typography>
               )}
-      </Box>
+            </Box>
           )}
         </DialogContent>
         <DialogActions>
@@ -811,78 +796,51 @@ export default function TerraformPage() {
         <DialogContent>
           {selectedResource && (
             <Box>
-              <ModuleSubtitle sx={{ mt: 2, mb: 2 }}>
-                Informations de base
-              </ModuleSubtitle>
-              <List>
-                <ListItem>
-                  <ListItemText 
-                    primary="Type de ressource" 
-                    secondary={
-                      <ModuleBodyText sx={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 'bold' }}>
-                        {selectedResource.type}
-                      </ModuleBodyText>
-                    } 
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText 
-                    primary="Nom" 
-                    secondary={
-                      <ModuleBodyText sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
-                        {selectedResource.name}
-                      </ModuleBodyText>
-                    } 
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText 
-                    primary="Provider" 
-                    secondary={selectedResource.provider} 
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText 
-                    primary="Mode" 
-                    secondary={
-                      <Chip 
-                        label={selectedResource.mode} 
-                        size="small" 
-                        color={selectedResource.mode === 'managed' ? 'primary' : 'secondary'} 
-                      />
-                    } 
-                  />
-                </ListItem>
-                {selectedResource.module && (
-                  <ListItem>
-                    <ListItemText 
-                      primary="Module" 
-                      secondary={
-                        <ModuleBodyText sx={{ fontFamily: 'monospace' }}>
-                          {selectedResource.module}
-                        </ModuleBodyText>
-                      } 
-                    />
-                  </ListItem>
-                )}
-                <ListItem>
-                  <ListItemText 
-                    primary="Nombre d'instances" 
-                    secondary={selectedResource.instances?.length || 0} 
-                  />
-                </ListItem>
-              </List>
+              {/* Header avec type + badge mode */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1, mb: 2.5 }}>
+                <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '1rem', fontWeight: 600, color: kuraColors.accent }}>
+                  {selectedResource.type}
+                </Typography>
+                <Typography sx={{ color: kuraColors.text2, fontSize: '0.875rem' }}>·</Typography>
+                <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.875rem', color: kuraColors.text1 }}>
+                  {selectedResource.name}
+                </Typography>
+                <Chip
+                  label={selectedResource.mode}
+                  size="small"
+                  sx={{
+                    ml: 'auto', fontWeight: 600, fontSize: '0.6875rem',
+                    bgcolor: selectedResource.mode === 'managed' ? 'rgba(52,211,153,0.15)' : 'rgba(96,165,250,0.15)',
+                    border: `1px solid ${selectedResource.mode === 'managed' ? '#34D399' : '#60A5FA'}`,
+                    color: selectedResource.mode === 'managed' ? '#34D399' : '#60A5FA',
+                  }}
+                />
+              </Box>
+
+              {/* Infos en grille */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 2.5 }}>
+                {[
+                  { label: 'Provider', value: selectedResource.provider, mono: true },
+                  { label: 'Module', value: selectedResource.module || '—', mono: true },
+                ].map((row) => (
+                  <Box key={row.label} sx={{ p: 1.5, borderRadius: '6px', bgcolor: 'rgba(255,255,255,0.03)', border: `1px solid ${kuraColors.border0}` }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: kuraColors.text2, textTransform: 'uppercase', letterSpacing: '0.07em', mb: 0.5 }}>
+                      {row.label}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.8125rem', color: kuraColors.text0, fontFamily: row.mono ? '"JetBrains Mono", monospace' : 'inherit', wordBreak: 'break-all' }}>
+                      {String(row.value)}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
 
               {selectedResource.instances && selectedResource.instances.length > 0 && (
                 <>
                   <Divider sx={{ my: 2 }} />
-                  <ModuleSubtitle sx={{ mb: 2 }}>
-                    Instances ({selectedResource.instances.length})
-                  </ModuleSubtitle>
                   {selectedResource.instances.map((instance: any, instanceIdx: number) => (
                     <Box key={instanceIdx} sx={{ mb: 3 }}>
-                      <ModuleSubtitle sx={{ mt: 2, mb: 2, fontSize: '1rem' }}>
-                        Instance {instanceIdx + 1}
+                      <ModuleSubtitle sx={{ mt: 1, mb: 1.5, fontSize: '0.9375rem' }}>
+                        {selectedResource.instances.length > 1 ? `Instance ${instanceIdx + 1}` : 'Instance'}
                         {instance.schema_version && (
                           <Chip 
                             label={`Schema v${instance.schema_version}`} 

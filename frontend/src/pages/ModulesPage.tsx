@@ -19,6 +19,7 @@ import { clusterService } from '../services/clusterService'
 import { ansibleService } from '../services/ansibleService'
 import { pipelineService } from '../services/pipelineService'
 import { k8sService } from '../services/k8sService'
+import { kuraColors } from '../theme'
 
 interface Module {
   id: string
@@ -193,14 +194,14 @@ export default function ModulesPage() {
       active: true,
       status: 'active',
       statusText: 'Module actif',
-      description: 'Automatisation de vos déploiements avec Ansible Tower. Gestion des jobs, inventaires, templates et exécution de playbooks.',
+      description: 'Automatisation de vos déploiements via Ansible Semaphore. Gestion des jobs, inventaires, templates et exécution de playbooks.',
       stats: [
         { label: 'Jobs', value: formatStat(ansibleJobsCount) },
         { label: 'Inventaires', value: formatStat(ansibleInventoriesCount) },
         { label: 'Templates', value: formatStat(ansibleTemplatesCount) },
       ],
       features: [
-        'Intégration Ansible Tower / AWX',
+        'Intégration Ansible Semaphore',
         'Gestion des inventaires et hôtes',
         'Exécution de playbooks et templates',
       ],
@@ -237,11 +238,16 @@ export default function ModulesPage() {
       inactive: false,
       status: 'active',
       subtitle: 'Prometheus · Grafana',
-      description: 'Surveillance complète de votre infrastructure avec métriques, alertes et dashboards personnalisables.',
+      description: 'Surveillance complète de votre infrastructure avec métriques en temps réel, health checks et dashboards Grafana.',
+      stats: [
+        { label: 'Services', value: '6' },
+        { label: 'Alertes', value: '0' },
+        { label: 'Dashboard', value: 'Grafana' },
+      ],
       features: [
-        'Métriques en temps réel',
-        'Alertes configurables',
-        'Dashboards Grafana',
+        'Health checks en temps réel',
+        'Métriques Prometheus',
+        'Dashboard Grafana intégré',
       ],
     },
   ]
@@ -257,8 +263,8 @@ export default function ModulesPage() {
             px: 2,
             py: 0.75,
             backgroundColor: '#2c2f3f',
-            color: '#00E5FF',
-            border: '2px solid #00E5FF',
+            color: '#4F8EF7',
+            border: '2px solid #4F8EF7',
             fontFamily: '"JetBrains Mono", monospace',
             fontSize: '0.8125rem',
             fontWeight: 700,
@@ -287,10 +293,10 @@ export default function ModulesPage() {
               }}
             >
               {module.active ? (
-                <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', p: 3 }}>
                   {/* Header avec icône et statut */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 4 }}>
-                    <Box sx={{ color: '#00E5FF' }}>
+                    <Box sx={{ color: '#4F8EF7' }}>
                       {module.icon}
                     </Box>
                     <Box
@@ -332,57 +338,29 @@ export default function ModulesPage() {
                     </Typography>
                   )}
 
-                  {/* Statistiques - ordre logo : cyan (gauche) → violet → magenta (droite) */}
                   {module.stats && (
-                    <Box sx={{ display: 'flex', gap: 3, mb: 4 }}>
-                      {module.stats.map((stat, idx) => {
-                        const isCyan = idx === 0
-                        const isViolet = idx === 1
-                        const isMagenta = idx === 2
-                        return (
+                    <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
+                      {module.stats.map((stat, idx) => (
                         <Box
                           key={idx}
                           sx={{
                             flex: 1,
                             textAlign: 'center',
-                            p: 2.5,
-                            borderRadius: 0,
-                            background: '#2c2f3f',
-                            borderLeft: isCyan ? '4px solid #00E5FF' : isViolet ? '4px solid #AB47BC' : '4px solid #EC407A',
-                            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                            transition: 'all 0.15s ease',
-                            '&:hover': {
-                              borderLeftWidth: '5px',
-                            },
+                            py: 2,
+                            px: 1,
+                            borderRadius: '6px',
+                            bgcolor: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.07)',
                           }}
                         >
-                          <Typography
-                            sx={{
-                              fontFamily: '"JetBrains Mono", monospace',
-                              color: '#f0f0f0',
-                              fontWeight: 700,
-                              mb: 0.5,
-                              fontSize: '2rem',
-                            }}
-                          >
+                          <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', color: kuraColors.text0, fontWeight: 600, mb: 0.25, fontSize: '1.5rem', lineHeight: 1 }}>
                             {stat.value}
                           </Typography>
-                          <Typography
-                            sx={{
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.1em',
-                              fontWeight: 600,
-                              color: '#808080',
-                              fontSize: '0.75rem',
-                            }}
-                          >
+                          <Typography sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, color: kuraColors.text2, fontSize: '0.6875rem' }}>
                             {stat.label}
                           </Typography>
                         </Box>
-                        )
-                      })}
+                      ))}
                     </Box>
                   )}
 
@@ -413,14 +391,7 @@ export default function ModulesPage() {
                               px: 0,
                             }}
                           >
-                            <Box
-                              sx={{
-                                width: idx === 0 ? 24 : idx === 1 ? 20 : 16,
-                                height: 2,
-                                flexShrink: 0,
-                                backgroundColor: idx % 2 === 0 ? '#00E5FF' : '#EC407A',
-                              }}
-                            />
+                            <Box sx={{ width: 3, height: 3, borderRadius: '50%', flexShrink: 0, bgcolor: kuraColors.border2 }} />
                             <Typography sx={{ color: '#f0f0f0', fontSize: '0.9375rem', fontWeight: 400 }}>
                               {feature}
                             </Typography>
@@ -433,7 +404,7 @@ export default function ModulesPage() {
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center', textAlign: 'center', p: 4 }}>
                   {/* Icône simple */}
-                  <Box sx={{ mb: 4, color: '#AB47BC', opacity: 0.6 }}>
+                  <Box sx={{ mb: 4, color: '#A78BFA', opacity: 0.6 }}>
                     {module.icon}
                   </Box>
 
@@ -456,8 +427,8 @@ export default function ModulesPage() {
                         mb: 3,
                         px: 2,
                         py: 0.5,
-                        border: '1px solid #AB47BC',
-                        color: '#AB47BC',
+                        border: '1px solid #A78BFA',
+                        color: '#A78BFA',
                         fontSize: '0.75rem',
                         fontWeight: 700,
                         letterSpacing: '0.05em',
