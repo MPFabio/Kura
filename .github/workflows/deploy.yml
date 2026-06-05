@@ -136,6 +136,7 @@ jobs:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          command_timeout: 30m
           script: |
             set -euo pipefail
 
@@ -201,7 +202,12 @@ jobs:
             sudo docker compose -p kura --env-file .env \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
-              up -d --build
+              build --parallel
+
+            sudo docker compose -p kura --env-file .env \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              up -d
 
             sudo docker system prune -af || true
 
