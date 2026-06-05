@@ -606,6 +606,26 @@ export const ansibleService = {
     }
   },
 
+  // Configuration Semaphore
+  getConfig: async (): Promise<{
+    semaphore_url: string
+    semaphore_project_id: number
+    has_token: boolean
+    configured: boolean
+  }> => {
+    const response = await apiClient.get('/v1/ansible/config')
+    return response.data
+  },
+
+  setConfig: async (data: {
+    semaphore_url?: string
+    token?: string
+    semaphore_project_id?: number
+  }): Promise<{ configured: boolean }> => {
+    const response = await apiClient.post('/v1/ansible/config', data)
+    return response.data
+  },
+
   // Analyse de playbook
   analyzePlaybook: async (playbookContent: string): Promise<AnsiblePlaybookAnalysis> => {
     try {

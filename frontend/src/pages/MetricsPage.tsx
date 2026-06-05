@@ -37,7 +37,12 @@ const colors = {
 
 // URL Grafana — pointe vers le dashboard kura-overview en mode kiosk.
 // En local : http://localhost:3000 ; en prod, adapter via variable d'env.
-const GRAFANA_URL = (import.meta as any).env?.VITE_GRAFANA_URL ?? 'http://localhost:3000'
+// En production, Grafana est exposé à /grafana via le reverse proxy.
+// En développement local, on utilise VITE_GRAFANA_URL ou localhost:3000.
+const isProd = window.location.protocol === 'https:'
+const GRAFANA_URL = isProd
+  ? `${window.location.origin}/grafana`
+  : ((import.meta as any).env?.VITE_GRAFANA_URL ?? 'http://localhost:3000')
 const GRAFANA_DASHBOARD_URL = `${GRAFANA_URL}/d/kura-overview/kura-e28094-platform-overview?orgId=1&kiosk=tv&refresh=30s`
 
 function HealthBadge({ up }: { up: boolean }) {

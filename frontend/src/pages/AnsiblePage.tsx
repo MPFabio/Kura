@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
   Alert,
@@ -35,6 +35,9 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Schedule as ScheduleIcon,
+  Link as LinkIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleCard from '../components/ModuleCard'
@@ -66,6 +69,11 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function AnsiblePage() {
+  const queryClient = useQueryClient()
+  const [configExpanded, setConfigExpanded] = useState(false)
+  const [semaphoreUrl, setSemaphoreUrl] = useState('')
+  const [semaphoreToken, setSemaphoreToken] = useState('')
+  const [semaphoreProjectId, setSemaphoreProjectId] = useState('1')
   const [tabValue, setTabValue] = useState(0)
   const [selectedJob, setSelectedJob] = useState<AnsibleJobSummary | null>(null)
   const [jobDetailDialogOpen, setJobDetailDialogOpen] = useState(false)
@@ -83,6 +91,33 @@ export default function AnsiblePage() {
     message: '',
     severity: 'success',
   })
+
+  // Configuration Semaphore
+  const { data: configData, refetch: refetchConfig } = useQuery({
+    queryKey: ['ansible-config'],
+    queryFn: () => ansibleService.getConfig(),
+    retry: false,
+  })
+
+  const saveConfigMutation = useMutation({
+    mutationFn: (data: { semaphore_url?: string; token?: string; semaphore_project_id?: number }) =>
+      ansibleService.setConfig(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ansible-config'] })
+      queryClient.invalidateQueries({ queryKey: ['ansible-jobs'] })
+      refetchConfig()
+      setSemaphoreToken('')
+      setConfigExpanded(false)
+    },
+  })
+
+  const handleSaveConfig = () => {
+    saveConfigMutation.mutate({
+      ...(semaphoreUrl && { semaphore_url: semaphoreUrl }),
+      ...(semaphoreToken && { token: semaphoreToken }),
+      semaphore_project_id: parseInt(semaphoreProjectId) || 1,
+    })
+  }
 
   // Requêtes pour les données
   const {
@@ -249,6 +284,74 @@ export default function AnsiblePage() {
   return (
     <Box>
       <ModuleTitle>Ansible</ModuleTitle>
+
+      {/* Panneau de configuration Semaphore */}
+      <ModuleCard sx={{ mb: 2 }}>
+        <Box
+          sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+          onClick={() => setConfigExpanded(!configExpanded)}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LinkIcon sx={{ color: 'primary.main' }} />
+            <Typography sx={{ fontWeight: 600 }}>Connecter un backend Ansible (Semaphore)</Typography>
+            {configData?.configured ? (
+              <Chip label="Connecté" size="small" sx={{ color: '#00FF88', borderColor: '#00FF88' }} variant="outlined" />
+            ) : (
+              <Chip label="Non configuré" size="small" color="warning" variant="outlined" />
+            )}
+          </Box>
+          {configExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        </Box>
+
+        {configExpanded && (
+          <Box sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {configData?.semaphore_url && (
+              <Alert severity="info" sx={{ mb: 1 }}>
+                URL actuelle : <strong>{configData.semaphore_url}</strong> — Projet ID : <strong>{configData.semaphore_project_id}</strong>
+                {configData.has_token && ' — Token configuré ✓'}
+              </Alert>
+            )}
+            <TextField
+              label="URL Semaphore"
+              placeholder="http://semaphore:3000"
+              value={semaphoreUrl}
+              onChange={(e) => setSemaphoreUrl(e.target.value)}
+              size="small"
+              fullWidth
+            />
+            <TextField
+              label="Token API"
+              placeholder="Laisser vide pour conserver l'actuel"
+              value={semaphoreToken}
+              onChange={(e) => setSemaphoreToken(e.target.value)}
+              type="password"
+              size="small"
+              fullWidth
+            />
+            <TextField
+              label="Project ID"
+              placeholder="1"
+              value={semaphoreProjectId}
+              onChange={(e) => setSemaphoreProjectId(e.target.value)}
+              size="small"
+              sx={{ width: 120 }}
+            />
+            <Box>
+              <Button
+                variant="contained"
+                onClick={handleSaveConfig}
+                disabled={saveConfigMutation.isPending}
+                sx={{ mr: 1 }}
+              >
+                {saveConfigMutation.isPending ? 'Connexion...' : 'Connecter'}
+              </Button>
+              {saveConfigMutation.isError && (
+                <Typography color="error" variant="caption">Erreur lors de la connexion</Typography>
+              )}
+            </Box>
+          </Box>
+        )}
+      </ModuleCard>
 
       {apiUnreachable && (
         <Alert severity="warning" sx={{ mb: 2 }}>
