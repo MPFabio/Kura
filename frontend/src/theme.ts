@@ -1,251 +1,234 @@
 import { createTheme } from '@mui/material/styles'
 
-// Palette DA KURA : fond gris-bleu clair, accents cyan/magenta/violet
+// ── Palette Obsidian ──────────────────────────────────────────────────────────
+// Inspirée de Linear, Vercel, Grafana.
+// Un seul accent (bleu #4F8EF7), fonds profonds, typographie lisible.
+export const kuraColors = {
+  // Fonds
+  bg0: '#0C0E14',   // arrière-plan global
+  bg1: '#12141C',   // surfaces primaires (sidebar, paper)
+  bg2: '#1A1D28',   // cartes, panneaux
+  bg3: '#21253A',   // hover, selected
+
+  // Accent principal — bleu confiant
+  accent:      '#4F8EF7',
+  accentHover: '#6AA0F8',
+  accentMuted: 'rgba(79,142,247,0.12)',
+  accentSubtle:'rgba(79,142,247,0.06)',
+
+  // Bordures
+  border0: 'rgba(255,255,255,0.05)',  // très subtile
+  border1: 'rgba(255,255,255,0.09)',  // défaut
+  border2: 'rgba(255,255,255,0.16)',  // emphasis
+
+  // Texte
+  text0: '#F1F3F9',   // primaire
+  text1: '#B8BFCC',   // secondaire
+  text2: '#6B7385',   // muted
+
+  // Statuts sémantiques
+  success: '#34D399',
+  successBg: 'rgba(52,211,153,0.10)',
+  warning: '#FBBF24',
+  warningBg: 'rgba(251,191,36,0.10)',
+  error:   '#F87171',
+  errorBg: 'rgba(248,113,113,0.10)',
+  info:    '#60A5FA',
+  infoBg:  'rgba(96,165,250,0.10)',
+}
+
+// Rétrocompatibilité — les pages qui importent encore jellyfishColors
 export const jellyfishColors = {
-  // Fonds gris-bleu CLAIRS (lisibles et agréables)
-  backgroundLight: '#2c2f3f',   // fond principal gris-bleu clair
-  backgroundPaper: '#32364a',   // cartes / paper légèrement plus clair
-  backgroundCard: '#383c50',   // cartes
-
-  // Cloche méduse - cyan / bleu
-  cyanSoft: '#00E5FF',      // Cyan vif (haut cloche)
-  cyanMedium: '#26C6DA',    // #26C6DA cyan 400 - bleu-cyan
-  cyanLight: '#4DD0E1',     // #4DD0E1 cyan 300
-  cyanDeep: '#00ACC1',      // #00ACC1 cyan 600 - bleu plus profond
-  cyanSubtle: 'rgba(0, 229, 255, 0.2)',
-
-  // Bas cloche + tentacules - violet-rose / magenta / fuchsia (logo)
-  violetSoft: '#CE93D8',    // #CE93D8 violet 200 - violet clair
-  violetMedium: '#AB47BC',   // #AB47BC violet 400 - violet moyen
-  violetDeep: '#7B1FA2',    // #7B1FA2 violet 700 - violet foncé
-  violetLight: '#E1BEE7',   // violet 100
-  // Violet-rose / magenta / fuchsia (tentacules)
-  magenta: '#EC407A',       // #EC407A Pink 400 - rose vif
-  magentaDeep: '#E91E63',   // #E91E63 Pink 600 - magenta
-  fuchsia: '#E040FB',       // #E040FB Accent A200 - fuchsia (tentacules)
-  violetRed: '#D500F9',     // #D500F9 Accent A400 - violet-rouge
-  violetSubtle: 'rgba(206, 147, 216, 0.25)',
-  frameViolet: 'rgba(171, 71, 188, 0.65)',     // #AB47BC - cadre visible comme la méduse
-  frameVioletRed: 'rgba(236, 64, 122, 0.55)',  // #EC407A magenta - bordure violet-rose
-  magentaSoft: 'rgba(236, 64, 122, 0.4)',      // #EC407A
-
-  // Gris (texte sur fond clair)
-  grayLight: '#546E7A',
-  grayMedium: '#455A64',
-  grayDark: '#37474F',
-  graySubtle: 'rgba(55, 71, 79, 0.08)',
-
-  // Alertes
-  successSoft: '#66BB6A',
-  warningSoft: '#FFA726',
-  errorSoft: '#EF5350',
-  infoSoft: '#42A5F5',
+  backgroundLight:   kuraColors.bg1,
+  backgroundPaper:   kuraColors.bg2,
+  backgroundCard:    kuraColors.bg2,
+  cyanSoft:          kuraColors.accent,
+  cyanMedium:        kuraColors.accentHover,
+  cyanLight:         kuraColors.accentHover,
+  cyanDeep:          kuraColors.accent,
+  cyanSubtle:        kuraColors.accentMuted,
+  violetSoft:        '#A78BFA',
+  violetMedium:      '#7C3AED',
+  violetDeep:        '#5B21B6',
+  violetLight:       '#DDD6FE',
+  magenta:           kuraColors.error,
+  magentaDeep:       kuraColors.error,
+  fuchsia:           '#C084FC',
+  violetRed:         '#A855F7',
+  violetSubtle:      'rgba(167,139,250,0.15)',
+  frameViolet:       'rgba(124,58,237,0.4)',
+  frameVioletRed:    'rgba(248,113,113,0.3)',
+  magentaSoft:       'rgba(248,113,113,0.2)',
+  grayLight:         kuraColors.text2,
+  grayMedium:        kuraColors.text2,
+  grayDark:          kuraColors.text2,
+  graySubtle:        kuraColors.border0,
+  successSoft:       kuraColors.success,
+  warningSoft:       kuraColors.warning,
+  errorSoft:         kuraColors.error,
+  infoSoft:          kuraColors.info,
 }
 
 export const theme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: jellyfishColors.cyanSoft,
-      light: jellyfishColors.cyanLight,
-      dark: jellyfishColors.cyanMedium,
+      main:  kuraColors.accent,
+      light: kuraColors.accentHover,
+      dark:  kuraColors.accent,
     },
     secondary: {
-      main: jellyfishColors.violetSoft,
-      light: jellyfishColors.violetLight,
-      dark: jellyfishColors.violetMedium,
+      main: '#A78BFA',
     },
     background: {
-      default: jellyfishColors.backgroundLight,
-      paper: jellyfishColors.backgroundPaper,
+      default: kuraColors.bg0,
+      paper:   kuraColors.bg1,
     },
     text: {
-      primary: '#f0f0f0',
-      secondary: '#b8b8b8',
+      primary:   kuraColors.text0,
+      secondary: kuraColors.text1,
     },
-    error: {
-      main: jellyfishColors.errorSoft,
-    },
-    warning: {
-      main: jellyfishColors.warningSoft,
-    },
+    error:   { main: kuraColors.error },
+    warning: { main: kuraColors.warning },
+    success: { main: kuraColors.success },
+    info:    { main: kuraColors.info },
+    divider: kuraColors.border1,
   },
+
   typography: {
     fontFamily: [
-      'Inter',
+      '"Inter"',
       '-apple-system',
       'BlinkMacSystemFont',
       '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
       'sans-serif',
     ].join(','),
-    h1: {
-      fontSize: '3rem',
-      fontWeight: 700,
-      letterSpacing: '-0.04em',
-      color: '#f0f0f0',
-    },
-    h2: {
-      fontSize: '2.25rem',
-      fontWeight: 700,
-      letterSpacing: '-0.03em',
-      color: '#f0f0f0',
-    },
-    h3: {
-      fontSize: '1.875rem',
-      fontWeight: 700,
-      letterSpacing: '-0.02em',
-      color: '#f0f0f0',
-    },
-    h4: {
-      fontSize: '1.5rem',
-      fontWeight: 700,
-      letterSpacing: '-0.02em',
-      color: '#f0f0f0',
-    },
-    h5: {
-      fontSize: '1.25rem',
-      fontWeight: 700,
-      color: '#f0f0f0',
-    },
-    h6: {
-      fontSize: '1.125rem',
-      fontWeight: 700,
-      color: '#f0f0f0',
-    },
-    body1: {
-      fontSize: '0.9375rem',
-      lineHeight: 1.6,
-      fontWeight: 400,
-      color: '#f0f0f0',
-    },
-    body2: {
-      fontSize: '0.875rem',
-      lineHeight: 1.5,
-      fontWeight: 400,
-      color: '#b8b8b8',
-    },
+    h1: { fontSize: '2.25rem', fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1.2 },
+    h2: { fontSize: '1.875rem', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.25 },
+    h3: { fontSize: '1.5rem',   fontWeight: 600, letterSpacing: '-0.02em',  lineHeight: 1.3 },
+    h4: { fontSize: '1.25rem',  fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.35 },
+    h5: { fontSize: '1.125rem', fontWeight: 500, lineHeight: 1.4 },
+    h6: { fontSize: '1rem',     fontWeight: 500, lineHeight: 1.5 },
+    body1: { fontSize: '0.9375rem', lineHeight: 1.65, fontWeight: 400 },
+    body2: { fontSize: '0.875rem',  lineHeight: 1.6,  fontWeight: 400, color: kuraColors.text1 },
+    caption: { fontSize: '0.75rem', lineHeight: 1.5, color: kuraColors.text2 },
+    button: { textTransform: 'none', fontWeight: 500, fontSize: '0.875rem' },
   },
-  shape: {
-    borderRadius: 0,
-  },
+
+  shape: { borderRadius: 6 },
   spacing: 8,
+
   components: {
+    // ── Boutons ─────────────────────────────────────────────────────────────
     MuiButton: {
+      defaultProps: { disableElevation: true },
       styleOverrides: {
         root: {
-          textTransform: 'none',
-          borderRadius: 0,
-          fontWeight: 700,
-          padding: '12px 24px',
-          fontSize: '0.9375rem',
-          transition: 'all 0.15s ease',
+          borderRadius: 6,
+          fontWeight: 500,
+          fontSize: '0.875rem',
+          padding: '7px 16px',
+          transition: 'background 0.15s ease, border-color 0.15s ease, color 0.15s ease',
           boxShadow: 'none',
-          '&:hover': {
-            boxShadow: 'none',
-          },
-        },
-        outlined: {
-          border: `2px solid ${jellyfishColors.cyanSoft}`,
-          color: jellyfishColors.cyanSoft,
-          background: 'transparent',
-          '&:hover': {
-            background: 'rgba(0, 229, 255, 0.08)',
-            borderColor: jellyfishColors.cyanSoft,
-          },
+          '&:hover': { boxShadow: 'none' },
         },
         contained: {
-          background: jellyfishColors.cyanSoft,
-          color: '#0d0e12',
-          fontWeight: 700,
+          background: kuraColors.accent,
+          color: '#fff',
+          '&:hover': { background: kuraColors.accentHover },
+        },
+        outlined: {
+          borderColor: kuraColors.border2,
+          color: kuraColors.text0,
           '&:hover': {
-            background: jellyfishColors.cyanMedium,
+            borderColor: kuraColors.accent,
+            background: kuraColors.accentSubtle,
+            color: kuraColors.accent,
           },
         },
         text: {
-          color: jellyfishColors.cyanSoft,
-          fontWeight: 600,
-          '&:hover': {
-            background: 'rgba(0, 229, 255, 0.08)',
-          },
+          color: kuraColors.text1,
+          '&:hover': { background: kuraColors.bg3, color: kuraColors.text0 },
         },
       },
     },
+
+    // ── Cartes ───────────────────────────────────────────────────────────────
     MuiCard: {
       styleOverrides: {
         root: {
-          background: jellyfishColors.backgroundCard,
-          border: '1px solid rgba(0, 229, 255, 0.15)',
-          borderRadius: 0,
-          boxShadow: 'none',
-          transition: 'border-color 0.15s ease',
-          position: 'relative',
-          overflow: 'hidden',
+          background: kuraColors.bg2,
+          border: `1px solid ${kuraColors.border1}`,
+          borderRadius: 8,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)',
+          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
           '&:hover': {
-            borderColor: 'rgba(0, 229, 255, 0.25)',
+            borderColor: kuraColors.border2,
           },
         },
       },
     },
+
+    // ── Paper ────────────────────────────────────────────────────────────────
     MuiPaper: {
       styleOverrides: {
         root: {
-          background: '#14161f',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: 0,
+          background: kuraColors.bg1,
+          border: `1px solid ${kuraColors.border1}`,
+          borderRadius: 8,
           boxShadow: 'none',
-          transition: 'all 0.15s ease',
-          position: 'relative',
-          overflow: 'hidden',
           '&.MuiDrawer-paper': {
-            background: 'transparent !important',
-            backgroundColor: 'transparent !important',
+            background: `${kuraColors.bg1} !important`,
             backgroundImage: 'none !important',
             border: 'none !important',
           },
         },
+        elevation1: {
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+        },
       },
     },
+
+    // ── Drawer (sidebar) ─────────────────────────────────────────────────────
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: jellyfishColors.backgroundLight,
-          borderRight: '2px solid rgba(0, 229, 255, 0.2)',
+          background: kuraColors.bg1,
+          borderRight: `1px solid ${kuraColors.border1}`,
           borderRadius: 0,
           boxShadow: 'none',
         },
       },
     },
+
+    // ── AppBar ───────────────────────────────────────────────────────────────
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: jellyfishColors.backgroundLight,
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          background: kuraColors.bg1,
+          borderBottom: `1px solid ${kuraColors.border1}`,
           borderRadius: 0,
           boxShadow: 'none',
         },
       },
     },
+
+    // ── Navigation items ─────────────────────────────────────────────────────
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 0,
-          margin: '0',
-          padding: '12px 16px',
-          transition: 'all 0.2s ease',
+          borderRadius: 6,
+          margin: '1px 8px',
+          padding: '8px 12px',
+          transition: 'background 0.12s ease',
           '&:hover': {
-            background: 'rgba(0, 229, 255, 0.08)',
+            background: kuraColors.bg3,
           },
           '&.Mui-selected': {
-            background: 'rgba(0, 229, 255, 0.15)',
-            borderLeft: '4px solid',
-            borderLeftColor: jellyfishColors.cyanSoft,
-            paddingLeft: '12px',
-            '&:hover': {
-              background: 'rgba(0, 229, 255, 0.2)',
-            },
+            background: kuraColors.accentMuted,
+            '& .MuiListItemIcon-root': { color: kuraColors.accent },
+            '& .MuiListItemText-primary': { color: kuraColors.text0, fontWeight: 500 },
+            '&:hover': { background: kuraColors.accentMuted },
           },
         },
       },
@@ -253,157 +236,165 @@ export const theme = createTheme({
     MuiListItemIcon: {
       styleOverrides: {
         root: {
-          color: jellyfishColors.grayLight,
-          transition: 'color 0.2s ease',
-          minWidth: 40,
-          '.Mui-selected &': {
-            color: jellyfishColors.cyanSoft,
-          },
+          color: kuraColors.text2,
+          minWidth: 36,
+          transition: 'color 0.12s ease',
         },
       },
     },
     MuiListItemText: {
       styleOverrides: {
         primary: {
-          fontWeight: 500,
-          // Items non sélectionnés : texte gris
-          '.MuiListItemButton-root:not(.Mui-selected) &': {
-            color: '#b8b8b8 !important',
-          },
-          // Item sélectionné : texte clair
-          '.MuiListItemButton-root.Mui-selected &': {
-            color: '#f0f0f0 !important',
-          },
+          fontSize: '0.875rem',
+          fontWeight: 400,
+          color: kuraColors.text1,
         },
       },
     },
+
+    // ── Alertes ──────────────────────────────────────────────────────────────
     MuiAlert: {
       styleOverrides: {
         root: {
-          background: jellyfishColors.backgroundPaper,
-          border: `1px solid rgba(255, 255, 255, 0.08)`,
-          borderRadius: 0,
+          borderRadius: 6,
+          border: `1px solid`,
+          fontSize: '0.875rem',
+          padding: '10px 16px',
           boxShadow: 'none',
-          padding: '16px 20px',
         },
         standardInfo: {
-          borderLeftColor: jellyfishColors.cyanSoft,
-          borderLeftWidth: '4px',
-          '& .MuiAlert-icon': {
-            color: jellyfishColors.cyanSoft,
-          },
+          background: kuraColors.infoBg,
+          borderColor: `rgba(96,165,250,0.25)`,
+          color: kuraColors.text0,
+          '& .MuiAlert-icon': { color: kuraColors.info },
         },
         standardSuccess: {
-          borderLeftColor: jellyfishColors.successSoft,
-          borderLeftWidth: '4px',
+          background: kuraColors.successBg,
+          borderColor: `rgba(52,211,153,0.25)`,
+          '& .MuiAlert-icon': { color: kuraColors.success },
         },
         standardWarning: {
-          borderLeftColor: jellyfishColors.warningSoft,
-          borderLeftWidth: '4px',
+          background: kuraColors.warningBg,
+          borderColor: `rgba(251,191,36,0.25)`,
+          '& .MuiAlert-icon': { color: kuraColors.warning },
         },
         standardError: {
-          borderLeftColor: jellyfishColors.errorSoft,
-          borderLeftWidth: '4px',
+          background: kuraColors.errorBg,
+          borderColor: `rgba(248,113,113,0.25)`,
+          '& .MuiAlert-icon': { color: kuraColors.error },
         },
       },
     },
+
+    // ── Dialogs ──────────────────────────────────────────────────────────────
     MuiDialog: {
       styleOverrides: {
         paper: {
-          background: jellyfishColors.backgroundPaper,
-          borderRadius: 0,
-          border: `1px solid rgba(255, 255, 255, 0.08)`,
-          boxShadow: 'none',
+          background: kuraColors.bg2,
+          borderRadius: 10,
+          border: `1px solid ${kuraColors.border2}`,
+          boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
         },
       },
     },
     MuiDialogTitle: {
       styleOverrides: {
         root: {
-          background: 'transparent',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '20px 24px',
-          color: '#f0f0f0',
-          fontWeight: 700,
-          fontSize: '1.25rem',
+          padding: '20px 24px 16px',
+          fontSize: '1.0625rem',
+          fontWeight: 600,
+          color: kuraColors.text0,
+          borderBottom: `1px solid ${kuraColors.border1}`,
         },
       },
     },
     MuiDialogContent: {
       styleOverrides: {
-        root: {
-          background: 'transparent',
-          padding: '24px',
-        },
+        root: { padding: '20px 24px' },
       },
     },
     MuiDialogActions: {
       styleOverrides: {
         root: {
-          background: 'transparent',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '20px 24px',
-          gap: 12,
+          padding: '16px 24px',
+          gap: 8,
+          borderTop: `1px solid ${kuraColors.border1}`,
         },
       },
     },
+
+    // ── Inputs ───────────────────────────────────────────────────────────────
     MuiTextField: {
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 0,
-            background: jellyfishColors.backgroundPaper,
+            borderRadius: 6,
+            fontSize: '0.875rem',
             '& fieldset': {
-              borderColor: 'rgba(255, 255, 255, 0.08)',
-              borderWidth: '1px',
+              borderColor: kuraColors.border2,
+              transition: 'border-color 0.15s ease',
             },
             '&:hover fieldset': {
-              borderColor: 'rgba(0, 229, 255, 0.3)',
+              borderColor: kuraColors.border2,
             },
             '&.Mui-focused fieldset': {
-              borderColor: jellyfishColors.cyanSoft,
-              borderWidth: '2px',
+              borderColor: kuraColors.accent,
+              borderWidth: 1,
+            },
+          },
+          '& .MuiInputLabel-root': {
+            fontSize: '0.875rem',
+            color: kuraColors.text2,
+            '&.Mui-focused': { color: kuraColors.accent },
+            '&.MuiInputLabel-shrink': {
+              paddingLeft: '4px',
+              paddingRight: '4px',
             },
           },
         },
       },
     },
+    MuiSelect: {
+      styleOverrides: {
+        root: {
+          borderRadius: 6,
+          fontSize: '0.875rem',
+        },
+      },
+    },
+
+    // ── Chips / badges ───────────────────────────────────────────────────────
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 0,
-          fontWeight: 600,
+          borderRadius: 4,
+          fontWeight: 500,
           fontSize: '0.75rem',
-          border: '1px solid',
+          height: 22,
+          letterSpacing: '0.01em',
         },
-        colorPrimary: {
-          backgroundColor: 'transparent',
-          borderColor: jellyfishColors.cyanSoft,
-          color: jellyfishColors.cyanSoft,
+        outlined: {
+          borderColor: kuraColors.border2,
+          color: kuraColors.text1,
         },
-        colorSecondary: {
-          backgroundColor: 'transparent',
-          borderColor: jellyfishColors.violetSoft,
-          color: jellyfishColors.violetSoft,
+        filled: {
+          background: kuraColors.bg3,
+          color: kuraColors.text0,
         },
       },
     },
+
+    // ── Tabs ─────────────────────────────────────────────────────────────────
     MuiTabs: {
       styleOverrides: {
         root: {
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: `1px solid ${kuraColors.border1}`,
+          minHeight: 42,
         },
         indicator: {
-          background: jellyfishColors.cyanSoft,
-          height: 3,
-        },
-      },
-    },
-    MuiTypography: {
-      styleOverrides: {
-        root: {
-          // Les composants styled (ModuleTitle, ModuleText) override ces valeurs
-          // Ne pas définir de styles par défaut qui pourraient override
+          background: kuraColors.accent,
+          height: 2,
+          borderRadius: 1,
         },
       },
     },
@@ -411,28 +402,25 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           textTransform: 'none',
-          fontWeight: 500,
-          fontSize: '0.9375rem',
-          color: '#b8b8b8',
-          padding: '12px 20px',
-          '&:hover': {
-            color: jellyfishColors.cyanSoft,
-          },
-          '&.Mui-selected': {
-            color: '#f0f0f0',
-            fontWeight: 700,
-          },
+          fontWeight: 400,
+          fontSize: '0.875rem',
+          color: kuraColors.text2,
+          minHeight: 42,
+          padding: '8px 16px',
+          '&:hover': { color: kuraColors.text1 },
+          '&.Mui-selected': { color: kuraColors.text0, fontWeight: 500 },
         },
       },
     },
+
+    // ── Tables ───────────────────────────────────────────────────────────────
     MuiTableContainer: {
       styleOverrides: {
         root: {
-          borderRadius: 0,
-          border: `1px solid rgba(255, 255, 255, 0.08)`,
-          background: jellyfishColors.backgroundPaper,
+          borderRadius: 8,
+          border: `1px solid ${kuraColors.border1}`,
+          background: kuraColors.bg2,
           boxShadow: 'none',
-          overflow: 'hidden',
         },
       },
     },
@@ -440,14 +428,14 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiTableCell-head': {
-            background: 'rgba(0, 229, 255, 0.08)',
-            color: '#e8e8e8',
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
-            padding: '16px 20px',
+            background: kuraColors.bg1,
+            color: kuraColors.text2,
+            fontWeight: 500,
+            fontSize: '0.75rem',
             textTransform: 'uppercase',
-            letterSpacing: '0.05em',
+            letterSpacing: '0.06em',
+            borderBottom: `1px solid ${kuraColors.border1}`,
+            padding: '10px 16px',
           },
         },
       },
@@ -455,12 +443,60 @@ export const theme = createTheme({
     MuiTableRow: {
       styleOverrides: {
         root: {
-          '&:hover': {
-            background: 'rgba(0, 229, 255, 0.05)',
-          },
+          '&:hover': { background: kuraColors.bg3 },
           '& .MuiTableCell-body': {
-            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-            padding: '16px 20px',
+            borderBottom: `1px solid ${kuraColors.border0}`,
+            padding: '12px 16px',
+            fontSize: '0.875rem',
+            color: kuraColors.text0,
+          },
+        },
+      },
+    },
+
+    // ── Tooltip ──────────────────────────────────────────────────────────────
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          background: kuraColors.bg3,
+          border: `1px solid ${kuraColors.border2}`,
+          color: kuraColors.text0,
+          fontSize: '0.75rem',
+          borderRadius: 4,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        },
+      },
+    },
+
+    // ── Divider ──────────────────────────────────────────────────────────────
+    MuiDivider: {
+      styleOverrides: {
+        root: { borderColor: kuraColors.border1 },
+      },
+    },
+
+    // ── Menu ─────────────────────────────────────────────────────────────────
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          background: kuraColors.bg2,
+          border: `1px solid ${kuraColors.border2}`,
+          borderRadius: 8,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          fontSize: '0.875rem',
+          padding: '8px 12px',
+          borderRadius: 4,
+          margin: '1px 4px',
+          '&:hover': { background: kuraColors.bg3 },
+          '&.Mui-selected': {
+            background: kuraColors.accentMuted,
+            '&:hover': { background: kuraColors.accentMuted },
           },
         },
       },

@@ -122,7 +122,7 @@ export default function RegisterPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   border: '4px solid',
-                  borderColor: '#00E5FF',
+                  borderColor: '#4F8EF7',
                   borderLeftColor: '#EC407A',
                   borderBottomColor: '#AB47BC',
                   mb: 3,
@@ -255,7 +255,7 @@ export default function RegisterPage() {
                       <Typography
                         variant="body2"
                         sx={{
-                          color: '#00E5FF',
+                          color: '#4F8EF7',
                           fontWeight: 500,
                           '&:hover': {
                             textDecoration: 'underline',

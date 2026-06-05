@@ -154,4 +154,16 @@ export const pipelineService = {
     )
     return response.data
   },
+
+  /**
+   * Relance un workflow run GitHub Actions.
+   * Requiert un token GitHub avec le scope `workflow`.
+   * TODO : restreindre aux utilisateurs avec rôle admin (least privilege).
+   */
+  rerunRun: async (runId: string): Promise<{ message: string; run_id: string }> => {
+    const response = await getClient().post<{ message: string; run_id: string }>(
+      `/v1/pipeline/runs/${encodeURIComponent(runId)}/rerun`
+    )
+    return response.data
+  },
 }

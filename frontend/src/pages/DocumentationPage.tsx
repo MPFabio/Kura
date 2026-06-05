@@ -29,18 +29,19 @@ const docSections: { id: string; label: string; children?: { id: string; label: 
       { id: 'k8s', label: 'Kubernetes' },
       { id: 'terraform', label: 'Terraform' },
       { id: 'ansible', label: 'Ansible' },
-      { id: 'pipelines', label: 'Pipelines' },
+      { id: 'pipelines', label: 'Pipelines CI/CD' },
+      { id: 'monitoring', label: 'Monitoring' },
     ],
   },
-  { id: 'architecture', label: 'Architecture' },
   {
-    id: 'production',
-    label: 'Production',
+    id: 'compte',
+    label: 'Compte & Projets',
     children: [
-      { id: 'users', label: 'Utilisateurs et accès' },
-      { id: 'gke', label: 'Connexion GKE' },
+      { id: 'users', label: 'Utilisateurs et rôles' },
+      { id: 'projects', label: 'Gérer ses projets' },
     ],
   },
+  { id: 'faq', label: 'FAQ & Dépannage' },
 ]
 
 const contentSx = {
@@ -59,7 +60,7 @@ const contentSx = {
     px: 0.75,
     py: 0.25,
     borderRadius: 0.5,
-    border: '1px solid rgba(0,229,255,0.15)',
+    border: '1px solid rgba(79,142,247,0.12)',
   },
   '& .code': {
     fontFamily: '"JetBrains Mono", Consolas, monospace',
@@ -74,7 +75,7 @@ const contentSx = {
   },
   '& .card': {
     borderLeft: `4px solid ${jellyfishColors.cyanSoft}`,
-    bgcolor: 'rgba(0,229,255,0.06)',
+    bgcolor: 'rgba(79,142,247,0.06)',
     borderRadius: 1,
     p: 2,
     mb: 2,
@@ -119,42 +120,56 @@ function DocContent({ docId }: { docId: string }) {
       return (
         <Box sx={contentSx}>
           <Typography component="h1">Démarrage rapide</Typography>
+          <Typography>
+            En 3 étapes, vous avez accès à tous vos outils DevOps depuis une interface unique.
+          </Typography>
           <Typography component="h2">1. Créer un compte</Typography>
           <Typography>
-            Inscrivez-vous via la page <strong>Inscription</strong> (email, nom d&apos;utilisateur, mot de passe) ou connectez-vous si vous avez déjà un compte. Les mots de passe sont hachés (bcrypt) et les sessions gérées par JWT et refresh tokens.
+            Rendez-vous sur la page <strong>Inscription</strong>, renseignez votre email, un nom d&apos;utilisateur et un mot de passe. Vous êtes immédiatement connecté après l&apos;inscription.
           </Typography>
-          <Typography component="h2">2. Créer ou rejoindre un projet</Typography>
+          <Typography component="h2">2. Créer un projet</Typography>
           <Typography>
-            Sur la page <strong>Projets</strong>, créez un nouveau projet (nom, description) ou sélectionnez un projet existant si vous y avez accès. Le projet courant est affiché dans le sélecteur en haut de la barre latérale ; toutes les ressources (clusters K8s, états Terraform, etc.) sont rattachées au projet sélectionné.
+            Kura organise toutes vos ressources par <strong>projet</strong>. Créez votre premier projet depuis la page <strong>Projets</strong> (icône en bas de la barre latérale). Donnez-lui un nom et une description. Sélectionnez-le dans le menu déroulant en haut à gauche — toutes les actions se déroulent dans le contexte du projet actif.
           </Typography>
-          <Typography component="h2">3. Utiliser les modules</Typography>
+          <Typography component="h2">3. Connecter vos outils</Typography>
           <Typography>
-            Une fois un projet sélectionné, accédez aux modules depuis le menu : <strong>Kubernetes</strong>, <strong>Terraform</strong>, <strong>Ansible</strong>, <strong>Pipelines</strong>, <strong>Monitoring</strong>, <strong>Alertes</strong>. Chaque module affiche uniquement les ressources liées au projet courant. Vous pouvez créer des clusters, uploader des états Terraform, lancer des jobs Ansible ou consulter les pipelines selon les droits de votre rôle.
+            Accédez à la page <strong>Modules</strong> pour voir les briques disponibles. Pour commencer :
           </Typography>
-          <Typography component="h2">Conseils</Typography>
-          <Typography>
-            Pour une première prise en main : créez un projet de test, ajoutez un cluster Kubernetes (ou un état Terraform) depuis les modules correspondants, puis explorez les vues détail (Overview, YAML, Logs, Terminal pour les pods).
-          </Typography>
+          <Box component="ul">
+            <li><strong>Kubernetes</strong> : ajoutez un cluster via son kubeconfig → visualisez pods, services, logs</li>
+            <li><strong>Terraform</strong> : uploadez un fichier <code>.tfstate</code> ou liez un bucket cloud → consultez vos ressources et détectez les dérives</li>
+            <li><strong>Pipelines</strong> : connectez votre token GitHub → suivez vos workflows en temps réel</li>
+            <li><strong>Ansible</strong> : connectez votre instance Semaphore → lancez et suivez vos playbooks</li>
+            <li><strong>Monitoring</strong> : disponible automatiquement, aucune configuration requise</li>
+          </Box>
         </Box>
       )
-    case 'architecture':
+    case 'projects':
       return (
         <Box sx={contentSx}>
-          <Typography component="h1">Architecture</Typography>
+          <Typography component="h1">Gérer ses projets</Typography>
           <Typography>
-            La plateforme repose sur une architecture microservices : un frontend React (TypeScript), une API Gateway Kong, et des services backend (auth, Kubernetes, Terraform, Ansible, Pipelines) qui s&apos;appuient sur PostgreSQL, Redis et Kafka.
+            Un <strong>projet</strong> est l&apos;unité d&apos;organisation centrale de Kura. Toutes vos ressources (clusters Kubernetes, états Terraform, connexions Ansible, pipelines) sont rattachées à un projet.
           </Typography>
-          <Typography component="h2">Vue globale</Typography>
+          <Typography component="h2">Créer un projet</Typography>
           <Typography>
-            Le frontend envoie toutes les requêtes à Kong. Kong route vers le bon service (auth-service, k8s-service, terraform-service, etc.). Les services métier publient et consomment des événements via Kafka pour corréler les actions (déploiements, alertes, métriques). PostgreSQL stocke les utilisateurs, projets, clusters, états Terraform, etc. Redis est utilisé pour le cache (listes de ressources, etc.).
+            Depuis la page <strong>Projets</strong> (icône en bas de la barre latérale), cliquez sur <strong>Nouveau projet</strong>. Donnez-lui un nom et optionnellement une description. Une fois créé, sélectionnez-le dans le menu déroulant en haut à gauche pour l&apos;activer.
           </Typography>
-          <Typography component="h2">Authentification</Typography>
+          <Typography component="h2">Inviter des collaborateurs</Typography>
           <Typography>
-            L&apos;authentification est centralisée dans le <strong>auth-service</strong> : inscription, connexion, JWT et refresh tokens. Toutes les requêtes protégées passent par Kong avec le header <code>Authorization: Bearer &lt;token&gt;</code>. Le auth-service valide le token et expose l&apos;ID utilisateur aux handlers ; les accès aux projets sont vérifiés via <code>UserHasAccessToProject</code> (propriétaire ou membre du projet).
+            Depuis la page Projets → votre projet → <strong>Membres</strong>, vous pouvez ajouter des collaborateurs par email. Deux rôles sont disponibles :
           </Typography>
-          <Typography component="h2">Données par projet</Typography>
+          <Box component="ul">
+            <li><strong>Admin</strong> : peut modifier les ressources du projet et gérer les membres</li>
+            <li><strong>Member</strong> : accès en lecture et actions sur les ressources, sans gestion des membres</li>
+          </Box>
+          <Typography component="h2">Changer de projet</Typography>
           <Typography>
-            Clusters K8s, états Terraform, sources, etc. sont rattachés à un <strong>project_id</strong>. Seuls les utilisateurs ayant accès au projet (propriétaire ou membre) peuvent voir et modifier ces données. Le découpage par domaines (auth-service, k8s-service, terraform-service, etc.) permet d&apos;avancer service par service et de maintenir une responsabilité claire par brique.
+            Utilisez le sélecteur de projet en haut de la barre latérale pour basculer entre vos projets. L&apos;ensemble des modules (Kubernetes, Terraform, Ansible…) se met à jour automatiquement avec les ressources du projet sélectionné.
+          </Typography>
+          <Typography component="h2">Isolation des données</Typography>
+          <Typography>
+            Chaque projet est isolé : un membre d&apos;un projet ne peut pas voir les ressources d&apos;un autre projet auquel il n&apos;appartient pas. Vous pouvez créer autant de projets que nécessaire pour séparer vos environnements (production, staging, dev) ou vos équipes.
           </Typography>
         </Box>
       )
@@ -233,15 +248,58 @@ provider "google" {
         <Box sx={contentSx}>
           <Typography component="h1">Module Ansible</Typography>
           <Typography>
-            Le module Ansible se connecte à un serveur <strong>AWX</strong> ou <strong>Ansible Tower</strong>. Il permet de lister les job templates, de lancer des jobs et de consulter leur statut et leur historique.
+            Le module Ansible vous permet de suivre et lancer vos playbooks Ansible directement depuis Kura, sans quitter l&apos;interface.
           </Typography>
-          <Typography component="h2">Configuration</Typography>
+          <Typography component="h2">Connecter votre instance Ansible</Typography>
           <Typography>
-            Configurez l&apos;URL du serveur AWX/Tower et les credentials (token ou identifiants) dans les paramètres du projet ou via les variables d&apos;environnement du service. Le frontend envoie les requêtes au backend (ansible-service ou proxy), qui communique avec l&apos;API AWX/Tower.
+            Kura fonctionne avec <strong>Ansible Semaphore</strong> (interface open-source pour Ansible). Depuis la page Ansible, cliquez sur <strong>Connecter un backend Ansible</strong> et renseignez :
           </Typography>
-          <Typography component="h2">Fonctionnalités</Typography>
+          <Box component="ul">
+            <li><strong>URL Semaphore</strong> : l&apos;adresse de votre instance Semaphore</li>
+            <li><strong>Token API</strong> : généré dans Semaphore → User Settings → API Tokens → New Token</li>
+            <li><strong>Project ID</strong> : visible dans l&apos;URL de votre projet (<code>/project/<strong>1</strong>/</code>)</li>
+          </Box>
           <Typography>
-            Depuis l&apos;interface vous pouvez : parcourir les job templates disponibles, lancer un job sur un template, suivre l&apos;exécution (statut, logs si exposés), et consulter l&apos;historique des jobs. Les jobs sont typiquement associés au projet courant pour le filtrage et les droits.
+            Cliquez <strong>Connecter</strong>. Le badge passe en vert dès que la connexion est établie. La configuration est mémorisée.
+          </Typography>
+          <Typography component="h2">Ce que vous pouvez faire</Typography>
+          <Box component="ul">
+            <li><strong>Jobs</strong> : voir les exécutions en cours (statut, durée, template utilisé)</li>
+            <li><strong>Historique</strong> : consulter toutes les exécutions passées et leurs résultats</li>
+            <li><strong>Inventaires</strong> : voir les groupes d&apos;hôtes configurés dans Semaphore</li>
+            <li><strong>Templates</strong> : lister les playbooks disponibles et en lancer un en un clic (bouton ▶)</li>
+          </Box>
+          <Typography component="h2">Lancer un playbook</Typography>
+          <Typography>
+            Allez dans l&apos;onglet <strong>Templates</strong>, repérez le template souhaité et cliquez sur ▶. L&apos;exécution apparaît immédiatement dans l&apos;onglet <strong>Jobs</strong> avec son statut en temps réel.
+          </Typography>
+        </Box>
+      )
+    case 'monitoring':
+      return (
+        <Box sx={contentSx}>
+          <Typography component="h1">Module Monitoring</Typography>
+          <Typography>
+            Le module Monitoring agrège les métriques de santé de tous les services Kura via Prometheus, et intègre un dashboard Grafana directement dans l&apos;interface.
+          </Typography>
+          <Typography component="h2">Ce que vous voyez</Typography>
+          <Box component="ul">
+            <li><strong>KPI globaux</strong> : nombre de services actifs / hors ligne, goroutines totales, mémoire totale</li>
+            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, Terraform, Ansible, Pipeline, Metrics) — vérifié par health check direct</li>
+            <li><strong>Tableau de métriques</strong> : goroutines, CPU rate, mémoire RSS par service (données Prometheus)</li>
+            <li><strong>Dashboard Grafana</strong> : vue temporelle des métriques (goroutines, mémoire, état des services sur le temps)</li>
+          </Box>
+          <Typography component="h2">Sources de données</Typography>
+          <Typography>
+            Le <strong>metrics-service</strong> interroge l&apos;API HTTP de Prometheus (<code>/api/v1/query</code>) et effectue des health checks directs sur chaque service. Les données sont mises en cache 30 secondes dans Redis pour éviter de surcharger Prometheus. La page se rafraîchit automatiquement toutes les 30 secondes.
+          </Typography>
+          <Typography component="h2">Dashboard Grafana</Typography>
+          <Typography>
+            Le dashboard <strong>Kura Platform Overview</strong> est accessible à <code>/grafana</code> (en production) ou <code>http://localhost:3000</code> (en local). Il affiche les métriques Go runtime de tous les services sur une fenêtre temporelle glissante. L&apos;accès anonyme est activé (lecture seule) pour permettre l&apos;affichage dans l&apos;iframe Kura.
+          </Typography>
+          <Typography component="h2">Note sur l&apos;instrumentation</Typography>
+          <Typography>
+            Actuellement, <strong>ansible-service</strong> et <strong>pipeline-service</strong> exposent un endpoint <code>/metrics</code> complet. Les autres services Go exposent les métriques runtime Go par défaut (goroutines, mémoire, CPU). L&apos;instrumentation HTTP complète (temps de réponse, taux d&apos;erreur) est prévue en Phase 3 du roadmap.
           </Typography>
         </Box>
       )
@@ -279,63 +337,65 @@ provider "google" {
     case 'users':
       return (
         <Box sx={contentSx}>
-          <Typography component="h1">Utilisateurs et accès en production</Typography>
+          <Typography component="h1">Utilisateurs et rôles</Typography>
+          <Typography component="h2">Créer un compte</Typography>
           <Typography>
-            Ce qui suit décrit le comportement des utilisateurs une fois la solution mise en production et hébergée.
+            L&apos;inscription est accessible depuis la page d&apos;accueil. Renseignez votre email, un nom d&apos;utilisateur et un mot de passe (minimum 8 caractères). Une fois connecté, vous restez authentifié grâce au refresh token — vous n&apos;avez pas à vous reconnecter à chaque session.
           </Typography>
-          <Typography component="h2">Qui sont les utilisateurs ?</Typography>
+          <Typography component="h2">Changer son mot de passe</Typography>
           <Typography>
-            Toute personne disposant d&apos;un <strong>compte</strong> peut utiliser la plateforme. Aujourd&apos;hui, l&apos;inscription est ouverte via la page Inscription (email, nom d&apos;utilisateur, mot de passe). En production vous pouvez : garder l&apos;inscription ouverte, ou la désactiver et créer les comptes via l&apos;API ou un outil admin. Le backend gère les rôles (admin, user) ; par défaut un nouvel inscrit a le rôle user.
+            Depuis <strong>Paramètres</strong> (icône en bas de la barre latérale) → <strong>Sécurité</strong> → saisissez votre mot de passe actuel puis le nouveau.
           </Typography>
-          <Typography component="h2">Accès aux données</Typography>
-          <Typography>
-            Chaque utilisateur a une liste de <strong>projets</strong> auxquels il a accès (projets qu&apos;il a créés ou auxquels il a été ajouté comme membre). Le projet courant est choisi sur la page Projets. Toutes les actions (Kubernetes, Terraform, Ansible, Pipelines) sont faites dans le cadre de ce projet. Les données sont isolées par <strong>project_id</strong> : un utilisateur ne voit que les projets dont il est membre.
-          </Typography>
-          <Typography component="h2">Travail en équipe</Typography>
-          <Typography>
-            Un projet a un <strong>propriétaire</strong> et peut avoir des <strong>membres</strong> (rôles admin ou member). L&apos;API expose l&apos;ajout de membre (<code>POST /api/v1/projects/:id/members</code>) et la liste des membres. Exposer une action « Inviter un membre » dans l&apos;interface permet aux équipes de gérer elles-mêmes les accès. Plusieurs personnes peuvent ainsi utiliser la même solution sur un même projet.
-          </Typography>
-          <Typography component="h2">Parcours type en production</Typography>
+          <Typography component="h2">Rôles dans un projet</Typography>
           <Box component="ul">
-            <li>Accès à l&apos;URL hébergée (ex. https://kura.votredomaine.com)</li>
-            <li>Compte : inscription (si ouverte) ou réception d&apos;un compte créé par un admin</li>
-            <li>Connexion : email + mot de passe</li>
-            <li>Projet : création d&apos;un nouveau projet ou sélection d&apos;un projet existant</li>
-            <li>Modules : utilisation des modules dans le cadre du projet sélectionné</li>
+            <li><strong>Propriétaire</strong> : créateur du projet, accès complet incluant la suppression du projet et la gestion des membres</li>
+            <li><strong>Admin</strong> : peut modifier les ressources et gérer les membres</li>
+            <li><strong>Member</strong> : accès en lecture et actions sur les ressources (pods, terraform, pipelines…)</li>
           </Box>
-          <Typography component="h2">À prévoir côté hébergement</Typography>
+          <Typography component="h2">Déconnexion</Typography>
           <Typography>
-            HTTPS obligatoire, sauvegarde régulière de PostgreSQL (utilisateurs, projets, membres), gestion sécurisée des secrets (JWT, clés cloud). Décider de la politique d&apos;inscription et prévoir un moyen de création de comptes si l&apos;inscription est réservée aux admins.
+            Cliquez sur votre avatar en haut à gauche → <strong>Déconnexion</strong>. Votre session est invalidée côté serveur.
           </Typography>
         </Box>
       )
-    case 'gke':
+    case 'faq':
       return (
         <Box sx={contentSx}>
-          <Typography component="h1">Connexion d&apos;un cluster GKE</Typography>
+          <Typography component="h1">FAQ & Dépannage</Typography>
+
+          <Typography component="h2">Le module Ansible affiche « Aucun historique disponible »</Typography>
           <Typography>
-            Pour connecter un cluster <strong>Google Kubernetes Engine (GKE)</strong> à Kura, vous pouvez soit fournir un kubeconfig (avec certificats complets), soit utiliser des credentials cloud (clé JSON du compte de service GCP) pour que le plugin GKE fonctionne côté serveur.
+            Vérifiez que la connexion Semaphore est configurée : page Ansible → panneau <em>Connecter un backend Ansible</em> → le badge doit être vert. Si le token ou l&apos;ID projet est incorrect, reconfigurez-les. Lancez un job dans Semaphore, puis actualisez.
           </Typography>
-          <Typography component="h2">1. Récupérer le kubeconfig</Typography>
+
+          <Typography component="h2">Kubernetes — « Impossible de récupérer les namespaces »</Typography>
           <Typography>
-            Avec <code>gcloud</code> (Cloud Shell ou machine où gcloud est installé) :
+            Vérifiez que le cluster est bien ajouté et activé (bouton Activer dans la liste des clusters). Pour GKE, le service account utilisé par Kura doit avoir le rôle <code>roles/container.admin</code> dans IAM GCP. Vous pouvez aussi créer un ClusterRoleBinding Kubernetes : <code>kubectl create clusterrolebinding kura-sa-admin --clusterrole=cluster-admin --user=&lt;sa-email&gt;</code>.
           </Typography>
-          <CodeBlock language="bash" label="Commande">
-            {`gcloud container clusters get-credentials <NOM_CLUSTER> --region <REGION> --project <PROJECT_ID>`}
-          </CodeBlock>
+
+          <Typography component="h2">Le dashboard Grafana affiche « Dashboard not found »</Typography>
           <Typography>
-            Copiez le contenu <strong>complet</strong> du fichier kubeconfig (avec certificats). Sous PowerShell : <code>Get-Content $env:USERPROFILE\.kube\config -Raw</code> ou <code>kubectl config view --raw</code>. Ne pas utiliser <code>kubectl config view</code> seul (sans <code>--raw</code>) : les certificats seraient masqués (DATA+OMITTED) et Kura ne pourrait pas se connecter.
+            Vérifiez que le fichier <code>kura-overview.json</code> est bien dans le dossier de provisioning Grafana. Redémarrez Grafana : <code>docker compose restart grafana</code>. En production, le dashboard est accessible à <code>/grafana/d/kura-overview/...</code>.
           </Typography>
-          <Typography component="h2">2. Dans Kura (sans Docker)</Typography>
+
+          <Typography component="h2">Terraform — « No configuration found » dans Kura</Typography>
           <Typography>
-            Allez dans <strong>Kubernetes</strong> → <strong>Clusters</strong> → <strong>Ajouter un cluster</strong>. Choisissez le type GKE, collez le kubeconfig, et enregistrez. Le plugin GKE est inclus dans le k8s-service.
+            Le tfstate existe dans GCS mais est vide (terraform apply n&apos;a pas encore été exécuté) ou la source cloud n&apos;est pas correctement configurée. Vérifiez que le <em>Bucket GCP</em> correspond au nom réel du bucket GCS (ex. <code>kura-ynov</code>) et que le <em>chemin de l&apos;objet</em> est le chemin dans le bucket (ex. <code>demo-kura/state/default.tfstate</code>).
           </Typography>
-          <Typography component="h2">3. En Docker : clé GCP pour GKE</Typography>
+
+          <Typography component="h2">Pipeline — les runs ne s&apos;affichent pas</Typography>
           <Typography>
-            En Docker, le conteneur n&apos;a pas vos identifiants gcloud. Il faut un <strong>fichier de clé JSON d&apos;un compte de service GCP</strong> avec accès au cluster GKE (rôle conseillé : Utilisateur Kubernetes Engine). Créez la clé dans la console GCP (IAM → Comptes de service → Clés), placez le fichier par exemple dans <code>secrets/gcp-sa.json</code> (à ne pas commiter), montez-le dans le conteneur et définissez <code>GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-sa.json</code>. Redémarrez au moins le service K8s après avoir monté la clé.
+            Configurez la connexion GitHub dans la page Pipelines (token + dépôts). Cliquez sur <strong>Synchroniser</strong> pour forcer la récupération immédiate. Les webhooks GitHub permettent une mise à jour en temps réel sans polling.
           </Typography>
+
+          <Typography component="h2">Page blanche au chargement</Typography>
           <Typography>
-            Dans Kura : Kubernetes → Clusters → ajoutez le cluster en collant le kubeconfig (étape 1) puis activez le cluster. Si vous ne souhaitez pas utiliser de clé dans Docker, vous pouvez générer un kubeconfig avec token (voir la doc GKE « Cluster access for kubectl ») ; le token devra être renouvelé régulièrement.
+            Certains bloqueurs de publicité (uBlock Origin, etc.) peuvent bloquer les requêtes vers des domaines <code>.nip.io</code>. Désactivez l&apos;extension pour ce domaine, ou utilisez un navigateur sans extensions lors des démonstrations.
+          </Typography>
+
+          <Typography component="h2">Réinitialiser la base de données</Typography>
+          <Typography>
+            En local : <code>docker compose down -v && docker compose up -d</code>. <strong>Attention</strong> : cela supprime toutes les données (utilisateurs, projets, clusters). En production, évitez — utilisez <code>docker compose down</code> (sans <code>-v</code>) pour conserver les volumes.
           </Typography>
         </Box>
       )
@@ -359,7 +419,7 @@ export default function DocumentationPage() {
 
   useEffect(() => {
     if (sectionParam) {
-      const validIds = ['intro', 'getting-started', 'modules', 'k8s', 'terraform', 'ansible', 'pipelines', 'architecture', 'production', 'users', 'gke']
+      const validIds = ['intro', 'getting-started', 'k8s', 'terraform', 'ansible', 'pipelines', 'monitoring', 'users', 'projects', 'faq']
       if (validIds.includes(sectionParam)) {
         setSelectedId(sectionParam)
       }
@@ -384,19 +444,10 @@ export default function DocumentationPage() {
           <Box key={section.id}>
             {section.children ? (
               <>
-                <ListItemButton
-                  selected={selectedId === section.id}
-                  onClick={() => {
-                    setSelectedId(section.id)
-                    if (isMobile) setSidebarOpen(false)
-                  }}
-                  sx={{
-                    py: 0.75,
-                    '&.Mui-selected': { bgcolor: 'rgba(0,229,255,0.15)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
-                  }}
-                >
-                  <ListItemText primary={section.label} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
-                </ListItemButton>
+                {/* Groupe parent — non cliquable, label seul */}
+                <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+                  <ListItemText primary={section.label} primaryTypographyProps={{ fontSize: '0.7rem', fontWeight: 700, color: jellyfishColors.grayLight, textTransform: 'uppercase', letterSpacing: '0.08em' }} />
+                </Box>
                 {section.children.map((child) => (
                   <ListItemButton
                     key={child.id}
@@ -408,7 +459,7 @@ export default function DocumentationPage() {
                     sx={{
                       pl: 3,
                       py: 0.6,
-                      '&.Mui-selected': { bgcolor: 'rgba(0,229,255,0.12)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
+                      '&.Mui-selected': { bgcolor: 'rgba(79,142,247,0.10)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
                     }}
                   >
                     <ListItemText primary={child.label} primaryTypographyProps={{ fontSize: '0.85rem' }} />
@@ -424,7 +475,7 @@ export default function DocumentationPage() {
                 }}
                 sx={{
                   py: 0.75,
-                  '&.Mui-selected': { bgcolor: 'rgba(0,229,255,0.15)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
+                  '&.Mui-selected': { bgcolor: 'rgba(79,142,247,0.12)', borderRight: `3px solid ${jellyfishColors.cyanSoft}` },
                 }}
               >
                 <ListItemText primary={section.label} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 600 }} />
@@ -481,7 +532,7 @@ export default function DocumentationPage() {
             border: `1px solid ${jellyfishColors.cyanSubtle}`,
             borderRadius: 2,
             overflowY: 'auto',
-            boxShadow: `inset 0 1px 0 rgba(0,229,255,0.08)`,
+            boxShadow: `inset 0 1px 0 rgba(79,142,247,0.05)`,
           }}
         >
           <DocContent docId={selectedId} />

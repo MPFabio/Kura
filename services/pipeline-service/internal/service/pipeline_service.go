@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -426,6 +427,49 @@ func (s *PipelineService) GetAggregatedStatus(ctx context.Context, provider, rep
 	}
 
 	return agg, nil
+}
+
+// RerunRun relance un workflow run GitHub Actions via l'API GitHub.
+// Le run doit exister dans le cache et être associé au provider GitHub.
+// Sécurité : requiert le scope `workflow` sur le token GitHub.
+func (s *PipelineService) RerunRun(ctx context.Context, runID string) error {
+	run, err := s.GetRun(ctx, runID)
+	if err != nil || run == nil {
+		return fmt.Errorf("run introuvable: %s", runID)
+	}
+	if run.Provider != models.ProviderGitHub {
+		return fmt.Errorf("relance uniquement supportée pour GitHub Actions (provider: %s)", run.Provider)
+	}
+	if run.ExternalID == "" {
+		return fmt.Errorf("ID externe GitHub manquant pour ce run")
+	}
+
+	// Extraire owner/repo depuis run.Repository ("owner/repo")
+	parts := strings.SplitN(run.Repository, "/", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("format repository invalide: %s", run.Repository)
+	}
+	owner, repo := parts[0], parts[1]
+
+	// Récupérer le token GitHub depuis le cache (configuré via l'UI)
+	token, _ := s.getGitHubConfig(ctx)
+	if token == "" {
+		return fmt.Errorf("token GitHub non configuré — configurez-le dans la page Pipelines")
+	}
+
+	// Convertir l'ExternalID en int64
+	githubRunID, err := strconv.ParseInt(run.ExternalID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("ID GitHub invalide: %s", run.ExternalID)
+	}
+
+	ghClient := client.NewGitHubAPIClient(token)
+	if err := ghClient.RerunWorkflowRun(owner, repo, githubRunID); err != nil {
+		return fmt.Errorf("GitHub API: %w", err)
+	}
+
+	log.Printf("▶ Pipeline relancé: %s/%s run #%s par Kura", owner, repo, run.ExternalID)
+	return nil
 }
 
 // DetectProvider tente de détecter le provider à partir des headers

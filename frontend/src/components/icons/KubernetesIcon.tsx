@@ -6,10 +6,6 @@ interface KubernetesIconProps {
   active?: boolean
 }
 
-/**
- * Logo Kubernetes deux tons (cyan + fond) comme avant.
- * Uniforme avec les autres : inactif = gris (filtre), actif = logo cyan + fond.
- */
 export default function KubernetesIcon({ sx, active = false }: KubernetesIconProps) {
   return (
     <Box
@@ -21,9 +17,8 @@ export default function KubernetesIcon({ sx, active = false }: KubernetesIconPro
         width: 24,
         height: 24,
         objectFit: 'contain',
-        filter: active ? 'none' : 'grayscale(1) brightness(0.85) contrast(0.9)',
-        opacity: active ? 1 : 0.9,
-        transition: 'all 0.3s ease',
+        filter: active ? 'none' : 'grayscale(1) opacity(0.4)',
+        transition: 'filter 0.2s ease',
         flexShrink: 0,
         ...sx,
       }}

@@ -1,29 +1,19 @@
-import { Box, SxProps, Theme } from '@mui/material'
-import pipelineLogo from '../../assets/pipeline_logo.png'
+import { AllInclusive } from '@mui/icons-material'
+import { SxProps, Theme } from '@mui/material'
 
 interface PipelinesIconProps {
   sx?: SxProps<Theme>
   active?: boolean
 }
 
-/**
- * Logo Pipelines en image (comme Kubernetes) : le mask donne un carré avec ce PNG.
- * Actif = logo tel quel, inactif = gris (grayscale) pour uniformité sidebar.
- */
 export default function PipelinesIcon({ sx, active = false }: PipelinesIconProps) {
   return (
-    <Box
-      component="img"
-      src={pipelineLogo}
-      alt=""
-      aria-hidden
+    <AllInclusive
       sx={{
         width: 24,
         height: 24,
-        objectFit: 'contain',
-        filter: active ? 'none' : 'grayscale(1) brightness(0.85) contrast(0.9)',
-        opacity: active ? 1 : 0.9,
-        transition: 'all 0.3s ease',
+        color: active ? '#4F8EF7' : '#6B7385',
+        transition: 'color 0.15s ease',
         flexShrink: 0,
         ...sx,
       }}

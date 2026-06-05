@@ -6,8 +6,8 @@ interface AlertsIconProps {
 }
 
 export default function AlertsIcon({ sx, active = false }: AlertsIconProps) {
-  const color = active ? '#FF4500' : '#A0A0A0'
-  
+  const color = active ? '#F1F3F9' : '#6B7385'
+
   return (
     <Box
       component="svg"
@@ -20,8 +20,7 @@ export default function AlertsIcon({ sx, active = false }: AlertsIconProps) {
         strokeWidth: 1.5,
         strokeLinecap: 'round',
         strokeLinejoin: 'round',
-        filter: active ? 'drop-shadow(0 0 8px rgba(255, 69, 0, 0.8))' : 'none',
-        transition: 'all 0.3s ease',
+        transition: 'stroke 0.15s ease',
         ...sx,
       }}
     >

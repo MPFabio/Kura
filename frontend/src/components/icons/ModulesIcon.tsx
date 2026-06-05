@@ -6,7 +6,7 @@ interface ModulesIconProps {
 }
 
 export default function ModulesIcon({ sx, active = false }: ModulesIconProps) {
-  const color = active ? '#00FFFF' : '#A0A0A0'
+  const color = active ? '#4F8EF7' : '#6B7385'
   
   return (
     <Box
@@ -20,7 +20,7 @@ export default function ModulesIcon({ sx, active = false }: ModulesIconProps) {
         strokeWidth: 1.5,
         strokeLinecap: 'round',
         strokeLinejoin: 'round',
-        filter: active ? 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.8))' : 'none',
+        transition: 'stroke 0.15s ease',
         transition: 'all 0.3s ease',
         ...sx,
       }}

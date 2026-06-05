@@ -1,33 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-} from '@mui/material'
-import { KeyboardArrowUp as ChevronUpIcon } from '@mui/icons-material'
+import { Box, Button, Typography, Grid } from '@mui/material'
 import AnimatedBackground from '../components/AnimatedBackground'
 import Logo from '../components/Logo'
-import jellyfishLogo from '../assets/jellyfish_logo.png'
-
-const kuraYamlSnippet = `version: "1.0"
-environment: production
-services:
-  api:
-    build: ./api
-    depends_on: [db, cache]
-  worker:
-    store: redis
-    process: celery
-`
+import { kuraColors } from '../theme'
 
 export default function LandingPage() {
   const navigate = useNavigate()
 
   return (
-    <Box sx={{ minHeight: '100vh', position: 'relative' }}>
+    <Box sx={{ minHeight: '100vh', position: 'relative', bgcolor: kuraColors.bg0 }}>
       <AnimatedBackground />
 
       {/* Header */}
@@ -39,41 +20,33 @@ export default function LandingPage() {
           left: 0,
           right: 0,
           zIndex: 1100,
+          height: 72,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          px: { xs: 2, md: 4 },
-          py: 2,
-          background: '#2c2f3f',
-          borderBottom: '2px solid rgba(0, 229, 255, 0.15)',
+          px: 3,
+          bgcolor: kuraColors.bg1,
+          borderBottom: `1px solid ${kuraColors.border1}`,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Logo variant="full" size="small" />
-          <Box sx={{ display: 'flex', gap: 3, color: '#b8b8b8', fontSize: '0.9375rem' }}>
-            <Link to="/login" style={{ color: 'inherit', textDecoration: 'none' }}>
-              ./deploy
-            </Link>
-            <Link to="/login" style={{ color: 'inherit', textDecoration: 'none' }}>
-              //observe
-            </Link>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Logo variant="icon" size="small" />
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 3 }}>
+            {['Kubernetes', 'Terraform', 'Ansible', 'Pipelines'].map((item) => (
+              <Link key={item} to="/login" style={{ color: kuraColors.text2, textDecoration: 'none', fontSize: '0.875rem' }}>
+                {item}
+              </Link>
+            ))}
           </Box>
         </Box>
-        <Button
-          variant="outlined"
-          onClick={() => navigate('/login')}
-          sx={{
-            borderColor: '#00E5FF',
-            borderWidth: 2,
-            color: '#00E5FF',
-            fontWeight: 600,
-            '&:hover': {
-              background: 'rgba(0, 229, 255, 0.08)',
-            },
-          }}
-        >
-          Login
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button variant="outlined" size="small" onClick={() => navigate('/login')}>
+            Se connecter
+          </Button>
+          <Button variant="contained" size="small" onClick={() => navigate('/register')}>
+            Créer un compte
+          </Button>
+        </Box>
       </Box>
 
       {/* Hero */}
@@ -84,263 +57,167 @@ export default function LandingPage() {
           minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
-          px: { xs: 2, md: 6 },
-          pt: 14,
+          px: { xs: 3, md: 8 },
+          pt: '90px',
           pb: 6,
         }}
       >
-        <Grid container spacing={6} alignItems="center">
-          <Grid item xs={12} md={7}>
+        <Grid container spacing={8} alignItems="center">
+          <Grid item xs={12} md={6}>
+            {/* Badge */}
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: '20px',
+                border: `1px solid ${kuraColors.border2}`,
+                bgcolor: kuraColors.bg2,
+                mb: 3,
+              }}
+            >
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: kuraColors.success }} />
+              <Typography sx={{ fontSize: '0.75rem', color: kuraColors.text2, fontWeight: 500 }}>
+                Plateforme DevOps unifiée
+              </Typography>
+            </Box>
+
             <Typography
               component="h1"
               sx={{
-                fontSize: { xs: '2.5rem', md: '4rem' },
+                fontSize: { xs: '2.25rem', md: '3.25rem' },
                 fontWeight: 700,
-                color: '#f0f0f0',
-                lineHeight: 1.1,
-                mb: 5,
-                letterSpacing: '-0.04em',
+                color: kuraColors.text0,
+                lineHeight: 1.15,
+                mb: 2.5,
+                letterSpacing: '-0.035em',
               }}
             >
-              L'orchestration aussi fluide qu'une méduse.
+              Un seul outil pour piloter toute votre infrastructure.
             </Typography>
+
+            <Typography sx={{ fontSize: '1.0625rem', color: kuraColors.text1, lineHeight: 1.7, mb: 4, maxWidth: 500 }}>
+              Kubernetes, Terraform, Ansible, pipelines CI/CD et monitoring — centralisés dans une interface unique.
+            </Typography>
+
+            {/* Terminal */}
             <Box
               sx={{
                 p: 2.5,
-                borderLeft: '4px solid #66BB6A',
-                background: '#1f2235',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderLeftWidth: 4,
-                mb: 5,
+                bgcolor: '#0A0C11',
+                border: `1px solid ${kuraColors.border2}`,
+                borderRadius: '8px',
+                mb: 4,
                 fontFamily: '"JetBrains Mono", monospace',
-                fontSize: '0.9375rem',
+                fontSize: '0.875rem',
               }}
             >
-              <Box component="span" sx={{ color: '#66BB6A', fontWeight: 600 }}>
-                $ kura deploy --environment production
+              <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+                {['#FF5F57', '#FEBC2E', '#28C840'].map((c) => (
+                  <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />
+                ))}
               </Box>
-              <Box component="div" sx={{ color: '#a0a0a0', mt: 1.5, fontSize: '0.875rem' }}>
-                ✓ Infrastructure synchronisée en 42ms.
+              <Box sx={{ color: kuraColors.text2 }}>
+                <Box component="span" sx={{ color: kuraColors.success }}>$</Box>
+                {' '}
+                <Box component="span" sx={{ color: kuraColors.text0 }}>kura deploy --env production</Box>
+              </Box>
+              <Box sx={{ color: kuraColors.text2, mt: 1, fontSize: '0.8125rem' }}>
+                <Box component="span" sx={{ color: kuraColors.success }}>✓</Box>
+                {' '}Infrastructure synchronisée en 42ms
               </Box>
             </Box>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                onClick={() => navigate('/login')}
-                sx={{
-                  background: '#00E5FF',
-                  color: '#0d0e12',
-                  fontWeight: 700,
-                  px: 4,
-                  py: 1.5,
-                  fontSize: '1rem',
-                  '&:hover': {
-                    background: '#26C6DA',
-                  },
-                }}
-              >
-                Démarrer le cluster
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button variant="contained" size="large" onClick={() => navigate('/register')} sx={{ px: 3 }}>
+                Créer un compte
               </Button>
-              <Button
-                variant="outlined"
-                sx={{
-                  borderColor: '#f0f0f0',
-                  borderWidth: 2,
-                  color: '#f0f0f0',
-                  fontWeight: 600,
-                  px: 4,
-                  py: 1.5,
-                  '&:hover': {
-                    background: 'rgba(255, 255, 255, 0.08)',
-                  },
-                }}
-              >
-                Documentation
+              <Button variant="outlined" size="large" onClick={() => navigate('/login')} sx={{ px: 3 }}>
+                Se connecter
               </Button>
             </Box>
           </Grid>
-          <Grid item xs={12} md={5} sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center' }}>
+
+          {/* Preview panel */}
+          <Grid item xs={12} md={6} sx={{ display: { xs: 'none', md: 'block' } }}>
             <Box
               sx={{
-                width: 280,
-                height: 280,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '4px solid',
-                borderColor: '#00E5FF',
-                borderLeftColor: '#EC407A',
-                borderBottomColor: '#AB47BC',
+                bgcolor: kuraColors.bg1,
+                border: `1px solid ${kuraColors.border1}`,
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
               }}
             >
-              <Box
-                component="img"
-                src={jellyfishLogo}
-                alt="KURA"
-                sx={{
-                  width: 180,
-                  height: 'auto',
-                  opacity: 0.95,
-                  objectFit: 'contain',
-                  objectPosition: 'center',
-                }}
-              />
+              {/* Window chrome */}
+              <Box sx={{ px: 2, py: 1.5, bgcolor: kuraColors.bg2, borderBottom: `1px solid ${kuraColors.border0}`, display: 'flex', gap: 1 }}>
+                {['#FF5F57', '#FEBC2E', '#28C840'].map((c) => (
+                  <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c }} />
+                ))}
+              </Box>
+              {/* Content */}
+              <Box sx={{ p: 3, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                {[
+                  { title: 'Services actifs', value: '6', sub: 'Tous opérationnels', color: kuraColors.success },
+                  { title: 'Déploiements', value: '14', sub: 'Cette semaine', color: kuraColors.accent },
+                  { title: 'Clusters K8s', value: '3', sub: 'GKE / AKS / Local', color: kuraColors.info },
+                  { title: 'Alertes', value: '0', sub: 'Aucun incident', color: kuraColors.success },
+                ].map((item, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      p: 2,
+                      bgcolor: kuraColors.bg2,
+                      border: `1px solid ${kuraColors.border0}`,
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: '0.75rem', color: kuraColors.text2, mb: 0.5 }}>{item.title}</Typography>
+                    <Typography sx={{ fontSize: '1.75rem', fontWeight: 700, color: item.color, fontFamily: '"JetBrains Mono", monospace', lineHeight: 1 }}>
+                      {item.value}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: kuraColors.text2, mt: 0.5 }}>{item.sub}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              {/* Status bar */}
+              <Box sx={{ px: 3, py: 1.5, borderTop: `1px solid ${kuraColors.border0}`, display: 'flex', gap: 3 }}>
+                {['auth-service', 'k8s-service', 'terraform-service'].map((svc) => (
+                  <Box key={svc} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: kuraColors.success }} />
+                    <Typography sx={{ fontSize: '0.7rem', color: kuraColors.text2, fontFamily: '"JetBrains Mono", monospace' }}>
+                      {svc}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
             </Box>
           </Grid>
         </Grid>
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: 32,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            color: 'rgba(255, 255, 255, 0.3)',
-          }}
-        >
-          <ChevronUpIcon sx={{ fontSize: 24, transform: 'rotate(180deg)' }} />
-        </Box>
       </Box>
 
-      {/* Dashboard Preview */}
-      <Box sx={{ position: 'relative', zIndex: 1, px: { xs: 2, md: 6 }, py: 10, pb: 12, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-        <Typography
-          component="h2"
-          sx={{
-            fontSize: '1.125rem',
-            fontWeight: 700,
-            color: '#808080',
-            mb: 6,
-            textTransform: 'uppercase',
-            letterSpacing: '0.15em',
-          }}
-        >
-          Dashboard Preview
+      {/* Features strip */}
+      <Box
+        sx={{
+          position: 'relative',
+          zIndex: 1,
+          px: { xs: 3, md: 8 },
+          py: 8,
+          borderTop: `1px solid ${kuraColors.border0}`,
+        }}
+      >
+        <Typography sx={{ fontSize: '0.75rem', color: kuraColors.text2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center', mb: 5 }}>
+          Intégrations natives
         </Typography>
-        <Grid container spacing={3}>
-          {/* System Health */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', borderLeft: '4px solid #EC407A' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
-                  System Health
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-                  {[
-                    { value: 70, color: '#EC407A', label: 'CPU' },
-                    { value: 90, color: '#00E5FF', label: 'MEM' },
-                    { value: 60, color: '#AB47BC', label: 'DISK' }
-                  ].map((item, i) => (
-                    <Box key={i} sx={{ flex: 1, textAlign: 'center' }}>
-                      <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '1.5rem', fontWeight: 700, color: item.color, mb: 0.5 }}>
-                        {item.value}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.6875rem', color: '#606060', fontWeight: 700, letterSpacing: '0.1em' }}>
-                        {item.label}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          {/* Deployment Timeline */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', borderLeft: '4px solid #00E5FF' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
-                  Deployment Timeline
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 80 }}>
-                  {[40, 70, 50, 90, 60, 80, 45].map((h, i) => (
-                    <Box
-                      key={i}
-                      sx={{
-                        flex: 1,
-                        height: `${h}%`,
-                        background: i % 2 === 0 ? '#00E5FF' : '#EC407A',
-                        opacity: 0.8,
-                        transition: 'all 0.2s ease',
-                        '&:hover': { opacity: 1 },
-                      }}
-                    />
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          {/* kura.yaml */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', borderLeft: '4px solid #AB47BC' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
-                  kura.yaml
-                </Typography>
-                <Box sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8125rem', color: '#b8b8b8', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-                  {kuraYamlSnippet.split('\n').map((line, i) => (
-                    <Box key={i}>
-                      {line.split(/(version|environment|services|api|worker|build|depends_on|store|process|redis|celery|production|"1.0"|\/\w+)/g).map((part, j) => {
-                        if (['version', 'environment', 'services', 'api', 'worker', 'build', 'depends_on', 'store', 'process'].includes(part)) return <span key={j} style={{ color: '#00E5FF' }}>{part}</span>
-                        if (part?.match(/^["'].*["']$/)) return <span key={j} style={{ color: '#66BB6A' }}>{part}</span>
-                        if (part === 'production' || part === 'redis' || part === 'celery') return <span key={j} style={{ color: '#EC407A' }}>{part}</span>
-                        return <span key={j}>{part}</span>
-                      })}
-                      {'\n'}
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          {/* Second row */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', borderLeft: '4px solid #AB47BC' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
-                  Metrics
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {['CPU', 'Memory', 'Network'].map((label, i) => (
-                    <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography sx={{ fontSize: '0.875rem', color: '#a0a0a0' }}>{label}</Typography>
-                      <Box sx={{ width: [60, 80, 50][i], height: 3, background: [60, 80, 50][i] > 70 ? '#EC407A' : '#00E5FF' }} />
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', borderLeft: '4px solid #00E5FF' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
-                  Logs
-                </Typography>
-                <Box sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem', color: '#606060', lineHeight: 1.6 }}>
-                  <Box sx={{ color: '#66BB6A' }}>[OK] Service started</Box>
-                  <Box sx={{ color: '#00E5FF' }}>[INFO] Port 8080</Box>
-                  <Box sx={{ color: '#606060' }}>[DEBUG] Connected</Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', borderLeft: '4px solid #EC407A' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography sx={{ color: '#f0f0f0', fontWeight: 700, mb: 3, fontSize: '1rem', letterSpacing: '0.02em' }}>
-                  Status
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {['API', 'DB', 'Cache'].map((svc, i) => (
-                    <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography sx={{ fontSize: '0.875rem', color: '#a0a0a0', fontFamily: '"JetBrains Mono", monospace' }}>{svc}</Typography>
-                      <Box sx={{ width: 8, height: 8, background: '#66BB6A' }} />
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 4 }}>
+          {['Kubernetes', 'Terraform', 'Ansible', 'GitHub Actions', 'Prometheus', 'Grafana'].map((tool) => (
+            <Typography key={tool} sx={{ fontSize: '0.9375rem', color: kuraColors.text2, fontWeight: 500 }}>
+              {tool}
+            </Typography>
+          ))}
+        </Box>
       </Box>
     </Box>
   )

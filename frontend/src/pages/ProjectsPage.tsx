@@ -35,6 +35,7 @@ import ModuleCard from '../components/ModuleCard'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleButton from '../components/ModuleButton'
 import { ModuleSubtitle, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
+import { kuraColors } from '../theme'
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
@@ -133,8 +134,8 @@ export default function ProjectsPage() {
     <Box
       component="div"
       data-page="projects"
-      sx={{ position: 'relative', zIndex: 1, minHeight: '100vh', background: '#32364a' }}
-      style={{ minHeight: '100vh', background: '#32364a', position: 'relative', zIndex: 1 }}
+      sx={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}
+      style={{ minHeight: '100vh', position: 'relative', zIndex: 1 }}
     >
       <AnimatedBackground />
       {/* Header simple en haut avec logo et avatar - pleine largeur */}
@@ -146,8 +147,8 @@ export default function ProjectsPage() {
           left: 0,
           right: 0,
           width: '100vw',
-          background: '#2c2f3f',
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          background: kuraColors.bg1,
+          borderBottom: `1px solid ${kuraColors.border1}`,
           borderRadius: 0,
           zIndex: 1000,
         }}
@@ -157,12 +158,11 @@ export default function ProjectsPage() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            px: { xs: 3, sm: 4 },
-            py: 3,
-            minHeight: '100px',
+            px: 3,
+            height: 72,
           }}
         >
-          <Logo variant="full" size="small" />
+          <Logo variant="icon" size="small" />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton
               size="small"
@@ -192,7 +192,7 @@ export default function ProjectsPage() {
         </Box>
       </Box>
       {/* Contenu principal - EXACTEMENT même style que ModulesPage */}
-      <Box sx={{ minHeight: '100vh', position: 'relative', width: '100vw', p: 4, pt: '170px', pb: 6, zIndex: 1, background: '#32364a', color: '#f0f0f0' }}>
+      <Box sx={{ minHeight: '100vh', position: 'relative', width: '100vw', px: 4, pt: '90px', pb: 6, zIndex: 1, color: '#f0f0f0' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5, mt: 1 }}>
           <ModuleTitle sx={{ mb: 0 }}>Projets</ModuleTitle>
           <ModuleButton
@@ -246,12 +246,12 @@ export default function ProjectsPage() {
                 inactive={!isActive}
                 onClick={() => handleSelectProject(project)}
                 sx={{
-                  minHeight: '300px',
+                  minHeight: 'unset',
                 }}
               >
                 <Box sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                    <FolderIcon sx={{ fontSize: 48, color: '#00E5FF' }} />
+                    <FolderIcon sx={{ fontSize: 48, color: kuraColors.accent }} />
                     {isActive && (
                       <Box
                         sx={{
@@ -291,9 +291,9 @@ export default function ProjectsPage() {
                       size="small"
                       onClick={(e) => handleDeleteProject(project.id, e)}
                       sx={{
-                        color: '#EC407A',
+                        color: kuraColors.error,
                         '&:hover': {
-                          background: 'rgba(236, 64, 122, 0.15)',
+                          background: kuraColors.errorBg,
                         },
                       }}
                     >
@@ -345,12 +345,6 @@ export default function ProjectsPage() {
             variant="contained"
             disabled={createProjectMutation.isPending || !projectName.trim()}
             sx={{
-              background: '#00E5FF',
-              color: '#0d0e12',
-              fontWeight: 700,
-              '&:hover': {
-                background: '#26C6DA',
-              },
             }}
           >
             {createProjectMutation.isPending ? <CircularProgress size={20} sx={{ color: '#0d0e12' }} /> : 'Créer'}

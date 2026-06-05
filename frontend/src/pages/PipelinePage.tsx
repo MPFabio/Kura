@@ -19,6 +19,12 @@ import {
   TextField,
   Button,
   Collapse,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Snackbar,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -26,6 +32,7 @@ import {
   Schedule as ScheduleIcon,
   Cached as CachedIcon,
   OpenInNew as OpenInNewIcon,
+  Replay as ReplayIcon,
   Sync as SyncIcon,
   Link as LinkIcon,
   ExpandMore as ExpandMoreIcon,
@@ -132,6 +139,25 @@ export default function PipelinePage() {
   const [configExpanded, setConfigExpanded] = useState(false)
   const [tokenInput, setTokenInput] = useState('')
   const [reposInput, setReposInput] = useState('')
+  const [rerunTarget, setRerunTarget] = useState<PipelineRun | null>(null)
+  const [rerunLoading, setRerunLoading] = useState(false)
+  const [rerunFeedback, setRerunFeedback] = useState<{ msg: string; ok: boolean } | null>(null)
+
+  const handleConfirmRerun = async () => {
+    if (!rerunTarget) return
+    setRerunLoading(true)
+    try {
+      await pipelineService.rerunRun(rerunTarget.id)
+      setRerunFeedback({ msg: `Pipeline « ${rerunTarget.workflow_name} » relancé avec succès`, ok: true })
+      queryClient.invalidateQueries({ queryKey: ['pipeline-runs'] })
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Erreur lors du re-run'
+      setRerunFeedback({ msg, ok: false })
+    } finally {
+      setRerunLoading(false)
+      setRerunTarget(null)
+    }
+  }
 
   const {
     data: runsData,
@@ -205,6 +231,7 @@ export default function PipelinePage() {
   const isLinked = config?.linked ?? false
 
   return (
+    <>
     <Box>
       <Box
         sx={{
@@ -290,7 +317,7 @@ export default function PipelinePage() {
             {configExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
           </Box>
           <Collapse in={configExpanded}>
-            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(0,229,255,0.2)' }}>
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(79,142,247,0.15)' }}>
               <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 2 }}>
                 Liez vos dépôts GitHub pour afficher les exécutions GitHub Actions. Créez un{' '}
                 <Link
@@ -460,19 +487,27 @@ export default function PipelinePage() {
                     <TableCell sx={{ fontSize: '0.8125rem', color: '#b8b8b8' }}>
                       {formatDate(run.finished_at ?? run.started_at ?? run.created_at)}
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {run.provider === 'github' && (
+                        <Tooltip title="Relancer ce pipeline">
+                          <IconButton
+                            size="small"
+                            onClick={() => setRerunTarget(run)}
+                            sx={{ color: '#4F8EF7', '&:hover': { bgcolor: 'rgba(79,142,247,0.1)' }, mr: 0.5 }}
+                          >
+                            <ReplayIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       {run.external_url && (
-                        <Tooltip title="Ouvrir dans le provider">
+                        <Tooltip title="Voir sur GitHub">
                           <IconButton
                             component={Link}
                             href={run.external_url}
                             target="_blank"
                             rel="noopener"
                             size="small"
-                            sx={{
-                              color: jellyfishColors.cyanSoft,
-                              '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
-                            }}
+                            sx={{ color: '#6B7385', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' } }}
                           >
                             <OpenInNewIcon fontSize="small" />
                           </IconButton>
@@ -499,5 +534,49 @@ export default function PipelinePage() {
         </ModuleCard>
       )}
     </Box>
+
+      {/* Dialog de confirmation rerun */}
+      <Dialog open={!!rerunTarget} onClose={() => setRerunTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Relancer le pipeline</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontSize: '0.9rem' }}>
+            Voulez-vous relancer{' '}
+            <strong>{rerunTarget?.workflow_name || rerunTarget?.id}</strong>
+            {rerunTarget?.repository ? ` sur ${rerunTarget.repository}` : ''} ?
+            <br /><br />
+            Cette action déclenchera un nouveau run GitHub Actions.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={() => setRerunTarget(null)} disabled={rerunLoading}>
+            Annuler
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmRerun}
+            disabled={rerunLoading}
+            startIcon={rerunLoading ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <ReplayIcon />}
+          >
+            {rerunLoading ? 'Lancement...' : 'Relancer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Feedback rerun */}
+      <Snackbar
+        open={!!rerunFeedback}
+        autoHideDuration={5000}
+        onClose={() => setRerunFeedback(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={rerunFeedback?.ok ? 'success' : 'error'}
+          onClose={() => setRerunFeedback(null)}
+          sx={{ width: '100%' }}
+        >
+          {rerunFeedback?.msg}
+        </Alert>
+      </Snackbar>
+    </>
   )
 }

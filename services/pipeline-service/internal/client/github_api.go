@@ -126,6 +126,39 @@ func (c *GitHubAPIClient) FetchWorkflowRuns(owner, repo string, perPage int) ([]
 	return runs, nil
 }
 
+// RerunWorkflowRun déclenche le re-run d'un workflow run GitHub Actions.
+// Requiert le scope `workflow` sur le token GitHub.
+// POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun
+func (c *GitHubAPIClient) RerunWorkflowRun(owner, repo string, runID int64) error {
+	url := fmt.Sprintf("%s/repos/%s/%s/actions/runs/%d/rerun", githubAPIBase, owner, repo, runID)
+
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	if err != nil {
+		return fmt.Errorf("création requête rerun: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	if c.token == "" {
+		return fmt.Errorf("token GitHub requis pour relancer un workflow (scope: workflow)")
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("appel API GitHub rerun: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 201 Created = succès, 403 = token sans scope workflow
+	if resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("permission refusée — le token GitHub doit avoir le scope 'workflow'")
+	}
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("GitHub rerun: %s", resp.Status)
+	}
+	return nil
+}
+
 func mapAPIToStatus(status, conclusion string) models.RunStatus {
 	if status == "completed" {
 		switch conclusion {

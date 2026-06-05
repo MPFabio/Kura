@@ -230,21 +230,27 @@ export default function AnsiblePage() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'successful':
-      case 'success':
-        return 'success'
-      case 'failed':
-      case 'error':
-        return 'error'
-      case 'running':
-      case 'pending':
-        return 'info'
-      case 'canceled':
-      case 'cancelled':
-        return 'warning'
-      default:
-        return 'default'
+      case 'successful': case 'success': return 'success'
+      case 'failed': case 'error': return 'error'
+      case 'running': case 'pending': return 'info'
+      case 'canceled': case 'cancelled': return 'warning'
+      default: return 'default'
     }
+  }
+
+  const getStatusSx = (status: string) => {
+    const s = status?.toLowerCase() || ''
+    if (['successful','success'].includes(s))
+      return { bgcolor: 'rgba(52,211,153,0.15)', border: '1px solid #34D399', color: '#34D399' }
+    if (['failed','error'].includes(s))
+      return { bgcolor: 'rgba(248,113,113,0.15)', border: '1px solid #F87171', color: '#F87171' }
+    if (['running'].includes(s))
+      return { bgcolor: 'rgba(96,165,250,0.15)', border: '1px solid #60A5FA', color: '#60A5FA' }
+    if (['pending'].includes(s))
+      return { bgcolor: 'rgba(251,191,36,0.15)', border: '1px solid #FBBF24', color: '#FBBF24' }
+    if (['canceled','cancelled','stopped'].includes(s))
+      return { bgcolor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.2)', color: '#8C94A6' }
+    return { bgcolor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#8C94A6' }
   }
 
   const formatDate = (dateString?: string) => {
@@ -408,7 +414,7 @@ export default function AnsiblePage() {
                         <TableCell>{job.id}</TableCell>
                         <TableCell>{job.name}</TableCell>
                         <TableCell>
-                          <Chip label={job.status} color={getStatusColor(job.status) as any} size="small" />
+                          <Chip label={job.status} size="small" sx={{ fontWeight: 600, fontSize: '0.6875rem', ...getStatusSx(job.status) }} />
                         </TableCell>
                         <TableCell>{job.job_template_name || '-'}</TableCell>
                         <TableCell>{job.inventory_name || '-'}</TableCell>
@@ -470,7 +476,7 @@ export default function AnsiblePage() {
                         <TableCell>{job.id}</TableCell>
                         <TableCell>{job.name}</TableCell>
                         <TableCell>
-                          <Chip label={job.status} color={getStatusColor(job.status) as any} size="small" />
+                          <Chip label={job.status} size="small" sx={{ fontWeight: 600, fontSize: '0.6875rem', ...getStatusSx(job.status) }} />
                         </TableCell>
                         <TableCell>{job.job_template_name || '-'}</TableCell>
                         <TableCell>{job.inventory_name || '-'}</TableCell>
@@ -624,7 +630,7 @@ export default function AnsiblePage() {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <ModuleSecondaryText>Statut</ModuleSecondaryText>
-                  <Chip label={selectedJob.status} color={getStatusColor(selectedJob.status) as any} size="small" />
+                  <Chip label={selectedJob.status} size="small" sx={{ fontWeight: 600, fontSize: '0.6875rem', ...getStatusSx(selectedJob.status) }} />
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <ModuleSecondaryText>Template</ModuleSecondaryText>

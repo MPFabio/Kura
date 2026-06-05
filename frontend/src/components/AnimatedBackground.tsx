@@ -1,7 +1,6 @@
 import { Box } from '@mui/material'
 
-/** Fond gris-bleu CLAIR (DA KURA) */
-const BACKGROUND_DARK = '#2c2f3f'
+const BACKGROUND_DARK = '#0C0E14'
 
 /**
  * Fond sombre fixe, cohérent avec le thème inversé

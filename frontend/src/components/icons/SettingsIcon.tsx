@@ -1,8 +1,8 @@
 import { Box, SxProps, Theme } from '@mui/material'
 import parametresLogo from '../../assets/parametres_logo.png'
 
-const ICON_COLOR_ACTIVE = '#00E5FF'
-const ICON_COLOR_INACTIVE = '#b8b8b8'
+const ICON_COLOR_ACTIVE = '#6BA4B8'
+const ICON_COLOR_INACTIVE = '#6B7385'
 
 interface SettingsIconProps {
   sx?: SxProps<Theme>
@@ -17,19 +17,12 @@ export default function SettingsIcon({ sx, active = false }: SettingsIconProps) 
       sx={{
         width: 24,
         height: 24,
+        flexShrink: 0,
+        ...sx,
         backgroundColor: active ? ICON_COLOR_ACTIVE : ICON_COLOR_INACTIVE,
         mask: `url(${parametresLogo}) center/contain no-repeat`,
         WebkitMask: `url(${parametresLogo}) center/contain no-repeat`,
-        maskSize: 'contain',
-        WebkitMaskSize: 'contain',
-        maskRepeat: 'no-repeat',
-        WebkitMaskRepeat: 'no-repeat',
-        maskPosition: 'center',
-        WebkitMaskPosition: 'center',
-        filter: 'none',
-        transition: 'all 0.3s ease',
-        flexShrink: 0,
-        ...sx,
+        transition: 'background-color 0.15s ease',
       }}
     />
   )

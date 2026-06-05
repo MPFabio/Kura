@@ -6,7 +6,7 @@ interface MonitoringIconProps {
 }
 
 export default function MonitoringIcon({ sx, active = false }: MonitoringIconProps) {
-  const color = active ? '#00FFFF' : '#A0A0A0'
+  const color = active ? '#F97316' : '#6B7385'  // Orange Grafana/observabilité
   
   return (
     <Box
@@ -20,7 +20,7 @@ export default function MonitoringIcon({ sx, active = false }: MonitoringIconPro
         strokeWidth: 1.5,
         strokeLinecap: 'round',
         strokeLinejoin: 'round',
-        filter: active ? 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.8))' : 'none',
+        filter: 'none',
         transition: 'all 0.3s ease',
         ...sx,
       }}
