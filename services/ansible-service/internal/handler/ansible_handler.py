@@ -34,6 +34,26 @@ class AnsibleHandler:
         """Initialise le handler."""
         self.service = ansible_service
 
+    def get_config(self):
+        """Retourne la configuration Semaphore active."""
+        try:
+            return self.service.get_config()
+        except Exception as e:
+            logger.error(f"Erreur get_config: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def set_config(self, payload: dict = Body(...)):
+        """Met à jour la configuration Semaphore."""
+        try:
+            return self.service.set_config(
+                semaphore_url=payload.get("semaphore_url", ""),
+                token=payload.get("token", ""),
+                project_id=int(payload.get("semaphore_project_id", 1)),
+            )
+        except Exception as e:
+            logger.error(f"Erreur set_config: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     def _track_request(self, method: str, endpoint: str, status: int, duration: float):
         """Enregistre les métriques pour une requête."""
         api_requests_total.labels(method=method, endpoint=endpoint, status=status).inc()
@@ -580,6 +600,20 @@ def create_router(handler: AnsibleHandler) -> APIRouter:
         methods=["POST"],
         summary="Analyser un playbook",
         description="Analyse en profondeur un playbook YAML. Body: {\"playbook_content\": \"...\"}",
+    )
+
+    # Configuration Semaphore
+    router.add_api_route(
+        "/config",
+        handler.get_config,
+        methods=["GET"],
+        summary="Lire la configuration Semaphore",
+    )
+    router.add_api_route(
+        "/config",
+        handler.set_config,
+        methods=["POST"],
+        summary="Mettre à jour la configuration Semaphore",
     )
 
     return router
