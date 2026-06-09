@@ -14,6 +14,7 @@ import (
 	"github.com/modulops/pipeline-service/internal/cache"
 	"github.com/modulops/pipeline-service/internal/client"
 	"github.com/modulops/pipeline-service/internal/config"
+	"github.com/modulops/pipeline-service/internal/configstore"
 	"github.com/modulops/pipeline-service/internal/models"
 )
 
@@ -28,14 +29,13 @@ const (
 
 // PipelineService gère la logique métier des pipelines
 type PipelineService struct {
-	cache    *cache.RedisClient
-	cfg      *config.Config
-	adapters map[models.Provider]adapter.PipelineAdapter
+	cache       *cache.RedisClient
+	cfg         *config.Config
+	cfgStore    *configstore.Client
+	adapters    map[models.Provider]adapter.PipelineAdapter
 }
 
 // NewPipelineService crée un nouveau service de pipelines.
-// La synchronisation périodique est gérée au niveau de main.go via un contexte
-// annulable, ce qui garantit l'arrêt gracieux de la goroutine de sync.
 func NewPipelineService(c *cache.RedisClient, cfg *config.Config) *PipelineService {
 	adapters := map[models.Provider]adapter.PipelineAdapter{
 		models.ProviderGitHub:  adapter.NewGitHubAdapter(),
@@ -46,6 +46,7 @@ func NewPipelineService(c *cache.RedisClient, cfg *config.Config) *PipelineServi
 	return &PipelineService{
 		cache:    c,
 		cfg:      cfg,
+		cfgStore: configstore.New(cfg.AuthServiceURL, "pipeline"),
 		adapters: adapters,
 	}
 }
@@ -175,19 +176,19 @@ type PipelineConfig struct {
 
 // GetConfig retourne la config (sans token)
 func (s *PipelineService) GetConfig(ctx context.Context) (*PipelineConfig, error) {
-	token, _ := s.cache.Get(ctx, keyConfigToken)
-	reposStr, _ := s.cache.Get(ctx, keyConfigRepos)
+	all, err := s.cfgStore.GetAll(ctx)
+	if err != nil {
+		all = map[string]string{}
+	}
 
 	var repos []string
-	if reposStr != "" {
+	if reposStr := all["github_repos"]; reposStr != "" {
 		_ = json.Unmarshal([]byte(reposStr), &repos)
 	}
-
-	// Fallback env si pas de config UI
-	if len(repos) == 0 && len(s.cfg.GitHubRepos) > 0 {
+	if len(repos) == 0 {
 		repos = s.cfg.GitHubRepos
 	}
-	tokenSet := token != "" || s.cfg.GitHubToken != ""
+	tokenSet := all["github_token"] != "" || s.cfg.GitHubToken != ""
 
 	return &PipelineConfig{
 		GitHubRepos: repos,
@@ -195,36 +196,35 @@ func (s *PipelineService) GetConfig(ctx context.Context) (*PipelineConfig, error
 	}, nil
 }
 
-// SetConfig enregistre token et/ou repos (depuis l'UI)
+// SetConfig enregistre token et/ou repos (depuis l'UI) dans Postgres via configstore.
 func (s *PipelineService) SetConfig(ctx context.Context, token string, repos []string) error {
-	ttl := 365 * 24 * time.Hour
+	kv := map[string]string{}
 	if token != "" {
-		if err := s.cache.Set(ctx, keyConfigToken, token, ttl); err != nil {
-			return err
-		}
+		kv["github_token"] = token
 	}
-	// repos == nil signifie "ne pas modifier" ; repos != nil (y compris []) met à jour
 	if repos != nil {
 		data, err := json.Marshal(repos)
 		if err != nil {
 			return err
 		}
-		if err := s.cache.Set(ctx, keyConfigRepos, string(data), ttl); err != nil {
-			return err
-		}
+		kv["github_repos"] = string(data)
 	}
-	return nil
+	if len(kv) == 0 {
+		return nil
+	}
+	return s.cfgStore.SetMany(ctx, kv)
 }
 
-// getGitHubConfig retourne token et repos (Redis prioritaire sur env)
+// getGitHubConfig retourne token et repos (Postgres prioritaire sur env vars)
 func (s *PipelineService) getGitHubConfig(ctx context.Context) (token string, repos []string) {
-	token, _ = s.cache.Get(ctx, keyConfigToken)
+	all, _ := s.cfgStore.GetAll(ctx)
+
+	token = all["github_token"]
 	if token == "" {
 		token = s.cfg.GitHubToken
 	}
 
-	reposStr, _ := s.cache.Get(ctx, keyConfigRepos)
-	if reposStr != "" {
+	if reposStr := all["github_repos"]; reposStr != "" {
 		_ = json.Unmarshal([]byte(reposStr), &repos)
 	}
 	if len(repos) == 0 {

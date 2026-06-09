@@ -6,15 +6,16 @@ import (
 )
 
 type Config struct {
-	ServerPort  string
-	Environment string
-	LogLevel    string
-	VaultAddr   string
-	VaultToken  string
-	MountPath   string
-	RedisAddr   string
-	RedisPassword string
-	RedisDB     int
+	ServerPort     string
+	Environment    string
+	LogLevel       string
+	AuthServiceURL string
+	VaultAddr      string
+	VaultToken     string
+	MountPath      string
+	RedisAddr      string
+	RedisPassword  string
+	RedisDB        int
 }
 
 func Load() (*Config, error) {
@@ -27,15 +28,16 @@ func Load() (*Config, error) {
 	redisPort := getEnv("REDIS_PORT", "6379")
 
 	return &Config{
-		ServerPort:    getEnv("VAULT_SERVICE_PORT", "8087"),
-		Environment:   getEnv("ENV", "development"),
-		LogLevel:      getEnv("LOG_LEVEL", "info"),
-		VaultAddr:     getEnv("VAULT_ADDR", "http://vault:8200"),
-		VaultToken:    getEnv("VAULT_TOKEN", ""),
-		MountPath:     getEnv("VAULT_MOUNT_PATH", "secret"),
-		RedisAddr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
-		RedisPassword: getEnv("REDIS_PASSWORD", ""),
-		RedisDB:       redisDB,
+		ServerPort:     getEnv("VAULT_SERVICE_PORT", "8087"),
+		Environment:    getEnv("ENV", "development"),
+		LogLevel:       getEnv("LOG_LEVEL", "info"),
+		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
+		VaultAddr:      getEnv("VAULT_ADDR", "http://vault:8200"),
+		VaultToken:     getEnv("VAULT_TOKEN", ""),
+		MountPath:      getEnv("VAULT_MOUNT_PATH", "secret"),
+		RedisAddr:      fmt.Sprintf("%s:%s", redisHost, redisPort),
+		RedisPassword:  getEnv("REDIS_PASSWORD", ""),
+		RedisDB:        redisDB,
 	}, nil
 }
 

@@ -9,9 +9,10 @@ import (
 
 type Config struct {
 	// Serveur
-	ServerPort  string
-	Environment string
-	LogLevel    string
+	ServerPort     string
+	Environment    string
+	LogLevel       string
+	AuthServiceURL string
 
 	// Redis
 	RedisAddr     string
@@ -41,9 +42,10 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		ServerPort:  getEnv("TERRAFORM_SERVICE_PORT", "8082"),
-		Environment: getEnv("ENV", "development"),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		ServerPort:     getEnv("TERRAFORM_SERVICE_PORT", "8082"),
+		Environment:    getEnv("ENV", "development"),
+		LogLevel:       getEnv("LOG_LEVEL", "info"),
+		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
 	}
 
 	// Redis

@@ -260,6 +260,7 @@ services:
     environment:
       TERRAFORM_SERVICE_PORT: "8082"
       ENV: development
+      AUTH_SERVICE_URL: http://auth-service:8080
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -267,16 +268,10 @@ services:
       TERRAFORM_CACHE_TTL: "5m"
       LOG_LEVEL: info
       TERRAFORM_ENCRYPTION_KEY: ${TERRAFORM_ENCRYPTION_KEY}
-      # Backend tfstate (S3 / MinIO) : si défini, chaque état uploadé est aussi persisté dans le bucket
-      TERRAFORM_STATE_BACKEND: ${TERRAFORM_STATE_BACKEND:-}
-      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-kura-tfstate}
-      AWS_S3_REGION: ${AWS_S3_REGION:-us-east-1}
-      AWS_S3_KEY_PREFIX: ${AWS_S3_KEY_PREFIX:-tfstate}
-      S3_ENDPOINT: ${S3_ENDPOINT:-}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
     depends_on:
       redis:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     # Pas de healthcheck : image distroless sans wget/curl
     networks:
@@ -296,23 +291,22 @@ services:
     environment:
       K8S_SERVICE_PORT: "8081"
       ENV: development
+      AUTH_SERVICE_URL: http://auth-service:8080
       K8S_INCLUSTER: "false"
-      KUBECONFIG_PATH: ""  # Vide par défaut, les clusters seront ajoutés via l'API
+      KUBECONFIG_PATH: ""
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: "0"
       K8S_CACHE_TTL: "30s"
-      K8S_API_TIMEOUT: "60s"  # GKE : première requête (plugin auth) peut être lente
+      K8S_API_TIMEOUT: "60s"
       LOG_LEVEL: info
-      # GKE : clé compte de service GCP pour le plugin d'auth (voir docs/CONNECTER_CLUSTER_GKE.md)
-      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/secrets/gcp-sa.json}
-    volumes:
-      - ${GCP_SA_KEY_PATH:-./secrets/gcp-sa.json}:/secrets/gcp-sa.json:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       redis:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "test -f /app/k8s-service || exit 1"]
@@ -392,6 +386,7 @@ services:
     environment:
       VAULT_SERVICE_PORT: "8087"
       ENV: development
+      AUTH_SERVICE_URL: http://auth-service:8080
       LOG_LEVEL: info
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN}
@@ -404,6 +399,8 @@ services:
       vault:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8087/health"]
@@ -431,10 +428,8 @@ services:
       SEMAPHORE_ADMIN_EMAIL: admin@kura.io
       SEMAPHORE_ADMIN_NAME: Kura Admin
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION}
-      KUBECONFIG: /etc/kube/config
     volumes:
       - semaphore-data:/home/semaphore
-      - ${KUBECONFIG_ANSIBLE_PATH:-/dev/null}:/etc/kube/config:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/ping"]
       interval: 10s
@@ -458,21 +453,17 @@ services:
     environment:
       ANSIBLE_SERVICE_PORT: "8083"
       ENV: development
+      AUTH_SERVICE_URL: http://auth-service:8080
       LOG_LEVEL: info
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: "0"
       ANSIBLE_CACHE_TTL: "300"
-      ANSIBLE_TOWER_URL: ${ANSIBLE_TOWER_URL:-}
-      ANSIBLE_TOWER_USERNAME: ${ANSIBLE_TOWER_USERNAME:-admin}
-      ANSIBLE_TOWER_PASSWORD: ${ANSIBLE_TOWER_PASSWORD:-changeme}
-      ANSIBLE_TOWER_VERIFY_SSL: "false"
-      SEMAPHORE_URL: ${SEMAPHORE_URL:-http://semaphore:3000}
-      SEMAPHORE_API_TOKEN: ${SEMAPHORE_API_TOKEN:-}
-      SEMAPHORE_PROJECT_ID: ${SEMAPHORE_PROJECT_ID:-1}
     depends_on:
       redis:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
@@ -496,6 +487,7 @@ services:
     environment:
       METRICS_SERVICE_PORT: "8086"
       ENV: development
+      AUTH_SERVICE_URL: http://auth-service:8080
       LOG_LEVEL: info
       PROMETHEUS_URL: http://prometheus:9090
       GRAFANA_URL: http://grafana:3000
@@ -508,6 +500,8 @@ services:
       redis:
         condition: service_healthy
       prometheus:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8086/health"]
@@ -531,6 +525,7 @@ services:
     environment:
       PIPELINE_SERVICE_PORT: "8084"
       ENV: development
+      AUTH_SERVICE_URL: http://auth-service:8080
       LOG_LEVEL: info
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -538,10 +533,10 @@ services:
       REDIS_DB: "0"
       PIPELINE_CACHE_TTL: "24h"
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      GITHUB_REPOS: ${GITHUB_REPOS:-}
     depends_on:
       redis:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     # Pas de healthcheck : image distroless sans wget/curl
     networks:

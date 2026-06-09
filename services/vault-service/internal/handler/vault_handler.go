@@ -15,6 +15,36 @@ func New(svc *service.VaultService) *VaultHandler {
 	return &VaultHandler{svc: svc}
 }
 
+// GetConfig retourne la config Vault actuelle (token masqué).
+// GET /api/v1/vault/config
+func (h *VaultHandler) GetConfig(c *gin.Context) {
+	cfg, err := h.svc.GetConfig(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, cfg)
+}
+
+// SetConfig met à jour la connexion Vault depuis l'UI.
+// POST /api/v1/vault/config
+func (h *VaultHandler) SetConfig(c *gin.Context) {
+	var body struct {
+		VaultAddr  string `json:"vault_addr"`
+		VaultToken string `json:"vault_token"`
+		MountPath  string `json:"vault_mount_path"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.svc.SetConfig(c.Request.Context(), body.VaultAddr, body.VaultToken, body.MountPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "configuration Vault mise à jour"})
+}
+
 // GetStatus retourne l'état de santé de Vault.
 func (h *VaultHandler) GetStatus(c *gin.Context) {
 	status, err := h.svc.Status(c.Request.Context())

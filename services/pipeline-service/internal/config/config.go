@@ -14,6 +14,9 @@ type Config struct {
 	Environment string
 	LogLevel    string
 
+	// Config store (auth-service)
+	AuthServiceURL string
+
 	// Redis
 	RedisAddr     string
 	RedisPassword string
@@ -41,9 +44,10 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		ServerPort:  getEnv("PIPELINE_SERVICE_PORT", "8084"),
-		Environment: getEnv("ENV", "development"),
-		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		ServerPort:     getEnv("PIPELINE_SERVICE_PORT", "8084"),
+		Environment:    getEnv("ENV", "development"),
+		LogLevel:       getEnv("LOG_LEVEL", "info"),
+		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
 	}
 
 	// Redis
