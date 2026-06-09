@@ -359,10 +359,6 @@ services:
     cap_add:
       - IPC_LOCK
     command: server -dev
-    volumes:
-      - vault-data:/vault/data
-      - ./infrastructure/docker/vault/config.hcl:/vault/config/config.hcl:ro
-      - ./infrastructure/docker/vault/init.sh:/vault/init.sh:ro
     healthcheck:
       test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
       interval: 10s
@@ -397,7 +393,7 @@ services:
       REDIS_DB: "0"
     depends_on:
       vault:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
       auth-service:
@@ -549,7 +545,6 @@ volumes:
   redis-data:
   minio-data:
   semaphore-data:
-  vault-data:
 
 networks:
   kura-network:
