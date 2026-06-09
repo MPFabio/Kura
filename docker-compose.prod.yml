@@ -1,10 +1,12 @@
 # Override de production — utilisé avec :
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
-# Ajoute Caddy (TLS automatique Let's Encrypt via nip.io) devant Kong.
+# En prod : images pré-buildées sur ghcr.io, plus de build sur la VM.
 # KURA_DOMAIN doit être défini dans .env :
 #   KURA_DOMAIN=kura.<VM-IP>.nip.io
 #   ACME_EMAIL=admin@kura.io
+#   REGISTRY=ghcr.io/mpfabio
+#   IMAGE_TAG=<git-sha>
 
 services:
   caddy:
@@ -31,6 +33,31 @@ services:
   postgres:
     ports:
       - "127.0.0.1:5432:5432"
+
+  # Images ghcr.io pré-buildées par le runner GitHub Actions
+  auth-service:
+    image: ${REGISTRY:-ghcr.io/mpfabio}/kura-auth-service:${IMAGE_TAG:-latest}
+
+  terraform-service:
+    image: ${REGISTRY:-ghcr.io/mpfabio}/kura-terraform-service:${IMAGE_TAG:-latest}
+
+  k8s-service:
+    image: ${REGISTRY:-ghcr.io/mpfabio}/kura-k8s-service:${IMAGE_TAG:-latest}
+
+  frontend:
+    image: ${REGISTRY:-ghcr.io/mpfabio}/kura-frontend:${IMAGE_TAG:-latest}
+
+  vault-service:
+    image: ${REGISTRY:-ghcr.io/mpfabio}/kura-vault-service:${IMAGE_TAG:-latest}
+
+  ansible-service:
+    image: ${REGISTRY:-ghcr.io/mpfabio}/kura-ansible-service:${IMAGE_TAG:-latest}
+
+  metrics-service:
+    image: ${REGISTRY:-ghcr.io/mpfabio}/kura-metrics-service:${IMAGE_TAG:-latest}
+
+  pipeline-service:
+    image: ${REGISTRY:-ghcr.io/mpfabio}/kura-pipeline-service:${IMAGE_TAG:-latest}
 
 volumes:
   caddy-data:
