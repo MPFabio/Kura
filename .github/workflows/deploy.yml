@@ -9,6 +9,8 @@ on:
 
 env:
   RELEASE_DIR: /opt/kura
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -40,14 +42,11 @@ jobs:
           GCP_SSH_PRIVATE_KEY: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-
           tmp_key=$(mktemp)
           printf '%s\n' "$GCP_SSH_PRIVATE_KEY" > "$tmp_key"
           chmod 600 "$tmp_key"
-
           pub_key=$(ssh-keygen -y -f "$tmp_key")
           rm -f "$tmp_key"
-
           cat > terraform.auto.tfvars <<EOF
           gcp_project             = "${GCP_PROJECT_ID}"
           instance_ssh_public_key = "${pub_key} github-actions"
@@ -62,8 +61,56 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -input=false -auto-approve tfplan
 
-  deploy:
+  build-and-push:
     needs: terraform
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - service: auth-service
+            context: services/auth-service
+          - service: k8s-service
+            context: services/k8s-service
+          - service: terraform-service
+            context: services/terraform-service
+          - service: pipeline-service
+            context: services/pipeline-service
+          - service: metrics-service
+            context: services/metrics-service
+          - service: vault-service
+            context: services/vault-service
+          - service: ansible-service
+            context: services/ansible-service
+          - service: frontend
+            context: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/kura-${{ matrix.service }}:${{ github.sha }},${{ env.REGISTRY }}/${{ github.repository_owner }}/kura-${{ matrix.service }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -73,15 +120,6 @@ jobs:
         run: |
           if [ -n "${{ secrets.PROD_ENV_FILE }}" ]; then
             echo "${{ secrets.PROD_ENV_FILE }}" | base64 --decode > .env.production
-            echo "PROD_ENV_GENERATED=1" >> $GITHUB_ENV
-          fi
-
-      - name: Check env file presence
-        run: |
-          if [ -z "${{ env.PROD_ENV_GENERATED }}" ]; then
-            echo "No .env.production generated (PROD_ENV_FILE secret empty)"
-          else
-            echo ".env.production generated successfully"
           fi
 
       - name: Create deployment archive
@@ -89,13 +127,11 @@ jobs:
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
+            --exclude='services/' \
+            --exclude='frontend/' \
             --exclude='release.tar.gz' \
-            ./ /tmp/modulops-release
-
-          tar \
-            -C /tmp/modulops-release \
-            -czf release.tar.gz \
-            .
+            ./ /tmp/kura-release
+          tar -C /tmp/kura-release -czf release.tar.gz .
 
       - name: Wait for VM SSH to be ready
         run: |
@@ -120,39 +156,13 @@ jobs:
           source: release.tar.gz
           target: /tmp/
 
-      # Écriture des secrets sensibles sur le runner avant envoi sur la VM
-      - name: Write secrets to files
-        run: |
-          mkdir -p /tmp/kura-secrets
-
-          # Service account GCP (pour k8s-service et terraform-service)
-          if [ -n "${{ secrets.GCP_SA_JSON }}" ]; then
-            echo '${{ secrets.GCP_SA_JSON }}' > /tmp/kura-secrets/gcp-sa.json
-          fi
-
-          # Kubeconfig Ansible (pour Semaphore → kubernetes.core)
-          if [ -n "${{ secrets.KUBECONFIG_ANSIBLE }}" ]; then
-            echo '${{ secrets.KUBECONFIG_ANSIBLE }}' > /tmp/kura-secrets/kubeconfig-ansible
-          fi
-
-      - name: Copy secrets to VM
-        if: hashFiles('/tmp/kura-secrets/*') != ''
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.GCP_VM_IP }}
-          username: ${{ secrets.GCP_VM_USER }}
-          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
-          source: /tmp/kura-secrets
-          target: /tmp/
-          strip_components: 0
-
       - name: Deploy on VM
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
-          command_timeout: 30m
+          command_timeout: 15m
           script: |
             set -euo pipefail
 
@@ -161,64 +171,46 @@ jobs:
             ARCHIVE="/tmp/release.tar.gz"
             RELEASE_PATH="${RELEASE_DIR}/releases/${RELEASE_SHA}"
 
-            # Répertoire persistant pour les secrets (survit aux redéploiements)
-            sudo mkdir -p /opt/kura-secrets
-
-            # Copier les secrets depuis le runner vers l'emplacement persistant
-            if [ -f /tmp/kura-secrets/gcp-sa.json ]; then
-              sudo cp /tmp/kura-secrets/gcp-sa.json /opt/kura-secrets/gcp-sa.json
-              sudo chmod 600 /opt/kura-secrets/gcp-sa.json
-            fi
-
-            if [ -f /tmp/kura-secrets/kubeconfig-ansible ]; then
-              sudo cp /tmp/kura-secrets/kubeconfig-ansible /opt/kura-secrets/kubeconfig-ansible
-              sudo chmod 600 /opt/kura-secrets/kubeconfig-ansible
-            fi
-
-            sudo rm -rf /tmp/kura-secrets
-
             sudo mkdir -p "${RELEASE_DIR}/releases"
             sudo rm -rf "${RELEASE_PATH}"
             sudo mkdir -p "${RELEASE_PATH}"
             sudo tar xzf "${ARCHIVE}" -C "${RELEASE_PATH}"
             sudo rm -f "${ARCHIVE}"
 
-            # Créer le dossier secrets dans la release (fichier, pas dossier)
-            sudo mkdir -p "${RELEASE_PATH}/secrets"
-            if [ -f /opt/kura-secrets/gcp-sa.json ]; then
-              sudo cp /opt/kura-secrets/gcp-sa.json "${RELEASE_PATH}/secrets/gcp-sa.json"
-            fi
-
             if [ -f "${RELEASE_PATH}/.env.production" ]; then
               sudo mv "${RELEASE_PATH}/.env.production" "${RELEASE_PATH}/.env"
             fi
-
-            # Injecter les chemins de secrets dans le .env
-            sudo sed -i '/^KUBECONFIG_ANSIBLE_PATH/d' "${RELEASE_PATH}/.env"
-            echo "KUBECONFIG_ANSIBLE_PATH=/opt/kura-secrets/kubeconfig-ansible" | sudo tee -a "${RELEASE_PATH}/.env" > /dev/null
-            sudo sed -i '/^GCP_SA_KEY_PATH/d' "${RELEASE_PATH}/.env"
-            echo "GCP_SA_KEY_PATH=${RELEASE_PATH}/secrets/gcp-sa.json" | sudo tee -a "${RELEASE_PATH}/.env" > /dev/null
 
             sudo ln -sfn "${RELEASE_PATH}" "${RELEASE_DIR}/current"
             cd "${RELEASE_DIR}/current"
 
             if [ ! -f ".env" ]; then
-              echo "Missing .env file in ${RELEASE_DIR}/current" >&2
+              echo "Missing .env file" >&2
               exit 1
             fi
+
+            # Authentification ghcr.io
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Injecter le tag des images dans le .env
+            REGISTRY="${{ env.REGISTRY }}"
+            OWNER="${{ github.repository_owner }}"
+            SHA="${{ github.sha }}"
+            sudo sed -i '/^IMAGE_TAG/d' .env
+            echo "IMAGE_TAG=${SHA}" | sudo tee -a .env > /dev/null
+            echo "REGISTRY=${REGISTRY}/${OWNER}" | sudo tee -a .env > /dev/null
 
             sudo docker compose -p kura --env-file .env \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
               down --remove-orphans 2>/dev/null || true
 
-            # Supprimer TOUS les conteneurs résiduels (ports bloqués)
             sudo docker ps -aq | xargs -r sudo docker rm -f || true
 
             sudo docker compose -p kura --env-file .env \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
-              build --parallel
+              pull
 
             sudo docker compose -p kura --env-file .env \
               -f docker-compose.yml \
@@ -228,4 +220,3 @@ jobs:
             sudo docker system prune -af || true
 
             find "${RELEASE_DIR}/releases" -maxdepth 1 -mindepth 1 -type d | sort | head -n -2 | xargs -r sudo rm -rf
-# trigger redeploy
