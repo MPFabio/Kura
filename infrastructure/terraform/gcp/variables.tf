@@ -22,9 +22,9 @@ variable "instance_name" {
 }
 
 variable "instance_machine_type" {
-  description = "Type de machine GCE (e2-standard-4 conseillé pour docker compose)."
+  description = "Type de machine GCE."
   type        = string
-  default     = "e2-standard-4"
+  default     = "e2-medium"
 }
 
 variable "instance_disk_size_gb" {
