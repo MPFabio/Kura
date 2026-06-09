@@ -41,6 +41,7 @@ type K8sClient interface {
 	ScaleDeployment(ctx context.Context, namespace, name string, replicas int32) error
 	RestartDeployment(ctx context.Context, namespace, name string) error
 	PatchDeploymentEnv(ctx context.Context, namespace, name, containerName string, envVars []corev1.EnvVar) error
+	PatchDeploymentResources(ctx context.Context, namespace, name, containerName string, cpuRequest, cpuLimit, memRequest, memLimit string) error
 	DeletePod(ctx context.Context, namespace, name string) error
 	DeleteDeployment(ctx context.Context, namespace, name string) error
 	DeleteService(ctx context.Context, namespace, name string) error
@@ -523,6 +524,11 @@ func (s *K8sService) RestartDeployment(ctx context.Context, namespace, name stri
 // PatchDeploymentEnv met à jour les variables d'environnement d'un container.
 func (s *K8sService) PatchDeploymentEnv(ctx context.Context, namespace, name, containerName string, envVars []corev1.EnvVar) error {
 	return s.k8sClient.PatchDeploymentEnv(ctx, namespace, name, containerName, envVars)
+}
+
+// PatchDeploymentResources met à jour les requests/limits CPU et mémoire d'un container.
+func (s *K8sService) PatchDeploymentResources(ctx context.Context, namespace, name, containerName string, cpuRequest, cpuLimit, memRequest, memLimit string) error {
+	return s.k8sClient.PatchDeploymentResources(ctx, namespace, name, containerName, cpuRequest, cpuLimit, memRequest, memLimit)
 }
 
 // DeletePod supprime un pod.

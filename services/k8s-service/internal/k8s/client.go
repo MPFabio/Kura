@@ -11,6 +11,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -392,6 +393,60 @@ func (c *Client) PatchDeploymentEnv(ctx context.Context, namespace, name, contai
 	_, err = c.clientset.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("erreur lors de la mise à jour des env vars: %w", err)
+	}
+	return nil
+}
+
+// PatchDeploymentResources met à jour les requests/limits CPU et mémoire d'un container.
+// Les valeurs vides sont ignorées (le champ correspondant n'est pas modifié).
+func (c *Client) PatchDeploymentResources(ctx context.Context, namespace, name, containerName string, cpuRequest, cpuLimit, memRequest, memLimit string) error {
+	deployment, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("erreur lors de la récupération du deployment: %w", err)
+	}
+	containerIdx := -1
+	for i, co := range deployment.Spec.Template.Spec.Containers {
+		if co.Name == containerName {
+			containerIdx = i
+			break
+		}
+	}
+	if containerIdx < 0 {
+		return fmt.Errorf("container %s non trouvé", containerName)
+	}
+
+	res := &deployment.Spec.Template.Spec.Containers[containerIdx].Resources
+	if res.Requests == nil {
+		res.Requests = corev1.ResourceList{}
+	}
+	if res.Limits == nil {
+		res.Limits = corev1.ResourceList{}
+	}
+
+	type patch struct{ val, field string }
+	for _, p := range []struct {
+		val  string
+		list corev1.ResourceList
+		key  corev1.ResourceName
+	}{
+		{cpuRequest, res.Requests, corev1.ResourceCPU},
+		{memRequest, res.Requests, corev1.ResourceMemory},
+		{cpuLimit, res.Limits, corev1.ResourceCPU},
+		{memLimit, res.Limits, corev1.ResourceMemory},
+	} {
+		if p.val == "" {
+			continue
+		}
+		q, err := resource.ParseQuantity(p.val)
+		if err != nil {
+			return fmt.Errorf("valeur invalide %q: %w", p.val, err)
+		}
+		p.list[p.key] = q
+	}
+
+	_, err = c.clientset.AppsV1().Deployments(namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("erreur lors de la mise à jour des ressources: %w", err)
 	}
 	return nil
 }
