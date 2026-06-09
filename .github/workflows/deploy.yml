@@ -98,7 +98,7 @@ jobs:
             .
 
       - name: Copy archive to VM
-        uses: appleboy/scp-action@v0.1.9
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_VM_USER }}
@@ -123,7 +123,7 @@ jobs:
 
       - name: Copy secrets to VM
         if: hashFiles('/tmp/kura-secrets/*') != ''
-        uses: appleboy/scp-action@v0.1.9
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_VM_USER }}
