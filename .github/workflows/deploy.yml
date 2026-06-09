@@ -97,6 +97,20 @@ jobs:
             -czf release.tar.gz \
             .
 
+      - name: Wait for VM SSH to be ready
+        run: |
+          echo "Waiting for SSH on ${{ secrets.GCP_VM_IP }}:22..."
+          for i in $(seq 1 30); do
+            if nc -z -w5 ${{ secrets.GCP_VM_IP }} 22 2>/dev/null; then
+              echo "SSH is up after ${i} attempts"
+              exit 0
+            fi
+            echo "Attempt ${i}/30 — retrying in 10s..."
+            sleep 10
+          done
+          echo "SSH did not become available in time" >&2
+          exit 1
+
       - name: Copy archive to VM
         uses: appleboy/scp-action@v1.0.0
         with:
