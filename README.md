@@ -1,196 +1,149 @@
-# Kura - Plateforme DevOps Microservices
+# Kura
 
 [![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](VERSION)
 [![GitHub release](https://img.shields.io/github/v/release/MPFabio/Kura?label=release)](https://github.com/MPFabio/Kura/releases)
-[![GitHub tag](https://img.shields.io/github/v/tag/MPFabio/Kura?label=tag)](https://github.com/MPFabio/Kura/tags)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Plateforme DevOps unifiée pour la gestion de clusters Kubernetes, Terraform, Ansible et pipelines CI/CD.
+Console d'opération DevOps unifiée — Kubernetes, Terraform, Ansible, Pipelines CI/CD, Métriques et Alertes dans une seule interface.
+
+## Pourquoi Kura
+
+Les équipes Ops jonglent entre Lens, Terraform Cloud, Ansible Tower, GitHub Actions et Grafana. Kura regroupe ces surfaces dans un seul portail avec une authentification centralisée et des événements corrélés entre systèmes.
+
+Différence avec Backstage/Port : Kura est orienté **opération active** (exécuter, modifier, surveiller) plutôt que catalogue/documentation.
 
 ## Architecture
 
-Architecture microservices avec séparation des responsabilités par domaine :
-- **API Gateway** : Kong pour le routage et l'authentification
-- **Services Backend** : Go et Python pour les différents modules
-- **Event Bus** : Kafka pour la communication asynchrone
-- **Cache** : Redis pour les performances
-- **Base de données** : PostgreSQL pour la persistance
-- **Observabilité** : Prometheus et Grafana pour les métriques
+```
+Frontend React/TS → Kong API Gateway → auth-service
+                                     → k8s-service
+                                     → terraform-service
+                                     → ansible-service
+                                     → pipeline-service
+                                     → metrics-service
+
+Kafka ← événements des services → alert-service
+Redis  — cache distribué
+PostgreSQL — persistance
+Prometheus + Grafana — observabilité
+```
+
+Voir [docs/architecture.md](docs/architecture.md) pour les diagrammes détaillés et les flux Kafka.
 
 ## Prérequis
 
-### Pour le développement local (Docker Compose)
-
 - Docker 20.10+
-- Docker Compose 2.0+ (ou docker compose)
+- Docker Compose 2.0+
 
-### Pour Kubernetes
-
-- kubectl 1.28+
-- Un cluster Kubernetes local :
-  - [minikube](https://minikube.sigs.k8s.io/docs/start/) (recommandé)
-  - [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
-
-## Installation
-
-### Option 1 : Développement local avec Docker Compose
+## Démarrage rapide
 
 ```bash
-# Démarrer tous les services
-./scripts/setup-local.sh
+cp .env.example .env
+# Remplir les variables dans .env
 
-# Ou manuellement
-docker-compose up -d
+docker compose -p kura --env-file .env -f docker-compose.yml up -d
 ```
 
-Les services seront disponibles sur :
+## Déploiement production (GCP)
 
-**Services accessibles via navigateur web :**
-- Kong Gateway: http://localhost:8000
-- Kong Admin: http://localhost:8001
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/admin)
+Le déploiement est automatisé via GitHub Actions sur push sur `master`.
 
-**Services nécessitant des clients spécifiques :**
-- PostgreSQL: `localhost:5432` (utiliser `psql` ou un client SQL)
-- Redis: `localhost:6379` (utiliser `redis-cli` ou un client Redis)
-- Kafka: `localhost:9092` (utiliser un client Kafka)
+**Secrets GitHub requis :**
 
-> **Note importante** : PostgreSQL, Redis et Kafka ne sont **pas** des serveurs web et ne peuvent pas être accédés via un navigateur. Consultez `docs/ACCES_SERVICES.md` pour plus de détails sur comment accéder à ces services.
+| Secret | Description |
+|--------|-------------|
+| `GCP_SA_KEY` | Clé JSON du service account Terraform |
+| `GCP_SA_JSON` | Clé JSON du service account runtime |
+| `GCP_PROJECT_ID` | ID du projet GCP |
+| `GCP_SSH_PRIVATE_KEY` | Clé SSH pour accéder à la VM |
+| `GCP_VM_IP` | IP de la VM de déploiement |
+| `GCP_VM_USER` | Utilisateur SSH |
+| `PROD_ENV_FILE` | Fichier `.env` encodé en base64 |
+| `KUBECONFIG_ANSIBLE` | Kubeconfig pour Ansible/Semaphore |
 
-### Option 2 : Déploiement sur Kubernetes
+**Relancer la stack sur la VM après redémarrage :**
 
 ```bash
-# Configurer et déployer l'infrastructure
-./scripts/setup-k8s.sh
-
-# Ou manuellement avec kubectl
-kubectl apply -k infrastructure/k8s/
+cd /opt/kura/current && sudo docker compose -p kura --env-file .env -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-Pour accéder aux services, utilisez port-forward :
+## Services
 
-```bash
-# PostgreSQL
-kubectl port-forward svc/postgres 5432:5432 -n kura
+| Service | Port | Description |
+|---------|------|-------------|
+| Frontend | 5173 | Interface React/TypeScript |
+| Kong Gateway | 8000 | API Gateway (point d'entrée unique) |
+| Auth Service | 8080 | Authentification JWT |
+| K8s Service | 8081 | Gestion clusters Kubernetes |
+| Terraform Service | 8082 | États Terraform + détection de drift |
+| Ansible Service | 8083 | Intégration Semaphore/AWX |
+| Pipeline Service | 8084 | Pipelines CI/CD (GitHub Actions) |
+| Metrics Service | 8086 | Agrégation Prometheus/Grafana |
+| Grafana | 3000 | Dashboards métriques |
+| Prometheus | 9090 | Collecte métriques |
+| Semaphore | 3001 | UI Ansible |
 
-# Redis
-kubectl port-forward svc/redis 6379:6379 -n kura
+## Fonctionnalités
 
-# Kafka
-kubectl port-forward svc/kafka 9092:9092 -n kura
+### Kubernetes
+- Gestion namespaces, pods, deployments, services
+- Terminal interactif via WebSocket
+- Actions en masse, recherche et filtrage
 
-# Kong Gateway
-kubectl port-forward svc/kong 8000:8000 -n kura
+### Terraform
+- Upload et visualisation d'états
+- Synchronisation depuis S3, Azure Blob Storage, GCP Cloud Storage
+- Détection de drift en temps réel via APIs cloud (GCP, AWS, Azure)
 
-# Prometheus
-kubectl port-forward svc/prometheus 9090:9090 -n kura
+### Ansible
+- Intégration Semaphore (UI incluse sur `/ansible`)
+- Exécution de playbooks, inventaires
 
-# Grafana
-kubectl port-forward svc/grafana 3000:3000 -n kura
-```
+### Pipelines
+- Synchronisation GitHub Actions
+- Suivi des runs CI/CD
 
-## Structure du projet
+### Observabilité
+- Dashboards Grafana accessibles sur `/grafana`
+- Alertes via Kafka (`terraform.drift.detected`, `k8s.deployment.changed`)
+
+## Structure
 
 ```
 Kura/
-├── services/              # Services microservices
-│   ├── api-gateway/       # Kong configuration
-│   ├── auth-service/      # Service d'authentification (Go)
-│   ├── k8s-service/       # Service Kubernetes (Go)
-│   ├── terraform-service/ # Service Terraform (Go)
-│   ├── ansible-service/   # Service Ansible Tower (Python)
-│   ├── pipeline-service/  # Service Pipelines (Go)
-│   ├── alert-service/     # Service d'alertes (Go)
-│   └── metrics-service/   # Service de métriques (Go)
-├── frontend/              # Application React + TypeScript
-├── infrastructure/        # Configuration infrastructure
-│   ├── k8s/              # Manifests Kubernetes
-│   ├── docker/           # Dockerfiles
-│   └── helm/             # Charts Helm
-├── shared/                # Bibliothèques partagées
-│   ├── go-common/        # Utilitaires Go communs
-│   └── proto/            # Définitions gRPC
-├── scripts/               # Scripts de déploiement
-└── docs/                  # Documentation
+├── services/
+│   ├── auth-service/       # Go — Authentification JWT
+│   ├── k8s-service/        # Go — Kubernetes
+│   ├── terraform-service/  # Go — Terraform + drift
+│   ├── ansible-service/    # Python — Ansible/Semaphore
+│   ├── pipeline-service/   # Go — CI/CD
+│   ├── metrics-service/    # Go — Métriques
+│   └── alert-service/      # Go — Alertes
+├── frontend/               # React + TypeScript + Vite
+├── infrastructure/
+│   ├── docker/             # Kong, Caddy, Prometheus config
+│   ├── k8s/                # Manifests Kubernetes
+│   └── terraform/gcp/      # Infrastructure GCP
+├── docs/                   # Architecture, guides
+└── scripts/                # Scripts utilitaires
 ```
 
-## Services déployés
-
-### Infrastructure de base
-
-- **PostgreSQL 15** : Base de données principale
-- **Redis 7** : Cache distribué avec persistance (AOF + RDB)
-- **Kafka + Zookeeper** : Message broker pour les événements
-- **Kong 3.4** : API Gateway avec routage et authentification
-- **Prometheus** : Collecte de métriques
-- **Grafana** : Visualisation des métriques et dashboards
-
-### Services applicatifs
-
-- **Auth Service** : Authentification centralisée avec JWT et refresh tokens
-- **K8s Service** : Gestion des clusters Kubernetes avec terminal interactif
-- **Terraform Service** : Gestion des états Terraform avec synchronisation cloud et détection de drift
-  - Synchronisation automatique depuis S3, Azure Blob Storage, GCP Cloud Storage
-  - Détection de drift en temps réel via APIs cloud (GCP, AWS, Azure)
-  - Parsing et visualisation des états Terraform
-  - Gestion des sources de synchronisation avec modification et suppression
-
-## Développement
-
-### Arrêter les services locaux
+## Commandes utiles
 
 ```bash
-docker-compose down
+# Logs d'un service
+docker compose -p kura logs -f auth-service
+
+# Statut des conteneurs
+docker compose -p kura ps
+
+# Arrêter la stack
+docker compose -p kura down
+
+# Rebuild d'un service
+docker compose -p kura build --parallel && docker compose -p kura up -d
 ```
-
-### Voir les logs
-
-```bash
-docker-compose logs -f [service-name]
-```
-
-### Vérifier le statut sur Kubernetes
-
-```bash
-kubectl get all -n kura
-```
-
-## Fonctionnalités principales
-
-### Module Terraform (v1.1.0)
-
-- **Gestion des états Terraform** : Upload, visualisation et suppression d'états
-- **Synchronisation cloud** : 
-  - Support S3, Azure Blob Storage, GCP Cloud Storage
-  - Synchronisation automatique configurable
-  - Modification et suppression des sources de synchronisation
-- **Détection de drift** :
-  - Comparaison en temps réel avec l'infrastructure réelle via APIs cloud
-  - Support GCP Compute Engine (instances, réseaux, firewalls, adresses IP)
-  - Affichage détaillé des différences détectées
-- **Interface utilisateur** :
-  - Onglets "États" et "Sources de synchronisation"
-  - Visualisation des ressources avec numérotation
-  - Dialog de résultats de drift avec détails
-
-### Module Kubernetes
-
-- Gestion complète des clusters (namespaces, pods, deployments, services, etc.)
-- Terminal interactif via WebSocket
-- Actions en masse (bulk actions)
-- Recherche et filtrage avancés
-
-### Authentification
-
-- Inscription et connexion utilisateurs
-- JWT avec refresh tokens
-- Gestion des rôles (admin, user)
-
-## Documentation
-
-Voir `docs/` pour l'architecture et les services.
 
 ## Licence
 
-[À définir]
+MIT
