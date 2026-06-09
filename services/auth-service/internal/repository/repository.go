@@ -53,6 +53,76 @@ func (r *Repository) Close() error {
 	return r.db.Close()
 }
 
+// GetServiceConfig retourne la valeur d'une clé pour un service donné.
+// Retourne ("", nil) si la clé n'existe pas.
+func (r *Repository) GetServiceConfig(service, key string) (string, error) {
+	var value string
+	err := r.db.QueryRow(
+		`SELECT value FROM service_configs WHERE service=$1 AND key=$2`,
+		service, key,
+	).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return value, err
+}
+
+// GetServiceConfigs retourne toutes les clés/valeurs d'un service.
+func (r *Repository) GetServiceConfigs(service string) (map[string]string, error) {
+	rows, err := r.db.Query(
+		`SELECT key, value FROM service_configs WHERE service=$1`,
+		service,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make(map[string]string)
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, err
+		}
+		result[k] = v
+	}
+	return result, rows.Err()
+}
+
+// SetServiceConfig insère ou met à jour une clé pour un service.
+func (r *Repository) SetServiceConfig(service, key, value string) error {
+	_, err := r.db.Exec(
+		`INSERT INTO service_configs (service, key, value, updated_at)
+		 VALUES ($1, $2, $3, NOW())
+		 ON CONFLICT (service, key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
+		service, key, value,
+	)
+	return err
+}
+
+// SetServiceConfigs insère ou met à jour plusieurs clés pour un service en une transaction.
+func (r *Repository) SetServiceConfigs(service string, kv map[string]string) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stmt, err := tx.Prepare(
+		`INSERT INTO service_configs (service, key, value, updated_at)
+		 VALUES ($1, $2, $3, NOW())
+		 ON CONFLICT (service, key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
+	)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for k, v := range kv {
+		if _, err := stmt.Exec(service, k, v); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (r *Repository) migrate() error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS users (
@@ -133,6 +203,14 @@ func (r *Repository) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_project_permissions_module ON project_permissions(module)`,
 		`CREATE INDEX IF NOT EXISTS idx_project_mappings_github_repo ON project_mappings(github_repository)`,
 		`CREATE INDEX IF NOT EXISTS idx_project_mappings_terraform_state ON project_mappings(terraform_state_id)`,
+		`CREATE TABLE IF NOT EXISTS service_configs (
+			service  VARCHAR(64)  NOT NULL,
+			key      VARCHAR(128) NOT NULL,
+			value    TEXT         NOT NULL DEFAULT '',
+			PRIMARY KEY (service, key),
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_service_configs_service ON service_configs(service)`,
 	}
 
 	for _, query := range queries {
