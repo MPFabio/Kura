@@ -135,7 +135,7 @@ func (s *TerraformService) ParseStateFileWithID(ctx context.Context, stateFileID
 
 // GetStateFile récupère un fichier d'état par son ID.
 func (s *TerraformService) GetStateFile(ctx context.Context, id string) (*models.StateFile, error) {
-	// Vérifier le cache
+	// Vérifier le cache avec la clé simple (terraform:state:<id>)
 	cacheKey := fmt.Sprintf("terraform:state:%s", id)
 	if cached, err := s.cache.Get(ctx, cacheKey); err == nil && cached != "" {
 		var stateFile models.StateFile
@@ -147,6 +147,27 @@ func (s *TerraformService) GetStateFile(ctx context.Context, id string) (*models
 	// Fallback sur le stockage en mémoire
 	if stateFile, exists := s.states[id]; exists {
 		return stateFile, nil
+	}
+
+	// Recherche dans le cache avec le préfixe project_id (terraform:state:<projectID>:<id>)
+	type KeysCache interface {
+		Keys(ctx context.Context, pattern string) ([]string, error)
+	}
+	if cacheWithKeys, ok := s.cache.(KeysCache); ok {
+		keys, err := cacheWithKeys.Keys(ctx, "terraform:state:*:"+id)
+		if err == nil {
+			for _, key := range keys {
+				if cached, err := s.cache.Get(ctx, key); err == nil && cached != "" {
+					var stateFile models.StateFile
+					if err := json.Unmarshal([]byte(cached), &stateFile); err == nil {
+						// Mettre en cache sous la clé simple pour les prochaines recherches
+						_ = s.cache.Set(ctx, cacheKey, cached, 30*24*time.Hour)
+						s.states[stateFile.ID] = &stateFile
+						return &stateFile, nil
+					}
+				}
+			}
+		}
 	}
 
 	return nil, fmt.Errorf("fichier d'état non trouvé: %s", id)
@@ -296,13 +317,15 @@ func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string, 
 	stateFile.DriftResults = results
 	stateFile.LastChecked = time.Now()
 
-	// Sauvegarder dans le cache avec un TTL très long (30 jours) pour les états Terraform
-	cacheKey := fmt.Sprintf("terraform:state:%s", stateFile.ID)
+	stateTTL := 30 * 24 * time.Hour
 	stateJSON, err := json.Marshal(stateFile)
 	if err == nil {
-		// Utiliser un TTL de 30 jours pour les états Terraform
-		stateTTL := 30 * 24 * time.Hour
-		_ = s.cache.Set(ctx, cacheKey, string(stateJSON), stateTTL)
+		// Sauvegarder sous la clé simple
+		_ = s.cache.Set(ctx, fmt.Sprintf("terraform:state:%s", stateFile.ID), string(stateJSON), stateTTL)
+		// Sauvegarder aussi sous la clé avec project_id si disponible
+		if stateFile.ProjectID != "" {
+			_ = s.cache.Set(ctx, fmt.Sprintf("terraform:state:%s:%s", stateFile.ProjectID, stateFile.ID), string(stateJSON), stateTTL)
+		}
 	}
 
 	// Mettre à jour en mémoire
