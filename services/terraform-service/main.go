@@ -64,9 +64,10 @@ func main() {
 	terraformHandler := handler.NewTerraformHandler(terraformService, syncService, cfg)
 	sourceHandler := handler.NewSourceHandler(syncService, cfg)
 	webhookHandler := handler.NewWebhookHandler(syncService, cfg)
+	configHandler := handler.NewConfigHandler(cfg)
 
 	// Configurer le routeur HTTP
-	router := setupRouter(terraformHandler, sourceHandler, webhookHandler, cfg)
+	router := setupRouter(terraformHandler, sourceHandler, webhookHandler, configHandler, cfg)
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
@@ -100,7 +101,7 @@ func main() {
 	log.Println("Service Terraform arrêté")
 }
 
-func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *handler.SourceHandler, webhookHandler *handler.WebhookHandler, cfg *config.Config) *gin.Engine {
+func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *handler.SourceHandler, webhookHandler *handler.WebhookHandler, configHandler *handler.ConfigHandler, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -119,6 +120,10 @@ func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *hand
 	{
 		terraformGroup := v1.Group("/terraform")
 		{
+			// Configuration persistante
+			terraformGroup.GET("/config", configHandler.GetConfig)
+			terraformGroup.POST("/config", configHandler.SetConfig)
+
 			// Gestion des états Terraform
 			terraformGroup.POST("/states/upload", terraformHandler.UploadStateFile)
 			terraformGroup.POST("/states", terraformHandler.UploadStateFileJSON)

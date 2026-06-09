@@ -695,6 +695,44 @@ func (h *K8sHandler) PatchDeploymentEnv(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "variables d'environnement mises à jour"})
 }
 
+// PatchDeploymentResourcesRequest représente la requête pour modifier les resources d'un container.
+type PatchDeploymentResourcesRequest struct {
+	Container  string `json:"container" binding:"required"`
+	CPURequest string `json:"cpu_request"`
+	CPULimit   string `json:"cpu_limit"`
+	MemRequest string `json:"mem_request"`
+	MemLimit   string `json:"mem_limit"`
+}
+
+// PatchDeploymentResources met à jour les requests/limits CPU et mémoire d'un container.
+// PATCH /api/v1/k8s/namespaces/:namespace/deployments/:name/resources
+func (h *K8sHandler) PatchDeploymentResources(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+
+	var req PatchDeploymentResourcesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.CPURequest == "" && req.CPULimit == "" && req.MemRequest == "" && req.MemLimit == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "au moins un champ de ressource doit être fourni"})
+		return
+	}
+
+	if err := h.svc.PatchDeploymentResources(ctx, namespace, name, req.Container, req.CPURequest, req.CPULimit, req.MemRequest, req.MemLimit); err != nil {
+		log.Printf("Erreur PatchDeploymentResources pour %s/%s: %v", namespace, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "ressources mises à jour"})
+}
+
 // DeletePod supprime un pod.
 func (h *K8sHandler) DeletePod(c *gin.Context) {
 	ctx := c.Request.Context()

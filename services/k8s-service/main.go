@@ -261,6 +261,7 @@ func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.Cluster
 			k8sGroup.PUT("/namespaces/:namespace/deployments/:name/scale", k8sHandler.ScaleDeployment)
 			k8sGroup.POST("/namespaces/:namespace/deployments/:name/restart", k8sHandler.RestartDeployment)
 			k8sGroup.PATCH("/namespaces/:namespace/deployments/:name/env", k8sHandler.PatchDeploymentEnv)
+			k8sGroup.PATCH("/namespaces/:namespace/deployments/:name/resources", k8sHandler.PatchDeploymentResources)
 			k8sGroup.DELETE("/namespaces/:namespace/pods/:name", k8sHandler.DeletePod)
 			k8sGroup.DELETE("/namespaces/:namespace/deployments/:name", k8sHandler.DeleteDeployment)
 			k8sGroup.DELETE("/namespaces/:namespace/services/:name", k8sHandler.DeleteService)

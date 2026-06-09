@@ -6,6 +6,7 @@ from datetime import datetime
 from internal.config.config import Config
 from internal.client.tower_client import AnsibleTowerClient
 from internal.cache.redis import RedisClient
+from internal.configstore import ConfigstoreClient
 from internal.models.models import (
     JobSummary,
     JobDetail,
@@ -30,26 +31,27 @@ class AnsibleService:
         self.tower_client = tower_client
         self.cache = cache
         self.config = config
+        self.cfg_store = ConfigstoreClient(config.auth_service_url, "ansible")
 
     def _get_cache_key(self, prefix: str, *args) -> str:
         """Génère une clé de cache."""
         return f"ansible:{prefix}:{':'.join(str(a) for a in args)}"
 
-    # ── Configuration Semaphore (persistée en Redis) ───────────────────────────
+    # ── Configuration Semaphore (persistée dans Postgres via configstore) ────────
 
     def get_config(self) -> Dict[str, Any]:
         """Retourne la configuration Semaphore active."""
-        semaphore_url = (self.cache.get("ansible:config:semaphore_url") if self.cache else None) \
-            or self.config.semaphore_url or ""
-        project_id = (self.cache.get("ansible:config:semaphore_project_id") if self.cache else None) \
-            or str(self.config.semaphore_project_id)
-        has_token = bool(
-            (self.cache.get("ansible:config:semaphore_token") if self.cache else None)
-            or self.config.semaphore_api_token
-        )
+        semaphore_url = self.cfg_store.get_or_fallback("semaphore_url", self.config.semaphore_url or "")
+        project_id_str = self.cfg_store.get_or_fallback("semaphore_project_id", str(self.config.semaphore_project_id))
+        token = self.cfg_store.get("semaphore_token") or self.config.semaphore_api_token or ""
+        has_token = bool(token)
+        try:
+            project_id = int(project_id_str)
+        except (ValueError, TypeError):
+            project_id = 1
         return {
             "semaphore_url": semaphore_url,
-            "semaphore_project_id": int(project_id) if project_id else 1,
+            "semaphore_project_id": project_id,
             "has_token": has_token,
             "configured": bool(semaphore_url and has_token),
         }
@@ -58,13 +60,12 @@ class AnsibleService:
         """Met à jour la configuration Semaphore et réinitialise le client."""
         from internal.client.semaphore_client import SemaphoreClient
 
-        # Persistance en Redis (sans TTL pour que la config survive aux redémarrages)
-        if self.cache:
-            if semaphore_url:
-                self.cache.client.set("ansible:config:semaphore_url", semaphore_url)
-            if token:
-                self.cache.client.set("ansible:config:semaphore_token", token)
-            self.cache.client.set("ansible:config:semaphore_project_id", str(project_id))
+        kv: Dict[str, str] = {"semaphore_project_id": str(project_id)}
+        if semaphore_url:
+            kv["semaphore_url"] = semaphore_url
+        if token:
+            kv["semaphore_token"] = token
+        self.cfg_store.set_many(kv)
 
         # Mise à jour de la config en mémoire
         if semaphore_url:

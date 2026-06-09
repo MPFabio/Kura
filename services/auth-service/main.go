@@ -42,9 +42,10 @@ func main() {
 	// Initialiser les handlers
 	authHandler := handler.NewAuthHandler(authService, projectService, cfg)
 	projectHandler := handler.NewProjectHandler(projectService, cfg)
+	configHandler := handler.NewConfigHandler(repo)
 
 	// Configurer le routeur
-	router := setupRouter(authHandler, projectHandler, cfg)
+	router := setupRouter(authHandler, projectHandler, configHandler, cfg)
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
@@ -78,7 +79,7 @@ func main() {
 	log.Println("Service d'authentification arrêté")
 }
 
-func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.ProjectHandler, cfg *config.Config) *gin.Engine {
+func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.ProjectHandler, configHandler *handler.ConfigHandler, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -141,7 +142,31 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 		}
 	}
 
+	// Routes internes (réseau Docker uniquement, pas exposées via Kong)
+	internal := router.Group("/internal")
+	internal.Use(internalOnlyMiddleware())
+	{
+		cfg := internal.Group("/config")
+		cfg.GET("/:service", configHandler.GetServiceConfig)
+		cfg.GET("/:service/:key", configHandler.GetServiceKey)
+		cfg.POST("/:service", configHandler.SetServiceConfigs)
+	}
+
 	return router
+}
+
+// internalOnlyMiddleware bloque les requêtes qui ne viennent pas du réseau Docker interne.
+func internalOnlyMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		// Autorise localhost et le réseau Docker (172.x, 10.x)
+		if len(ip) > 0 && (ip == "127.0.0.1" || ip == "::1" ||
+			len(ip) >= 3 && (ip[:3] == "172" || ip[:2] == "10")) {
+			c.Next()
+			return
+		}
+		c.AbortWithStatus(http.StatusForbidden)
+	}
 }
 
 func corsMiddleware() gin.HandlerFunc {

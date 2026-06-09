@@ -12,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/modulops/metrics-service/internal/config"
-	"github.com/modulops/metrics-service/internal/handler"
-	"github.com/modulops/metrics-service/internal/service"
+	"github.com/modulops/vault-service/internal/config"
+	"github.com/modulops/vault-service/internal/handler"
+	"github.com/modulops/vault-service/internal/service"
 )
 
 func main() {
@@ -32,11 +32,15 @@ func main() {
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		log.Printf("⚠️  Redis non disponible (%v) — cache désactivé", err)
+		rdb = nil
 	}
 
-	svc := service.New(cfg, rdb)
-	h := handler.New(svc)
+	svc, err := service.New(cfg, rdb)
+	if err != nil {
+		log.Fatalf("Erreur initialisation vault-service: %v", err)
+	}
 
+	h := handler.New(svc)
 	router := setupRouter(h, cfg)
 
 	srv := &http.Server{
@@ -45,7 +49,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Metrics service démarré sur le port %s", cfg.ServerPort)
+		log.Printf("Vault service démarré sur le port %s", cfg.ServerPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Erreur serveur: %v", err)
 		}
@@ -55,16 +59,16 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Arrêt du metrics-service...")
+	log.Println("Arrêt du vault-service...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("Erreur arrêt serveur: %v", err)
 	}
-	log.Println("Metrics-service arrêté")
+	log.Println("Vault-service arrêté")
 }
 
-func setupRouter(h *handler.MetricsHandler, cfg *config.Config) *gin.Engine {
+func setupRouter(h *handler.VaultHandler, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -73,17 +77,18 @@ func setupRouter(h *handler.MetricsHandler, cfg *config.Config) *gin.Engine {
 	router.Use(corsMiddleware())
 
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "metrics-service"})
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "vault-service"})
 	})
 
-	v1 := router.Group("/api/v1")
-	metrics := v1.Group("/metrics")
+	v1 := router.Group("/api/v1/vault")
 	{
-		metrics.GET("/health", h.GetHealth)
-		metrics.GET("/services", h.GetServices)
-		metrics.GET("/overview", h.GetOverview)
-		metrics.GET("/config", h.GetConfig)
-		metrics.POST("/config", h.SetConfig)
+		v1.GET("/status", h.GetStatus)
+		v1.GET("/config", h.GetConfig)
+		v1.POST("/config", h.SetConfig)
+		v1.GET("/secrets", h.ListSecrets)
+		v1.GET("/secrets/*path", h.GetSecret)
+		v1.POST("/secrets/*path", h.WriteSecret)
+		v1.DELETE("/secrets/*path", h.DeleteSecret)
 	}
 
 	return router
@@ -94,7 +99,7 @@ func corsMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return

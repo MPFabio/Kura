@@ -2,9 +2,10 @@ name: Deploy to GCP VM
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
+  workflow_run:
+    workflows: ["CI"]
+    branches: [master]
+    types: [completed]
 
 env:
   RELEASE_DIR: /opt/kura
@@ -12,6 +13,7 @@ env:
 
 jobs:
   terraform:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -96,7 +98,7 @@ jobs:
             .
 
       - name: Copy archive to VM
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v0.1.9
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_VM_USER }}
@@ -121,7 +123,7 @@ jobs:
 
       - name: Copy secrets to VM
         if: hashFiles('/tmp/kura-secrets/*') != ''
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v0.1.9
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_VM_USER }}
@@ -131,7 +133,7 @@ jobs:
           strip_components: 0
 
       - name: Deploy on VM
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.GCP_VM_IP }}
           username: ${{ secrets.GCP_VM_USER }}

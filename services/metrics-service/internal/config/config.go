@@ -11,23 +11,25 @@ type Config struct {
 	Environment   string
 	LogLevel      string
 
+	AuthServiceURL string
+
 	PrometheusURL string
+	GrafanaURL    string
 	CacheTTL      time.Duration
 
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       int
-
-	GrafanaURL string
 }
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		ServerPort:    getEnv("METRICS_SERVICE_PORT", "8086"),
-		Environment:   getEnv("ENV", "development"),
-		LogLevel:      getEnv("LOG_LEVEL", "info"),
-		PrometheusURL: getEnv("PROMETHEUS_URL", "http://prometheus:9090"),
-		GrafanaURL:    getEnv("GRAFANA_URL", "http://localhost:3000"),
+		ServerPort:     getEnv("METRICS_SERVICE_PORT", "8086"),
+		Environment:    getEnv("ENV", "development"),
+		LogLevel:       getEnv("LOG_LEVEL", "info"),
+		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
+		PrometheusURL:  getEnv("PROMETHEUS_URL", "http://prometheus:9090"),
+		GrafanaURL:     getEnv("GRAFANA_URL", "http://grafana:3000"),
 	}
 
 	redisHost := getEnv("REDIS_HOST", "localhost")

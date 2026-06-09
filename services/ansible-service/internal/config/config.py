@@ -11,6 +11,7 @@ class Config:
         server_port: str = "8083",
         environment: str = "development",
         log_level: str = "info",
+        auth_service_url: str = "http://auth-service:8080",
         redis_host: str = "localhost",
         redis_port: str = "6379",
         redis_password: Optional[str] = None,
@@ -28,6 +29,7 @@ class Config:
         self.server_port = server_port
         self.environment = environment
         self.log_level = log_level
+        self.auth_service_url = auth_service_url
         self.redis_host = redis_host
         self.redis_port = redis_port
         self.redis_password = redis_password
@@ -53,6 +55,7 @@ def load_config() -> Config:
         redis_password=os.getenv("REDIS_PASSWORD"),
         redis_db=int(os.getenv("REDIS_DB", "0")),
         cache_ttl=int(os.getenv("ANSIBLE_CACHE_TTL", "300")),
+        auth_service_url=os.getenv("AUTH_SERVICE_URL", "http://auth-service:8080"),
         ansible_tower_url=os.getenv("ANSIBLE_TOWER_URL"),
         ansible_tower_username=os.getenv("ANSIBLE_TOWER_USERNAME"),
         ansible_tower_password=os.getenv("ANSIBLE_TOWER_PASSWORD"),
