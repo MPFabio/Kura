@@ -103,10 +103,11 @@ locals {
 }
 
 resource "google_compute_instance" "vm" {
-  name         = var.instance_name
-  machine_type = var.instance_machine_type
-  zone         = var.gcp_zone
-  tags         = ["${var.instance_name}-vm"]
+  name                      = var.instance_name
+  machine_type              = var.instance_machine_type
+  zone                      = var.gcp_zone
+  tags                      = ["${var.instance_name}-vm"]
+  allow_stopping_for_update = true
 
   boot_disk {
     initialize_params {
