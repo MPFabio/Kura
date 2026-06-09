@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/modulops/vault-service/internal/config"
+	"github.com/modulops/vault-service/internal/configstore"
 	"github.com/modulops/vault-service/internal/models"
 )
 
@@ -19,24 +20,93 @@ const cacheTTL = 30 * time.Second
 type VaultService struct {
 	client    *vault.Client
 	rdb       *redis.Client
+	cfgStore  *configstore.Client
+	cfg       *config.Config
 	mountPath string
 }
 
 func New(cfg *config.Config, rdb *redis.Client) (*VaultService, error) {
+	cs := configstore.New(cfg.AuthServiceURL, "vault")
+	ctx := context.Background()
+
+	addr := cs.GetOrFallback(ctx, "vault_addr", cfg.VaultAddr)
+	token := cs.GetOrFallback(ctx, "vault_token", cfg.VaultToken)
+	mountPath := cs.GetOrFallback(ctx, "vault_mount_path", cfg.MountPath)
+
 	vcfg := vault.DefaultConfig()
-	vcfg.Address = cfg.VaultAddr
+	vcfg.Address = addr
 
 	client, err := vault.NewClient(vcfg)
 	if err != nil {
 		return nil, fmt.Errorf("vault client: %w", err)
 	}
-	client.SetToken(cfg.VaultToken)
+	client.SetToken(token)
 
 	return &VaultService{
 		client:    client,
 		rdb:       rdb,
-		mountPath: cfg.MountPath,
+		cfgStore:  cs,
+		cfg:       cfg,
+		mountPath: mountPath,
 	}, nil
+}
+
+// GetConfig retourne la config Vault actuelle (token masqué).
+func (s *VaultService) GetConfig(ctx context.Context) (map[string]string, error) {
+	addr := s.cfgStore.GetOrFallback(ctx, "vault_addr", s.cfg.VaultAddr)
+	mount := s.cfgStore.GetOrFallback(ctx, "vault_mount_path", s.cfg.MountPath)
+	tokenSet := s.cfgStore.GetOrFallback(ctx, "vault_token", s.cfg.VaultToken) != ""
+	linked := "false"
+	if tokenSet {
+		linked = "true"
+	}
+	return map[string]string{
+		"vault_addr":       addr,
+		"vault_mount_path": mount,
+		"vault_token":      "***",
+		"linked":           linked,
+	}, nil
+}
+
+// SetConfig met à jour addr, token et/ou mount path dans Postgres.
+func (s *VaultService) SetConfig(ctx context.Context, addr, token, mountPath string) error {
+	kv := map[string]string{}
+	if addr != "" {
+		kv["vault_addr"] = addr
+	}
+	if token != "" {
+		kv["vault_token"] = token
+	}
+	if mountPath != "" {
+		kv["vault_mount_path"] = mountPath
+	}
+	if len(kv) == 0 {
+		return nil
+	}
+	if err := s.cfgStore.SetMany(ctx, kv); err != nil {
+		return err
+	}
+	// Reconfigurer le client live
+	if addr != "" {
+		vcfg := vault.DefaultConfig()
+		vcfg.Address = addr
+		client, err := vault.NewClient(vcfg)
+		if err != nil {
+			return err
+		}
+		if token != "" {
+			client.SetToken(token)
+		} else {
+			client.SetToken(s.cfgStore.GetOrFallback(ctx, "vault_token", s.cfg.VaultToken))
+		}
+		s.client = client
+	} else if token != "" {
+		s.client.SetToken(token)
+	}
+	if mountPath != "" {
+		s.mountPath = mountPath
+	}
+	return nil
 }
 
 // Status retourne l'état de santé de Vault.

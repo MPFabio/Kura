@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/modulops/metrics-service/internal/config"
+	"github.com/modulops/metrics-service/internal/configstore"
 	"github.com/modulops/metrics-service/internal/models"
 	"github.com/redis/go-redis/v9"
 )
@@ -31,17 +32,51 @@ var knownServices = []struct {
 
 type MetricsService struct {
 	cfg        *config.Config
+	cfgStore   *configstore.Client
 	redis      *redis.Client
 	httpClient *http.Client
 }
 
 func New(cfg *config.Config, rdb *redis.Client) *MetricsService {
 	return &MetricsService{
-		cfg:   cfg,
-		redis: rdb,
-		// Timeout court pour les health checks : on ne veut pas bloquer le frontend
+		cfg:        cfg,
+		cfgStore:   configstore.New(cfg.AuthServiceURL, "metrics"),
+		redis:      rdb,
 		httpClient: &http.Client{Timeout: 3 * time.Second},
 	}
+}
+
+// getPrometheusURL retourne l'URL Prometheus (configstore prioritaire sur env).
+func (s *MetricsService) getPrometheusURL(ctx context.Context) string {
+	return s.cfgStore.GetOrFallback(ctx, "prometheus_url", s.cfg.PrometheusURL)
+}
+
+// getGrafanaURL retourne l'URL Grafana (configstore prioritaire sur env).
+func (s *MetricsService) getGrafanaURL(ctx context.Context) string {
+	return s.cfgStore.GetOrFallback(ctx, "grafana_url", s.cfg.GrafanaURL)
+}
+
+// SetConfig met à jour les URLs Prometheus et Grafana.
+func (s *MetricsService) SetConfig(ctx context.Context, prometheusURL, grafanaURL string) error {
+	kv := map[string]string{}
+	if prometheusURL != "" {
+		kv["prometheus_url"] = prometheusURL
+	}
+	if grafanaURL != "" {
+		kv["grafana_url"] = grafanaURL
+	}
+	if len(kv) == 0 {
+		return nil
+	}
+	return s.cfgStore.SetMany(ctx, kv)
+}
+
+// GetConfig retourne la config actuelle (URLs masquées si sensibles).
+func (s *MetricsService) GetConfig(ctx context.Context) (map[string]string, error) {
+	return map[string]string{
+		"prometheus_url": s.getPrometheusURL(ctx),
+		"grafana_url":    s.getGrafanaURL(ctx),
+	}, nil
 }
 
 // GetHealth retourne l'état up/down de chaque service via health check direct + métriques Prometheus.
@@ -153,7 +188,7 @@ func (s *MetricsService) checkHealth(ctx context.Context, healthURL string) bool
 
 // queryPrometheus exécute une instant query et retourne une map job → valeur float64.
 func (s *MetricsService) queryPrometheus(ctx context.Context, query string) (map[string]float64, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/query", s.cfg.PrometheusURL)
+	endpoint := fmt.Sprintf("%s/api/v1/query", s.getPrometheusURL(ctx))
 	params := url.Values{"query": {query}}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)

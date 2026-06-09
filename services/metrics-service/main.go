@@ -82,6 +82,8 @@ func setupRouter(h *handler.MetricsHandler, cfg *config.Config) *gin.Engine {
 		metrics.GET("/health", h.GetHealth)
 		metrics.GET("/services", h.GetServices)
 		metrics.GET("/overview", h.GetOverview)
+		metrics.GET("/config", h.GetConfig)
+		metrics.POST("/config", h.SetConfig)
 	}
 
 	return router
@@ -92,7 +94,7 @@ func corsMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return

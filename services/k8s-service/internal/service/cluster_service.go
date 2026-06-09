@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/modulops/k8s-service/internal/config"
+	"github.com/modulops/k8s-service/internal/configstore"
 	"github.com/modulops/k8s-service/internal/models"
 )
 
@@ -32,7 +33,8 @@ type ClusterCache interface {
 type ClusterService struct {
 	cache           ClusterCache
 	cfg             *config.Config
-	clusters        map[string]*models.Cluster // Stockage en mémoire (pourrait être remplacé par PostgreSQL)
+	cfgStore        *configstore.Client
+	clusters        map[string]*models.Cluster
 	activeClusterID string
 }
 
@@ -41,6 +43,7 @@ func NewClusterService(cache ClusterCache, cfg *config.Config) *ClusterService {
 	cs := &ClusterService{
 		cache:    cache,
 		cfg:      cfg,
+		cfgStore: configstore.New(cfg.AuthServiceURL, "k8s"),
 		clusters: make(map[string]*models.Cluster),
 	}
 
@@ -416,12 +419,14 @@ func (s *ClusterService) saveKubeconfigToTempFile(cluster *models.Cluster) (stri
 	return filePath, nil
 }
 
-// loadClustersFromCache charge les clusters depuis le cache Redis.
+// loadClustersFromCache charge les clusters depuis Redis, avec fallback Postgres.
 func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 	listKey := "k8s:clusters:list"
 	raw, err := s.cache.Get(ctx, listKey)
 	if err != nil || raw == "" {
-		log.Printf("⚠️  Aucun cluster trouvé dans le cache Redis")
+		// Fallback : charger depuis Postgres (configstore)
+		log.Printf("⚠️  Redis vide, tentative de restauration des clusters depuis Postgres...")
+		s.loadClustersFromConfigstore(ctx)
 		return
 	}
 
@@ -482,8 +487,7 @@ func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 	}
 }
 
-// saveClustersList sauvegarde la liste des clusters dans le cache.
-// On stocke "projectID:clusterID" pour pouvoir recharger avec la bonne clé k8s:cluster:projectID:clusterID.
+// saveClustersList sauvegarde la liste des clusters dans Redis et Postgres.
 func (s *ClusterService) saveClustersList(ctx context.Context) {
 	entries := make([]string, 0, len(s.clusters))
 	for _, c := range s.clusters {
@@ -492,4 +496,69 @@ func (s *ClusterService) saveClustersList(ctx context.Context) {
 	entriesJSON, _ := json.Marshal(entries)
 	_ = s.cache.Set(ctx, "k8s:clusters:list", string(entriesJSON), 0)
 	_ = s.cache.Set(ctx, "k8s:clusters:active", s.activeClusterID, 0)
+
+	// Persistance Postgres pour survie aux redéploiements
+	kv := map[string]string{
+		"clusters_list":  string(entriesJSON),
+		"clusters_active": s.activeClusterID,
+	}
+	for _, c := range s.clusters {
+		if b, err := json.Marshal(c); err == nil {
+			kv["cluster:"+c.ID] = string(b)
+		}
+	}
+	if err := s.cfgStore.SetMany(ctx, kv); err != nil {
+		log.Printf("⚠️  Persistance clusters Postgres: %v", err)
+	}
+}
+
+// loadClustersFromConfigstore restaure les clusters depuis Postgres (après docker compose down/up).
+func (s *ClusterService) loadClustersFromConfigstore(ctx context.Context) {
+	all, err := s.cfgStore.GetAll(ctx)
+	if err != nil {
+		log.Printf("⚠️  Impossible de charger les clusters depuis Postgres: %v", err)
+		return
+	}
+	listJSON, ok := all["clusters_list"]
+	if !ok || listJSON == "" {
+		log.Printf("⚠️  Aucun cluster dans Postgres")
+		return
+	}
+	var entries []string
+	if err := json.Unmarshal([]byte(listJSON), &entries); err != nil {
+		log.Printf("⚠️  Erreur parsing clusters_list Postgres: %v", err)
+		return
+	}
+	log.Printf("📦 Restauration de %d cluster(s) depuis Postgres...", len(entries))
+	for _, entry := range entries {
+		var clusterID string
+		if idx := strings.LastIndex(entry, ":"); idx >= 0 {
+			clusterID = entry[idx+1:]
+		} else {
+			clusterID = entry
+		}
+		raw, ok := all["cluster:"+clusterID]
+		if !ok || raw == "" {
+			continue
+		}
+		var cluster models.Cluster
+		if err := json.Unmarshal([]byte(raw), &cluster); err != nil {
+			log.Printf("⚠️  Erreur parsing cluster %s: %v", clusterID, err)
+			continue
+		}
+		s.clusters[cluster.ID] = &cluster
+		// Remettre dans Redis
+		cacheKey := fmt.Sprintf("k8s:cluster:%s:%s", cluster.ProjectID, cluster.ID)
+		_ = s.cache.Set(ctx, cacheKey, raw, 0)
+		log.Printf("✅ Cluster restauré depuis Postgres: %s (%s)", cluster.ID, cluster.Name)
+	}
+	if activeID, ok := all["clusters_active"]; ok && activeID != "" {
+		s.activeClusterID = activeID
+		if cluster, exists := s.clusters[activeID]; exists {
+			cluster.IsActive = true
+		}
+		_ = s.cache.Set(ctx, "k8s:clusters:active", activeID, 0)
+	}
+	// Remettre la liste dans Redis
+	_ = s.cache.Set(ctx, "k8s:clusters:list", listJSON, 0)
 }

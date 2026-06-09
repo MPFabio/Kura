@@ -83,6 +83,8 @@ func setupRouter(h *handler.VaultHandler, cfg *config.Config) *gin.Engine {
 	v1 := router.Group("/api/v1/vault")
 	{
 		v1.GET("/status", h.GetStatus)
+		v1.GET("/config", h.GetConfig)
+		v1.POST("/config", h.SetConfig)
 		v1.GET("/secrets", h.ListSecrets)
 		v1.GET("/secrets/*path", h.GetSecret)
 		v1.POST("/secrets/*path", h.WriteSecret)

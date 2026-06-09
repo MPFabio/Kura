@@ -9,9 +9,10 @@ import (
 
 type Config struct {
 	// Serveur
-	ServerPort  string
-	Environment string
-	LogLevel    string
+	ServerPort     string
+	Environment    string
+	LogLevel       string
+	AuthServiceURL string
 
 	// Kubernetes
 	KubeconfigPath string
@@ -28,9 +29,10 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		ServerPort:    getEnv("K8S_SERVICE_PORT", "8081"),
-		Environment:   getEnv("ENV", "development"),
-		LogLevel:      getEnv("LOG_LEVEL", "info"),
+		ServerPort:     getEnv("K8S_SERVICE_PORT", "8081"),
+		Environment:    getEnv("ENV", "development"),
+		LogLevel:       getEnv("LOG_LEVEL", "info"),
+		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
 		KubeconfigPath: getEnv("KUBECONFIG_PATH", ""),
 	}
 
