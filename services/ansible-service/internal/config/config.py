@@ -24,6 +24,8 @@ class Config:
         semaphore_url: Optional[str] = None,
         semaphore_api_token: Optional[str] = None,
         semaphore_project_id: int = 1,
+        k8s_service_url: str = "http://k8s-service:8081",
+        internal_api_secret: Optional[str] = None,
     ):
         """Initialise la configuration."""
         self.server_port = server_port
@@ -42,6 +44,8 @@ class Config:
         self.semaphore_url = semaphore_url
         self.semaphore_api_token = semaphore_api_token
         self.semaphore_project_id = semaphore_project_id
+        self.k8s_service_url = k8s_service_url
+        self.internal_api_secret = internal_api_secret
 
 
 def load_config() -> Config:
@@ -63,4 +67,6 @@ def load_config() -> Config:
         semaphore_url=os.getenv("SEMAPHORE_URL"),
         semaphore_api_token=os.getenv("SEMAPHORE_API_TOKEN"),
         semaphore_project_id=int(os.getenv("SEMAPHORE_PROJECT_ID", "1")),
+        k8s_service_url=os.getenv("K8S_SERVICE_URL", "http://k8s-service:8081"),
+        internal_api_secret=os.getenv("INTERNAL_API_SECRET"),
     )

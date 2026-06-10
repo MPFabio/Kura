@@ -223,6 +223,13 @@ func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.Cluster
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "k8s-service"})
 	})
 
+	// Routes internes (réseau Docker uniquement, non exposées via Kong) :
+	// utilisées par d'autres services internes (ex: Semaphore via les playbooks Ansible).
+	internal := router.Group("/internal")
+	{
+		internal.GET("/k8s/clusters/:id/kubeconfig", clusterHandler.GetClusterKubeconfig)
+	}
+
 	v1 := router.Group("/api/v1")
 	{
 		k8sGroup := v1.Group("/k8s")

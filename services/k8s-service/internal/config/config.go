@@ -14,6 +14,9 @@ type Config struct {
 	LogLevel       string
 	AuthServiceURL string
 
+	// Authentification interne (appels service-à-service, ex: Semaphore)
+	InternalAPISecret string
+
 	// Kubernetes
 	KubeconfigPath string
 	InCluster      bool
@@ -34,6 +37,8 @@ func Load() (*Config, error) {
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
 		KubeconfigPath: getEnv("KUBECONFIG_PATH", ""),
+
+		InternalAPISecret: getEnv("INTERNAL_API_SECRET", ""),
 	}
 
 	// In-cluster ou kubeconfig
