@@ -38,6 +38,7 @@ import {
   Search as SearchIcon,
   Refresh as RefreshIcon,
   Settings as SettingsIcon,
+  Memory as MemoryIcon,
 } from '@mui/icons-material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProject } from '../contexts/ProjectContext'
@@ -48,6 +49,7 @@ import { Deployment } from '../services/api'
 import ResourceDetailDialog from '../components/ResourceDetailDialog'
 import ScaleDeploymentDialog from '../components/ScaleDeploymentDialog'
 import EditEnvVarDialog from '../components/EditEnvVarDialog'
+import EditResourcesDialog, { ResourceValues } from '../components/EditResourcesDialog'
 import {
   Add as AddIcon,
   CheckCircle as CheckCircleIcon,
@@ -78,6 +80,11 @@ export default function K8sPage() {
   })
   const [scaleReplicas, setScaleReplicas] = useState<number>(1)
   const [editEnvDialog, setEditEnvDialog] = useState<{
+    open: boolean
+    namespace: string
+    name: string
+  }>({ open: false, namespace: '', name: '' })
+  const [editResourcesDialog, setEditResourcesDialog] = useState<{
     open: boolean
     namespace: string
     name: string
@@ -375,6 +382,39 @@ export default function K8sPage() {
     queryKey: ['deployment-detail', editEnvDialog.namespace, editEnvDialog.name],
     queryFn: () => k8sService.getDeployment(editEnvDialog.namespace, editEnvDialog.name),
     enabled: editEnvDialog.open && !!editEnvDialog.namespace && !!editEnvDialog.name,
+  })
+
+  const patchDeploymentResourcesMutation = useMutation({
+    mutationFn: ({
+      namespace,
+      name,
+      container,
+      resources,
+    }: {
+      namespace: string
+      name: string
+      container: string
+      resources: ResourceValues
+    }) => k8sService.patchDeploymentResources(namespace, name, container, resources),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments', selectedNamespace] })
+      queryClient.invalidateQueries({ queryKey: ['deployment-detail-resources', editResourcesDialog.namespace, editResourcesDialog.name] })
+      setEditResourcesDialog({ open: false, namespace: '', name: '' })
+      setSnackbar({ open: true, message: 'Ressources mises à jour', severity: 'success' })
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.error || 'Erreur lors de la mise à jour',
+        severity: 'error',
+      })
+    },
+  })
+
+  const { data: deploymentForEditResources } = useQuery({
+    queryKey: ['deployment-detail-resources', editResourcesDialog.namespace, editResourcesDialog.name],
+    queryFn: () => k8sService.getDeployment(editResourcesDialog.namespace, editResourcesDialog.name),
+    enabled: editResourcesDialog.open && !!editResourcesDialog.namespace && !!editResourcesDialog.name,
   })
 
   // Mutations pour les clusters
@@ -866,6 +906,17 @@ export default function K8sPage() {
                       }}
                     >
                       <SettingsIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Ressources (CPU / mémoire)">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditResourcesDialog({ open: true, namespace: dep.namespace, name: dep.name })
+                      }}
+                    >
+                      <MemoryIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Supprimer">
@@ -1578,6 +1629,43 @@ export default function K8sPage() {
             })
           }}
           isPending={patchDeploymentEnvMutation.isPending}
+        />
+      )}
+
+      {editResourcesDialog.open && deploymentForEditResources && (
+        <EditResourcesDialog
+          open={editResourcesDialog.open}
+          onClose={() => setEditResourcesDialog({ open: false, namespace: '', name: '' })}
+          namespace={editResourcesDialog.namespace}
+          deploymentName={editResourcesDialog.name}
+          containers={
+            (deploymentForEditResources as any)?.spec?.template?.spec?.containers?.map((c: any) => ({ name: c.name })) ?? []
+          }
+          resources={
+            (() => {
+              const containers = (deploymentForEditResources as any)?.spec?.template?.spec?.containers ?? []
+              const first = containers[0]
+              const res = first?.resources ?? {}
+              return {
+                cpu_request: res.requests?.cpu ?? '',
+                cpu_limit: res.limits?.cpu ?? '',
+                mem_request: res.requests?.memory ?? '',
+                mem_limit: res.limits?.memory ?? '',
+              }
+            })()
+          }
+          containerName={
+            (deploymentForEditResources as any)?.spec?.template?.spec?.containers?.[0]?.name ?? ''
+          }
+          onConfirm={(container, resources) => {
+            patchDeploymentResourcesMutation.mutate({
+              namespace: editResourcesDialog.namespace,
+              name: editResourcesDialog.name,
+              container,
+              resources,
+            })
+          }}
+          isPending={patchDeploymentResourcesMutation.isPending}
         />
       )}
 

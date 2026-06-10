@@ -46,6 +46,7 @@ services:
     - GET
     - POST
     - PUT
+    - PATCH
     - DELETE
     protocols:
     - http
