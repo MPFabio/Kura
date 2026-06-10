@@ -45,6 +45,9 @@ import {
   Sync as SyncIcon,
   CloudQueue as CloudQueueIcon,
   Edit as EditIcon,
+  CheckCircle as CheckCircleIcon,
+  ErrorOutline as ErrorOutlineIcon,
+  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material'
 import { terraformService, TerraformState, terraformSourceService, TerraformDriftResult } from '../services/terraformService'
 import { projectService } from '../services/projectService'
@@ -738,17 +741,29 @@ export default function TerraformPage() {
                         </TableCell>
                         <TableCell>{result.resource_type}</TableCell>
                         <TableCell>
-                          <Chip
-                            label={result.status}
-                            size="small"
-                            color={
-                              result.status === 'in_sync'
-                                ? 'success'
-                                : result.status === 'drifted' || result.status === 'missing'
-                                ? 'error'
-                                : 'warning'
+                          {(() => {
+                            const statusConfig: Record<string, { label: string; color: string; icon: JSX.Element }> = {
+                              in_sync: { label: 'Conforme', color: kuraColors.success, icon: <CheckCircleIcon fontSize="small" /> },
+                              drifted: { label: 'Dérive détectée', color: kuraColors.error, icon: <WarningIcon fontSize="small" /> },
+                              missing: { label: 'Ressource manquante', color: kuraColors.error, icon: <ErrorOutlineIcon fontSize="small" /> },
+                              unknown: { label: 'Indéterminé', color: kuraColors.warning, icon: <HelpOutlineIcon fontSize="small" /> },
                             }
-                          />
+                            const config = statusConfig[result.status] ?? statusConfig.unknown
+                            return (
+                              <Chip
+                                label={config.label}
+                                icon={config.icon}
+                                size="small"
+                                sx={{
+                                  fontSize: '0.6875rem', fontWeight: 600,
+                                  bgcolor: `${config.color}22`,
+                                  border: `1px solid ${config.color}`,
+                                  color: config.color,
+                                  '& .MuiChip-icon': { color: config.color },
+                                }}
+                              />
+                            )
+                          })()}
                         </TableCell>
                         <TableCell>
                           <ModuleSecondaryText>
@@ -772,8 +787,9 @@ export default function TerraformPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Alert severity="warning" sx={{ mt: 2 }}>
-                Note : La détection de drift utilise les APIs réelles des providers cloud (GCP, AWS, Azure) pour comparer l'état réel avec le tfstate.
+              <Alert severity="info" sx={{ mt: 2 }}>
+                « Conforme » signifie que la ressource a été comparée à l'état réel via les APIs du provider cloud (GCP, AWS, Azure)
+                et qu'aucune différence n'a été trouvée avec le tfstate. « Dérive détectée » indique qu'au moins un attribut diffère.
               </Alert>
             </Box>
           )}

@@ -11,6 +11,7 @@ from internal.config.config import load_config
 from internal.cache.redis import RedisClient
 from internal.client.tower_client import AnsibleTowerClient
 from internal.client.semaphore_client import SemaphoreClient
+from internal.configstore import ConfigstoreClient
 from internal.service.ansible_service import AnsibleService
 from internal.handler.ansible_handler import AnsibleHandler, create_router
 from internal.handler.webhook_handler import WebhookHandler, create_webhook_router
@@ -56,6 +57,24 @@ async def lifespan(app: FastAPI):
             logger.error(f"Erreur lors de l'initialisation de Redis: {e}")
             logger.warning("Le service continuera sans cache")
             cache = None
+
+        # Charger la configuration Semaphore persistée (configstore Postgres), si présente
+        try:
+            cfg_store = ConfigstoreClient(config.auth_service_url, "ansible")
+            stored_url = cfg_store.get("semaphore_url")
+            stored_token = cfg_store.get("semaphore_token")
+            stored_project_id = cfg_store.get("semaphore_project_id")
+            if stored_url:
+                config.semaphore_url = stored_url
+            if stored_token:
+                config.semaphore_api_token = stored_token
+            if stored_project_id:
+                try:
+                    config.semaphore_project_id = int(stored_project_id)
+                except (ValueError, TypeError):
+                    pass
+        except Exception as e:
+            logger.warning(f"Impossible de charger la configuration Semaphore depuis configstore: {e}")
 
         # Initialiser le client Ansible : Semaphore en priorité, Tower en fallback
         if config.semaphore_url:

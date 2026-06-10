@@ -1,5 +1,6 @@
 """Service métier pour Ansible Tower."""
 import logging
+import httpx
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -259,6 +260,23 @@ class AnsibleService:
 
     def launch_job_template(self, template_id: int, extra_vars: Optional[Dict[str, Any]] = None) -> Optional[JobDetail]:
         """Lance un job depuis un template."""
+        extra_vars = dict(extra_vars) if extra_vars else {}
+
+        # Injecter les informations nécessaires aux playbooks pour accéder au cluster k8s actif
+        if self.config.internal_api_secret:
+            try:
+                with httpx.Client(timeout=5.0) as client:
+                    resp = client.get(f"{self.config.k8s_service_url}/api/v1/k8s/clusters/active")
+                    if resp.status_code == 200:
+                        cluster = resp.json()
+                        cluster_id = cluster.get("id")
+                        if cluster_id:
+                            extra_vars["cluster_id"] = cluster_id
+                            extra_vars["k8s_service_url"] = self.config.k8s_service_url
+                            extra_vars["internal_api_token"] = self.config.internal_api_secret
+            except Exception as e:
+                logger.warning(f"Impossible de récupérer le cluster actif pour injection dans le job: {e}")
+
         result = self.tower_client.launch_job_template(template_id, extra_vars)
         if not result:
             return None

@@ -302,6 +302,7 @@ services:
       K8S_CACHE_TTL: "30s"
       K8S_API_TIMEOUT: "60s"
       LOG_LEVEL: info
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -457,10 +458,17 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: "0"
       ANSIBLE_CACHE_TTL: "300"
+      SEMAPHORE_URL: ${SEMAPHORE_URL}
+      SEMAPHORE_API_TOKEN: ${SEMAPHORE_API_TOKEN}
+      SEMAPHORE_PROJECT_ID: ${SEMAPHORE_PROJECT_ID:-1}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      K8S_SERVICE_URL: http://k8s-service:8081
     depends_on:
       redis:
         condition: service_healthy
       auth-service:
+        condition: service_healthy
+      semaphore:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
