@@ -17,6 +17,8 @@ import { useProject } from '../contexts/ProjectContext'
 import { terraformService } from '../services/terraformService'
 import { clusterService } from '../services/clusterService'
 import { ansibleService } from '../services/ansibleService'
+import { vaultService } from '../services/vaultService'
+import VaultIcon from '../components/icons/VaultIcon'
 import { pipelineService } from '../services/pipelineService'
 import { k8sService } from '../services/k8sService'
 import { kuraColors } from '../theme'
@@ -71,6 +73,18 @@ export default function ModulesPage() {
   const { data: ansibleTemplatesData } = useQuery({
     queryKey: ['ansible-templates-summary'],
     queryFn: () => ansibleService.getJobTemplates(),
+    retry: false,
+  })
+
+  const { data: vaultStatusData } = useQuery({
+    queryKey: ['vault-status-summary'],
+    queryFn: () => vaultService.getStatus(),
+    retry: false,
+  })
+
+  const { data: vaultSecretsData } = useQuery({
+    queryKey: ['vault-secrets-summary'],
+    queryFn: () => vaultService.listSecrets(),
     retry: false,
   })
 
@@ -204,6 +218,26 @@ export default function ModulesPage() {
         'Intégration Ansible Semaphore',
         'Gestion des inventaires et hôtes',
         'Exécution de playbooks et templates',
+      ],
+    },
+    {
+      id: 'vault',
+      name: 'Vault',
+      icon: <VaultIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
+      path: '/vault',
+      active: true,
+      status: 'active',
+      statusText: vaultStatusData?.sealed ? 'Vault scellé' : 'Module actif',
+      description: 'Gestion centralisée des secrets avec HashiCorp Vault. Stockage, consultation et rotation sécurisés des credentials.',
+      stats: [
+        { label: 'Secrets', value: formatStat(vaultSecretsData?.keys?.length ?? null) },
+        { label: 'Statut', value: vaultStatusData?.sealed ? 'Scellé' : 'Déscellé' },
+        { label: 'Version', value: vaultStatusData?.version || '—' },
+      ],
+      features: [
+        'Stockage chiffré des secrets (KV v2)',
+        'Consultation et rotation des credentials',
+        'Intégration avec les autres modules Kura',
       ],
     },
     {

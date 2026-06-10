@@ -37,6 +37,7 @@ import MonitoringIcon from './icons/MonitoringIcon'
 import PipelinesIcon from './icons/PipelinesIcon'
 import AlertsIcon from './icons/AlertsIcon'
 import SettingsIcon from './icons/SettingsIcon'
+import VaultIcon from './icons/VaultIcon'
 import { MenuBook as MenuBookIcon } from '@mui/icons-material'
 
 const DRAWER_WIDTH = 220
@@ -46,6 +47,7 @@ const navItems = [
   { text: 'Terraform',     icon: <TerraformIcon />,  path: '/terraform',      custom: true },
   { text: 'Kubernetes',    icon: <KubernetesIcon />, path: '/k8s',            custom: true },
   { text: 'Ansible',       icon: <AnsibleIcon />,    path: '/ansible',        custom: true },
+  { text: 'Vault',         icon: <VaultIcon />,      path: '/vault',          custom: true },
   { text: 'Monitoring',    icon: <MonitoringIcon />, path: '/metrics',        custom: true },
   { text: 'Pipelines',     icon: <PipelinesIcon />,  path: '/pipelines',      custom: true },
   { text: 'Alertes',       icon: <AlertsIcon />,     path: '/alerts',         custom: true },

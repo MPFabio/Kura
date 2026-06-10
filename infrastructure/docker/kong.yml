@@ -95,6 +95,19 @@ services:
     - GET
     - OPTIONS
 
+- name: vault-service
+  url: http://vault-service:8087
+  routes:
+  - name: vault-route
+    paths:
+    - /api/v1/vault
+    strip_path: false
+    methods:
+    - GET
+    - POST
+    - DELETE
+    - OPTIONS
+
 - name: pipeline-service
   url: http://pipeline-service:8084
   routes:

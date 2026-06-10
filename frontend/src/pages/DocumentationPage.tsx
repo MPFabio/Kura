@@ -29,6 +29,7 @@ const docSections: { id: string; label: string; children?: { id: string; label: 
       { id: 'k8s', label: 'Kubernetes' },
       { id: 'terraform', label: 'Terraform' },
       { id: 'ansible', label: 'Ansible' },
+      { id: 'vault', label: 'Vault' },
       { id: 'pipelines', label: 'Pipelines CI/CD' },
       { id: 'monitoring', label: 'Monitoring' },
     ],
@@ -140,6 +141,7 @@ function DocContent({ docId }: { docId: string }) {
             <li><strong>Terraform</strong> : uploadez un fichier <code>.tfstate</code> ou liez un bucket cloud → consultez vos ressources et détectez les dérives</li>
             <li><strong>Pipelines</strong> : connectez votre token GitHub → suivez vos workflows en temps réel</li>
             <li><strong>Ansible</strong> : connectez votre instance Semaphore → lancez et suivez vos playbooks</li>
+            <li><strong>Vault</strong> : connectez votre instance HashiCorp Vault → parcourez et gérez vos secrets</li>
             <li><strong>Monitoring</strong> : disponible automatiquement, aucune configuration requise</li>
           </Box>
         </Box>
@@ -275,6 +277,38 @@ provider "google" {
           </Typography>
         </Box>
       )
+    case 'vault':
+      return (
+        <Box sx={contentSx}>
+          <Typography component="h1">Module Vault</Typography>
+          <Typography>
+            Le module Vault vous permet de parcourir, créer et supprimer des secrets stockés dans votre instance <strong>HashiCorp Vault</strong>, directement depuis Kura.
+          </Typography>
+          <Typography component="h2">Connecter votre instance Vault</Typography>
+          <Typography>
+            Kura ne fournit pas de Vault : vous connectez <strong>votre propre instance</strong> (auto-hébergée, ou HCP Vault). Depuis la page Vault, ouvrez le panneau <strong>Connexion Vault</strong> et renseignez :
+          </Typography>
+          <Box component="ul">
+            <li><strong>Adresse Vault</strong> : l&apos;URL de votre instance Vault, joignable depuis Kura (ex : <code>https://vault.monentreprise.com:8200</code>)</li>
+            <li><strong>Token Vault</strong> : un token avec les droits de lecture/écriture sur le mount KV utilisé (créé via <code>vault token create</code> ou une policy dédiée)</li>
+            <li><strong>Mount path</strong> : le chemin du moteur KV v2 à utiliser (par défaut <code>secret</code>)</li>
+          </Box>
+          <Typography>
+            Cliquez <strong>Connecter</strong>. Le badge passe à <strong>Connecté</strong> et indique l&apos;état de scellement (<strong>Scellé</strong> / <strong>Déscellé</strong>) de votre Vault. La configuration est mémorisée par projet.
+          </Typography>
+          <Typography component="h2">Ce que vous pouvez faire</Typography>
+          <Box component="ul">
+            <li><strong>Parcourir</strong> : naviguer dans l&apos;arborescence des secrets (dossiers et clés) via le fil d&apos;Ariane</li>
+            <li><strong>Consulter</strong> : voir les clés d&apos;un secret, révéler ou masquer chaque valeur, et la copier dans le presse-papier</li>
+            <li><strong>Créer</strong> : ajouter un nouveau secret à un chemin donné, avec une ou plusieurs paires clé/valeur</li>
+            <li><strong>Supprimer</strong> : retirer un secret de Vault après confirmation</li>
+          </Box>
+          <Typography component="h2">Sécurité</Typography>
+          <Typography>
+            Le token Vault est stocké côté serveur et n&apos;est jamais ré-affiché en clair (la configuration renvoie <code>***</code>). Les valeurs des secrets ne sont révélées que dans l&apos;UI, à la demande, et transitent toujours via une connexion authentifiée à Kura.
+          </Typography>
+        </Box>
+      )
     case 'monitoring':
       return (
         <Box sx={contentSx}>
@@ -366,6 +400,11 @@ provider "google" {
           <Typography component="h2">Le module Ansible affiche « Aucun historique disponible »</Typography>
           <Typography>
             Vérifiez que la connexion Semaphore est configurée : page Ansible → panneau <em>Connecter un backend Ansible</em> → le badge doit être vert. Si le token ou l&apos;ID projet est incorrect, reconfigurez-les. Lancez un job dans Semaphore, puis actualisez.
+          </Typography>
+
+          <Typography component="h2">Vault affiche « Erreur lors de la connexion »</Typography>
+          <Typography>
+            Vérifiez que l&apos;<strong>adresse Vault</strong> est joignable depuis l&apos;infrastructure Kura (pas une adresse <code>localhost</code> ou un réseau privé inaccessible), que le <strong>token</strong> est valide et non expiré, et que le <strong>mount path</strong> correspond bien à un moteur KV v2 activé sur votre Vault (<code>vault secrets list</code>).
           </Typography>
 
           <Typography component="h2">Kubernetes — « Impossible de récupérer les namespaces »</Typography>
