@@ -11,6 +11,7 @@ import ModulesPage from './pages/ModulesPage'
 import K8sPage from './pages/K8sPage'
 import TerraformPage from './pages/TerraformPage'
 import AnsiblePage from './pages/AnsiblePage'
+import VaultPage from './pages/VaultPage'
 import PipelinePage from './pages/PipelinePage'
 import AlertsPage from './pages/AlertsPage'
 import MetricsPage from './pages/MetricsPage'
@@ -111,6 +112,7 @@ function AppRoot() {
         <Route path="k8s" element={<K8sPage />} />
         <Route path="terraform" element={<TerraformPage />} />
         <Route path="ansible" element={<AnsiblePage />} />
+        <Route path="vault" element={<VaultPage />} />
         <Route path="pipelines" element={<PipelinePage />} />
         <Route path="alerts" element={<AlertsPage />} />
         <Route path="metrics" element={<MetricsPage />} />

@@ -61,6 +61,7 @@ graph TB
     Gateway --> Terraform[Terraform Service Go]
     Gateway --> Ansible[Ansible Service Python]
     Gateway --> Pipeline[Pipeline Service Go]
+    Gateway --> Vault[Vault Service Go]
     
     K8s --> Kafka[Kafka Event Bus]
     Terraform --> Kafka
@@ -73,6 +74,7 @@ graph TB
     K8s --> Redis[(Redis Cache)]
     Terraform --> Redis
     Ansible --> Redis
+    Vault --> Redis
     
     K8s --> Postgres[(PostgreSQL)]
     Terraform --> Postgres
@@ -83,6 +85,8 @@ graph TB
     Terraform --> GCP[(GCP Storage)]
     
     Terraform --> GCPAPI[GCP Compute API]
+    
+    Vault --> ExtVault[(Vault du client)]
     
     Metrics --> Prometheus[(Prometheus)]
     Metrics --> Grafana[Grafana]
