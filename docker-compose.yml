@@ -103,7 +103,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256m
+          memory: 512m
     ports:
       - "8000:8000"
       - "8443:8443"
@@ -119,6 +119,7 @@ services:
       KONG_ADMIN_LISTEN: "127.0.0.1:8001"
       KONG_DNS_RESOLVER: "127.0.0.11"
       KONG_DNS_ORDER: "LAST,A,CNAME"
+      KONG_NGINX_WORKER_PROCESSES: "1"
     volumes:
       - ./infrastructure/docker/kong.yml:/usr/local/kong/kong.yml:ro
     depends_on:
