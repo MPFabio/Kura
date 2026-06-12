@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import React from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -31,24 +32,31 @@ import Logo from './Logo'
 import AnimatedBackground from './AnimatedBackground'
 import TerraformIcon from './icons/TerraformIcon'
 import KubernetesIcon from './icons/KubernetesIcon'
+import ArgoCDIcon from './icons/ArgoCDIcon'
+import ZotIcon from './icons/ZotIcon'
 import AnsibleIcon from './icons/AnsibleIcon'
 import ModulesIcon from './icons/ModulesIcon'
-import MonitoringIcon from './icons/MonitoringIcon'
+import ObservabilityIcon from './icons/ObservabilityIcon'
 import PipelinesIcon from './icons/PipelinesIcon'
 import AlertsIcon from './icons/AlertsIcon'
 import SettingsIcon from './icons/SettingsIcon'
 import VaultIcon from './icons/VaultIcon'
+import CodeIcon from './icons/CodeIcon'
 import { MenuBook as MenuBookIcon } from '@mui/icons-material'
+import { metricsService } from '../services/metricsService'
 
 const DRAWER_WIDTH = 220
 
 const navItems = [
   { text: 'Modules',       icon: <ModulesIcon />,    path: '/modules',        custom: true },
   { text: 'Terraform',     icon: <TerraformIcon />,  path: '/terraform',      custom: true },
+  { text: 'Repository',    icon: <CodeIcon />,       path: '/code',           custom: true },
   { text: 'Kubernetes',    icon: <KubernetesIcon />, path: '/k8s',            custom: true },
+  { text: 'ArgoCD',        icon: <ArgoCDIcon />,     path: '/argocd',         custom: true },
+  { text: 'Zot',           icon: <ZotIcon active />, path: '/registry',       custom: true },
   { text: 'Ansible',       icon: <AnsibleIcon />,    path: '/ansible',        custom: true },
   { text: 'Vault',         icon: <VaultIcon />,      path: '/vault',          custom: true },
-  { text: 'Monitoring',    icon: <MonitoringIcon />, path: '/metrics',        custom: true },
+  { text: 'Observabilité', icon: <ObservabilityIcon sx={{ width: 24, height: 24 }} active />, path: '/metrics',        custom: true, internalObservability: true },
   { text: 'Pipelines',     icon: <PipelinesIcon />,  path: '/pipelines',      custom: true },
   { text: 'Alertes',       icon: <AlertsIcon />,     path: '/alerts',         custom: true },
 ]
@@ -65,6 +73,16 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const { currentProject, projects, setCurrentProject } = useProject()
   const { connected } = useSocket()
+
+  const { data: platformConfig } = useQuery({
+    queryKey: ['platform-config'],
+    queryFn: () => metricsService.getPlatformConfig(),
+    staleTime: Infinity,
+  })
+
+  const visibleNavItems = navItems.filter(
+    (item) => !item.internalObservability || platformConfig?.internal_observability_enabled
+  )
 
   const handleLogout = async () => {
     await logout()
@@ -206,7 +224,7 @@ export default function Layout() {
 
       {/* Navigation principale */}
       <List sx={{ flex: 1, py: 1, overflowY: 'auto' }}>
-        {navItems.map((item) => <NavItem key={item.path} item={item} />)}
+        {visibleNavItems.map((item) => <NavItem key={item.path} item={item} />)}
       </List>
 
       {/* Navigation secondaire + user */}

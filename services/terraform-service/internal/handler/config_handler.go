@@ -37,6 +37,11 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	if encKey != "" {
 		encKeyMasked = "***"
 	}
+	githubToken := h.cfgStore.GetOrFallback(ctx, "github_token", "")
+	githubTokenMasked := ""
+	if githubToken != "" {
+		githubTokenMasked = "***"
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"state_backend":  backend,
 		"s3_bucket":      bucket,
@@ -44,7 +49,30 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		"s3_region":      region,
 		"s3_endpoint":    endpoint,
 		"encryption_key": encKeyMasked,
+		"github_token":   githubTokenMasked,
 	})
+}
+
+// deletableConfigKeys liste les clés de configuration pouvant être supprimées via DeleteConfigKey.
+var deletableConfigKeys = map[string]bool{
+	"github_token":   true,
+	"encryption_key": true,
+}
+
+// DeleteConfigKey supprime une clé de configuration (ex: github_token).
+// DELETE /api/v1/terraform/config/:key
+func (h *ConfigHandler) DeleteConfigKey(c *gin.Context) {
+	key := c.Param("key")
+	if !deletableConfigKeys[key] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "clé de configuration non supprimable"})
+		return
+	}
+	ctx := context.Background()
+	if err := h.cfgStore.Delete(ctx, key); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "configuration supprimée", "key": key})
 }
 
 // SetConfig met à jour la configuration du backend S3.
@@ -59,6 +87,7 @@ func (h *ConfigHandler) SetConfig(c *gin.Context) {
 		S3AccessKeyID string `json:"s3_access_key_id"`
 		S3SecretKey   string `json:"s3_secret_key"`
 		EncryptionKey string `json:"encryption_key"`
+		GitHubToken   string `json:"github_token"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -88,6 +117,9 @@ func (h *ConfigHandler) SetConfig(c *gin.Context) {
 	}
 	if body.EncryptionKey != "" {
 		kv["encryption_key"] = body.EncryptionKey
+	}
+	if body.GitHubToken != "" {
+		kv["github_token"] = body.GitHubToken
 	}
 	if len(kv) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "aucun champ à mettre à jour"})

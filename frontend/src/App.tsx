@@ -9,9 +9,12 @@ import ProjectsPage from './pages/ProjectsPage'
 import DashboardPage from './pages/DashboardPage'
 import ModulesPage from './pages/ModulesPage'
 import K8sPage from './pages/K8sPage'
+import ArgoCDPage from './pages/ArgoCDPage'
+import RegistryPage from './pages/RegistryPage'
 import TerraformPage from './pages/TerraformPage'
 import AnsiblePage from './pages/AnsiblePage'
 import VaultPage from './pages/VaultPage'
+import CodePage from './pages/CodePage'
 import PipelinePage from './pages/PipelinePage'
 import AlertsPage from './pages/AlertsPage'
 import MetricsPage from './pages/MetricsPage'
@@ -110,7 +113,10 @@ function AppRoot() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="modules" element={<ModulesPage />} />
         <Route path="k8s" element={<K8sPage />} />
+        <Route path="argocd" element={<ArgoCDPage />} />
+        <Route path="registry" element={<RegistryPage />} />
         <Route path="terraform" element={<TerraformPage />} />
+        <Route path="code" element={<CodePage />} />
         <Route path="ansible" element={<AnsiblePage />} />
         <Route path="vault" element={<VaultPage />} />
         <Route path="pipelines" element={<PipelinePage />} />

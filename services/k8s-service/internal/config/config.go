@@ -28,6 +28,9 @@ type Config struct {
 	RedisPassword string
 	RedisDB       int
 	CacheTTL      time.Duration
+
+	// Tracing (OpenTelemetry)
+	OTLPEndpoint string
 }
 
 func Load() (*Config, error) {
@@ -39,6 +42,8 @@ func Load() (*Config, error) {
 		KubeconfigPath: getEnv("KUBECONFIG_PATH", ""),
 
 		InternalAPISecret: getEnv("INTERNAL_API_SECRET", ""),
+
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}
 
 	// In-cluster ou kubeconfig
@@ -95,4 +100,3 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-

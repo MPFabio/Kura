@@ -84,6 +84,8 @@ jobs:
             context: services/vault-service
           - service: ansible-service
             context: services/ansible-service
+          - service: code-service
+            context: services/code-service
           - service: frontend
             context: frontend
             build-args: |

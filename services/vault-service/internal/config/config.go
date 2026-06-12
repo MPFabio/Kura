@@ -16,6 +16,9 @@ type Config struct {
 	RedisAddr      string
 	RedisPassword  string
 	RedisDB        int
+
+	// Tracing (OpenTelemetry)
+	OTLPEndpoint string
 }
 
 func Load() (*Config, error) {
@@ -38,6 +41,8 @@ func Load() (*Config, error) {
 		RedisAddr:      fmt.Sprintf("%s:%s", redisHost, redisPort),
 		RedisPassword:  getEnv("REDIS_PASSWORD", ""),
 		RedisDB:        redisDB,
+
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}, nil
 }
 

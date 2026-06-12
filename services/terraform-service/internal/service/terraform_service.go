@@ -8,8 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/modulops/terraform-service/internal/client"
 	"github.com/modulops/terraform-service/internal/config"
 	gcpDrift "github.com/modulops/terraform-service/internal/drift/gcp"
+	"github.com/modulops/terraform-service/internal/drift/fine"
 	"github.com/modulops/terraform-service/internal/models"
 	"github.com/modulops/terraform-service/internal/parser"
 	"github.com/modulops/terraform-service/internal/storage"
@@ -313,25 +315,86 @@ func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string, 
 		}
 	}
 
-	// Mettre à jour le stateFile avec les résultats
+	for _, r := range results {
+		if r.Method == "" {
+			r.Method = "fast"
+		}
+	}
+
+	s.persistDriftResults(ctx, stateFile, results)
+
+	return results, nil
+}
+
+// DetectDriftFine détecte les dérives en exécutant `tofu plan -refresh-only`
+// contre les fichiers .tf source récupérés depuis GitHub et le tfstate stocké.
+// Retourne une erreur si la source n'a pas de dépôt GitHub configuré.
+func (s *TerraformService) DetectDriftFine(ctx context.Context, stateFileID string, source *models.StateSource, githubToken string, envCreds map[string]string) ([]*models.DriftResult, error) {
+	if source == nil || source.Config.GitHubOwner == "" || source.Config.GitHubRepo == "" {
+		return nil, fmt.Errorf("aucun dépôt GitHub configuré pour cette source")
+	}
+
+	stateFile, err := s.GetStateFile(ctx, stateFileID)
+	if err != nil {
+		return nil, err
+	}
+	if stateFile.State == nil {
+		return nil, fmt.Errorf("état vide")
+	}
+
+	stateJSON, err := json.Marshal(stateFile.State)
+	if err != nil {
+		return nil, fmt.Errorf("sérialisation du tfstate: %w", err)
+	}
+
+	gh := client.NewGitHubClient(githubToken)
+	ref := source.Config.GitHubRef
+	if ref == "" {
+		ref = "main"
+	}
+	tfFiles, err := gh.FetchTFFiles(source.Config.GitHubOwner, source.Config.GitHubRepo, source.Config.GitHubPath, ref)
+	if err != nil {
+		return nil, fmt.Errorf("récupération des fichiers .tf: %w", err)
+	}
+
+	outputValues := make(map[string]interface{}, len(stateFile.State.Outputs))
+	for name, out := range stateFile.State.Outputs {
+		outputValues[name] = out.Value
+	}
+
+	runner := fine.NewRunner(s.cfg.TofuPath)
+	plan, err := runner.Run(ctx, fine.RunInput{
+		TFFiles:   tfFiles,
+		StateJSON: stateJSON,
+		EnvCreds:  envCreds,
+		Outputs:   outputValues,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("exécution tofu plan: %w", err)
+	}
+
+	results := fine.ParsePlan(plan, stateFile.State.Resources, time.Now())
+
+	s.persistDriftResults(ctx, stateFile, results)
+
+	return results, nil
+}
+
+// persistDriftResults met à jour le stateFile avec les résultats de drift et le persiste en cache/mémoire.
+func (s *TerraformService) persistDriftResults(ctx context.Context, stateFile *models.StateFile, results []*models.DriftResult) {
 	stateFile.DriftResults = results
 	stateFile.LastChecked = time.Now()
 
 	stateTTL := 30 * 24 * time.Hour
 	stateJSON, err := json.Marshal(stateFile)
 	if err == nil {
-		// Sauvegarder sous la clé simple
 		_ = s.cache.Set(ctx, fmt.Sprintf("terraform:state:%s", stateFile.ID), string(stateJSON), stateTTL)
-		// Sauvegarder aussi sous la clé avec project_id si disponible
 		if stateFile.ProjectID != "" {
 			_ = s.cache.Set(ctx, fmt.Sprintf("terraform:state:%s:%s", stateFile.ProjectID, stateFile.ID), string(stateJSON), stateTTL)
 		}
 	}
 
-	// Mettre à jour en mémoire
 	s.states[stateFile.ID] = stateFile
-
-	return results, nil
 }
 
 // DeleteStateFile supprime un fichier d'état.

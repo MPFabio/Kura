@@ -13,8 +13,10 @@ import (
 	"github.com/modulops/auth-service/internal/handler"
 	"github.com/modulops/auth-service/internal/repository"
 	"github.com/modulops/auth-service/internal/service"
+	"github.com/modulops/auth-service/internal/tracing"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 // authRateLimiter protège Login et Register contre le brute-force :
@@ -26,6 +28,18 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Erreur lors du chargement de la configuration: %v", err)
+	}
+
+	// Initialiser le tracing OpenTelemetry (export vers Tempo)
+	shutdownTracing, err := tracing.Init(context.Background(), "auth-service", cfg.OTLPEndpoint)
+	if err != nil {
+		log.Printf("⚠️  Tracing OpenTelemetry désactivé (%v)", err)
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = shutdownTracing(ctx)
+		}()
 	}
 
 	// Initialiser le repository
@@ -85,6 +99,9 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 	}
 
 	router := gin.Default()
+
+	// Middleware de tracing OpenTelemetry
+	router.Use(otelgin.Middleware("auth-service", otelgin.WithFilter(tracing.SkipHealthAndMetrics)))
 
 	// Middleware CORS
 	router.Use(corsMiddleware())
@@ -150,6 +167,7 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 		cfg.GET("/:service", configHandler.GetServiceConfig)
 		cfg.GET("/:service/:key", configHandler.GetServiceKey)
 		cfg.POST("/:service", configHandler.SetServiceConfigs)
+		cfg.DELETE("/:service/:key", configHandler.DeleteServiceKey)
 	}
 
 	return router

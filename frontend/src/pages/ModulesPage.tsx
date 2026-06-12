@@ -10,17 +10,23 @@ import ModuleTitle from '../components/ModuleTitle'
 import { ModuleBodyText, ModuleSecondaryText, ModuleSubtitle, ModuleCaption } from '../components/ModuleText'
 import TerraformIcon from '../components/icons/TerraformIcon'
 import KubernetesIcon from '../components/icons/KubernetesIcon'
+import ArgoCDIcon from '../components/icons/ArgoCDIcon'
 import AnsibleIcon from '../components/icons/AnsibleIcon'
 import PipelinesIcon from '../components/icons/PipelinesIcon'
-import MonitoringIcon from '../components/icons/MonitoringIcon'
+import ObservabilityIcon from '../components/icons/ObservabilityIcon'
 import { useProject } from '../contexts/ProjectContext'
 import { terraformService } from '../services/terraformService'
 import { clusterService } from '../services/clusterService'
 import { ansibleService } from '../services/ansibleService'
 import { vaultService } from '../services/vaultService'
+import { argocdService } from '../services/argocdService'
 import VaultIcon from '../components/icons/VaultIcon'
+import CodeIcon from '../components/icons/CodeIcon'
 import { pipelineService } from '../services/pipelineService'
 import { k8sService } from '../services/k8sService'
+import { projectService } from '../services/projectService'
+import { registryService } from '../services/registryService'
+import ZotIcon from '../components/icons/ZotIcon'
 import { kuraColors } from '../theme'
 
 interface Module {
@@ -88,6 +94,12 @@ export default function ModulesPage() {
     retry: false,
   })
 
+  const { data: argocdStatusData } = useQuery({
+    queryKey: ['argocd-status-summary'],
+    queryFn: () => argocdService.getStatus(),
+    retry: false,
+  })
+
   // Namespaces pour agréger pods et services
   const SYSTEM_NAMESPACES = ['kube-system', 'kube-public', 'kube-node-lease', 'gke-system', 'gmp-system', 'gmp-public']
 
@@ -135,11 +147,29 @@ export default function ModulesPage() {
   const ansibleInventoriesCount = ansibleInventoriesData?.items?.length ?? 0
   const ansibleTemplatesCount = ansibleTemplatesData?.items?.length ?? 0
   const formatStat = (n: number | null) => (n === null ? '—' : String(n))
+
+  const { data: mappingsData } = useQuery({
+    queryKey: ['project-mappings', currentProject?.id],
+    queryFn: () => projectService.listMappings(currentProject!.id),
+    enabled: !!currentProject?.id,
+  })
+
+  const linkedRepos = (mappingsData?.items ?? []).filter((m) => !!m.github_repository)
+  const repoCount = hasProject ? linkedRepos.length : null
   
   const { data: pipelineData } = useQuery({
     queryKey: ['pipeline-runs'],
     queryFn: () => pipelineService.getRuns({ limit: 50 }),
   })
+
+  const { data: registryReposData } = useQuery({
+    queryKey: ['registry-repositories-summary'],
+    queryFn: () => registryService.listRepositories(),
+    retry: false,
+  })
+
+  const registryRepoCount = registryReposData?.length ?? 0
+  const registryTagCount = (registryReposData ?? []).reduce((sum, repo) => sum + repo.tag_count, 0)
 
 
     const runs = pipelineData?.runs ?? []
@@ -178,6 +208,26 @@ export default function ModulesPage() {
         'Synchronisation S3, Azure, GCP',
         'Détection de drift automatique',
         'Visualisation des ressources',
+      ],
+    },
+    {
+      id: 'code',
+      name: 'Repository',
+      icon: <CodeIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
+      path: '/code',
+      active: true,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'Navigateur de code source pour les dépôts GitHub liés à votre projet : arborescence, fichiers et historique des commits.',
+      stats: [
+        { label: 'Dépôts liés', value: formatStat(repoCount) },
+        { label: 'Type', value: 'GitHub' },
+        { label: 'Accès', value: 'Lecture seule' },
+      ],
+      features: [
+        'Arborescence et coloration syntaxique',
+        'Aperçu Markdown des README',
+        'Historique des commits et diffs',
       ],
     },
     {
@@ -241,6 +291,48 @@ export default function ModulesPage() {
       ],
     },
     {
+      id: 'argocd',
+      name: 'ArgoCD',
+      icon: <ArgoCDIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
+      path: '/argocd',
+      active: true,
+      status: argocdStatusData?.installed ? 'active' : 'inactive',
+      statusText: argocdStatusData?.installed
+        ? (argocdStatusData?.server_ready ? 'Module actif' : 'Démarrage en cours')
+        : 'Non installé',
+      description: 'Déploiement continu GitOps avec ArgoCD : applications, synchronisation et historique des déploiements.',
+      stats: [
+        { label: 'Statut', value: argocdStatusData?.installed ? 'Installé' : 'Non installé' },
+        { label: 'Serveur', value: argocdStatusData?.server_ready ? 'Prêt' : '—' },
+        { label: 'Version', value: argocdStatusData?.version || '—' },
+      ],
+      features: [
+        'Synchronisation GitOps des Applications',
+        'Création d\'Applications depuis l\'UI',
+        'Historique des déploiements et rollback',
+      ],
+    },
+    {
+      id: 'registry',
+      name: 'Zot',
+      icon: <ZotIcon sx={{ width: 80, height: 80 }} active={true} />,
+      path: '/registry',
+      active: true,
+      status: 'active',
+      statusText: 'Module actif',
+      description: 'Registre OCI privé (Zot) pour vos images Docker et charts Helm, avec vérification de signature Cosign.',
+      stats: [
+        { label: 'Dépôts', value: registryRepoCount },
+        { label: 'Tags', value: registryTagCount },
+        { label: 'Signature', value: 'Cosign' },
+      ],
+      features: [
+        'Catalogue d\'images et de charts Helm',
+        'Vérification des signatures Cosign',
+        'Intégration avec le catalogue Helm ArgoCD',
+      ],
+    },
+    {
       id: 'pipelines',
       name: 'Pipelines',
       icon: <PipelinesIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
@@ -265,22 +357,23 @@ export default function ModulesPage() {
     },
     {
       id: 'monitoring',
-      name: 'Monitoring',
-      icon: <MonitoringIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
+      name: 'Observabilité',
+      icon: <ObservabilityIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/metrics',
       active: true,
       inactive: false,
       status: 'active',
-      subtitle: 'Prometheus · Grafana',
-      description: 'Surveillance complète de votre infrastructure avec métriques en temps réel, health checks et dashboards Grafana.',
+      subtitle: 'Prometheus · Loki · Tempo · Grafana',
+      description: 'Observabilité complète de votre infrastructure : métriques temps réel, logs centralisés, traces distribuées et dashboards Grafana.',
       stats: [
         { label: 'Services', value: '6' },
         { label: 'Alertes', value: '0' },
         { label: 'Dashboard', value: 'Grafana' },
       ],
       features: [
-        'Health checks en temps réel',
-        'Métriques Prometheus',
+        'Métriques Prometheus en temps réel',
+        'Logs centralisés (Loki)',
+        'Traces distribuées (Tempo)',
         'Dashboard Grafana intégré',
       ],
     },
