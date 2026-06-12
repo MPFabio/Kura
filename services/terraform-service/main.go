@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"github.com/modulops/terraform-service/internal/cache"
 	"github.com/modulops/terraform-service/internal/config"
@@ -17,6 +18,7 @@ import (
 	"github.com/modulops/terraform-service/internal/s3"
 	"github.com/modulops/terraform-service/internal/service"
 	"github.com/modulops/terraform-service/internal/storage"
+	"github.com/modulops/terraform-service/internal/tracing"
 	"github.com/modulops/terraform-service/internal/worker"
 )
 
@@ -25,6 +27,18 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Erreur lors du chargement de la configuration: %v", err)
+	}
+
+	// Initialiser le tracing OpenTelemetry (export vers Tempo)
+	shutdownTracing, err := tracing.Init(context.Background(), "terraform-service", cfg.OTLPEndpoint)
+	if err != nil {
+		log.Printf("⚠️  Tracing OpenTelemetry désactivé (%v)", err)
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = shutdownTracing(ctx)
+		}()
 	}
 
 	// Initialiser le cache Redis
@@ -108,6 +122,9 @@ func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *hand
 
 	router := gin.Default()
 
+	// Middleware de tracing OpenTelemetry
+	router.Use(otelgin.Middleware("terraform-service", otelgin.WithFilter(tracing.SkipHealthAndMetrics)))
+
 	// Middleware CORS simple
 	router.Use(corsMiddleware())
 
@@ -123,6 +140,7 @@ func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *hand
 			// Configuration persistante
 			terraformGroup.GET("/config", configHandler.GetConfig)
 			terraformGroup.POST("/config", configHandler.SetConfig)
+			terraformGroup.DELETE("/config/:key", configHandler.DeleteConfigKey)
 
 			// Gestion des états Terraform
 			terraformGroup.POST("/states/upload", terraformHandler.UploadStateFile)

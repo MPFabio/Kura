@@ -88,36 +88,40 @@ export default function AlertsPage() {
     const result: KuraAlert[] = []
 
     try {
-      const health: ServiceHealth[] = await metricsService.getHealth()
-      const down = health.filter((s) => !s.up)
-      const up = health.filter((s) => s.up)
+      const platformConfig = await metricsService.getPlatformConfig()
 
-      down.forEach((svc) => {
-        result.push({
-          id: `down-${svc.job}`,
-          severity: 'critical',
-          title: `Service hors ligne — ${svc.name}`,
-          message: `${svc.job} ne répond plus à son health check`,
-          source: 'Monitoring',
-          timestamp: new Date(),
-        })
-      })
+      if (platformConfig.internal_observability_enabled) {
+        const health: ServiceHealth[] = await metricsService.getHealth()
+        const down = health.filter((s) => !s.up)
+        const up = health.filter((s) => s.up)
 
-      if (down.length === 0 && up.length > 0) {
-        result.push({
-          id: 'all-up',
-          severity: 'info',
-          title: 'Tous les services opérationnels',
-          message: `${up.length} service${up.length > 1 ? 's' : ''} actif${up.length > 1 ? 's' : ''}`,
-          source: 'Monitoring',
-          timestamp: new Date(),
+        down.forEach((svc) => {
+          result.push({
+            id: `down-${svc.job}`,
+            severity: 'critical',
+            title: `Service hors ligne — ${svc.name}`,
+            message: `${svc.job} ne répond plus à son health check`,
+            source: 'Observabilité',
+            timestamp: new Date(),
+          })
         })
+
+        if (down.length === 0 && up.length > 0) {
+          result.push({
+            id: 'all-up',
+            severity: 'info',
+            title: 'Tous les services opérationnels',
+            message: `${up.length} service${up.length > 1 ? 's' : ''} actif${up.length > 1 ? 's' : ''}`,
+            source: 'Observabilité',
+            timestamp: new Date(),
+          })
+        }
       }
     } catch {
       result.push({
         id: 'metrics-error',
         severity: 'warning',
-        title: 'Monitoring indisponible',
+        title: 'Observabilité indisponible',
         message: 'Le metrics-service ne répond pas',
         source: 'Monitoring',
         timestamp: new Date(),
@@ -127,12 +131,20 @@ export default function AlertsPage() {
     try {
       const runs = await pipelineService.getRuns({ limit: 20 })
       const recentRuns: PipelineRun[] = runs?.runs ?? []
-      const failed = recentRuns.filter((r) => (r.status as string) === 'failure' || (r.status as string) === 'failed')
-      const seen = new Set<string>()
-      failed.forEach((r) => {
+      // Ne garder que le run le plus récent par (repo, workflow), et alerter
+      // uniquement si ce dernier run est en échec.
+      const latestByWorkflow = new Map<string, PipelineRun>()
+      recentRuns.forEach((r) => {
         const key = `${r.repository}-${r.workflow_name}`
-        if (seen.has(key)) return
-        seen.add(key)
+        const existing = latestByWorkflow.get(key)
+        const rTime = r.started_at ? new Date(r.started_at).getTime() : 0
+        const existingTime = existing?.started_at ? new Date(existing.started_at).getTime() : 0
+        if (!existing || rTime > existingTime) {
+          latestByWorkflow.set(key, r)
+        }
+      })
+      latestByWorkflow.forEach((r) => {
+        if ((r.status as string) !== 'failure' && (r.status as string) !== 'failed') return
         result.push({
           id: `pipeline-${r.id}`,
           severity: 'warning',

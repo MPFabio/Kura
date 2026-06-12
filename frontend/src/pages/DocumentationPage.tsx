@@ -27,11 +27,14 @@ const docSections: { id: string; label: string; children?: { id: string; label: 
     label: 'Modules',
     children: [
       { id: 'k8s', label: 'Kubernetes' },
+      { id: 'argocd', label: 'ArgoCD & Helm' },
+      { id: 'registry', label: 'Zot' },
       { id: 'terraform', label: 'Terraform' },
+      { id: 'code', label: 'Repository' },
       { id: 'ansible', label: 'Ansible' },
       { id: 'vault', label: 'Vault' },
       { id: 'pipelines', label: 'Pipelines CI/CD' },
-      { id: 'monitoring', label: 'Monitoring' },
+      { id: 'monitoring', label: 'Observabilité' },
     ],
   },
   {
@@ -142,7 +145,7 @@ function DocContent({ docId }: { docId: string }) {
             <li><strong>Pipelines</strong> : connectez votre token GitHub → suivez vos workflows en temps réel</li>
             <li><strong>Ansible</strong> : connectez votre instance Semaphore → lancez et suivez vos playbooks</li>
             <li><strong>Vault</strong> : connectez votre instance HashiCorp Vault → parcourez et gérez vos secrets</li>
-            <li><strong>Monitoring</strong> : disponible automatiquement, aucune configuration requise</li>
+            <li><strong>Observabilité</strong> : disponible automatiquement, aucune configuration requise</li>
           </Box>
         </Box>
       )
@@ -195,6 +198,106 @@ function DocContent({ docId }: { docId: string }) {
           </Typography>
         </Box>
       )
+    case 'argocd':
+      return (
+        <Box sx={contentSx}>
+          <Typography component="h1">Module ArgoCD &amp; Catalogue Helm</Typography>
+          <Typography>
+            Le module ArgoCD apporte le <strong>GitOps</strong> à Kura : ArgoCD surveille en continu un dépôt Git (ou un chart Helm) et synchronise automatiquement le cluster Kubernetes actif avec l&apos;état déclaré. Depuis la page ArgoCD, vous pouvez installer ArgoCD sur le cluster actif, créer des <strong>Applications</strong>, suivre leur statut de synchronisation/santé, déclencher une synchronisation manuelle, consulter l&apos;historique des déploiements et effectuer un rollback.
+          </Typography>
+          <Typography component="h2">Installation</Typography>
+          <Typography>
+            Le bouton <strong>Installer ArgoCD</strong> déploie ArgoCD dans le namespace <code>argocd</code> du cluster actif. Une fois le serveur prêt, la section « Applications » devient disponible.
+          </Typography>
+          <Typography component="h2">Créer une Application — deux sources possibles</Typography>
+          <Typography>
+            Une Application ArgoCD décrit <strong>quoi déployer</strong> (source) et <strong>où</strong> (destination : cluster + namespace), avec une politique de synchronisation (manuelle ou automatique, avec <em>prune</em> et <em>self-heal</em>). Kura propose deux façons de définir la source :
+          </Typography>
+          <Box component="ul">
+            <li><strong>Nouvelle Application (source Git)</strong> : mode classique/avancé. Vous renseignez l&apos;URL d&apos;un dépôt Git contenant des manifests Kubernetes ou un chart Helm (<code>spec.source.repoURL</code> + <code>spec.source.path</code>), ainsi que la révision cible (branche, tag ou commit).</li>
+            <li><strong>Depuis le catalogue Helm (source Helm/ArtifactHub)</strong> : mode guidé pour déployer un outil connu (Prometheus, cert-manager, ingress-nginx, Loki, etc.) sans avoir à gérer un dépôt Git. Le formulaire est pré-rempli automatiquement à partir du chart choisi dans le catalogue.</li>
+          </Box>
+          <Typography component="h2">Catalogue Helm (ArtifactHub)</Typography>
+          <Typography>
+            Le bouton <strong>Depuis le catalogue Helm</strong> ouvre une recherche en direct dans <a href="https://artifacthub.io" target="_blank" rel="noreferrer">ArtifactHub</a>, l&apos;annuaire public officiel des charts Helm (charts <strong>CNCF</strong> et <strong>officiels</strong> mis en avant par défaut). Pour chaque chart, Kura affiche le logo, la description, le dépôt source, la version la plus récente et les badges « CNCF » / « Officiel ».
+          </Typography>
+          <Typography>
+            En cliquant sur un chart, le formulaire de création d&apos;Application se pré-remplit avec : l&apos;URL du dépôt Helm, le nom du chart et sa version. Il ne reste plus qu&apos;à renseigner le <strong>nom de l&apos;Application</strong> et le <strong>namespace de destination</strong>, et éventuellement personnaliser les <strong>Values (YAML)</strong> pour surcharger les valeurs par défaut du chart.
+          </Typography>
+          <Typography component="h3">Pourquoi pas un module Helm séparé ?</Typography>
+          <Typography>
+            Pour éviter toute <strong>dérive GitOps</strong> (« drift »), Kura ne propose pas d&apos;installer un chart Helm directement (<code>helm install</code>) en dehors d&apos;ArgoCD : cela créerait deux sources de vérité différentes pour le même cluster. Les charts du catalogue sont donc déployés exclusivement via <code>spec.source.helm</code> d&apos;ArgoCD — ArgoCD reste la seule autorité sur l&apos;état du cluster, qu&apos;il s&apos;agisse de manifests Git ou de charts Helm.
+          </Typography>
+          <Typography component="h2">Suivi et opérations</Typography>
+          <Box component="ul">
+            <li><strong>Statut de synchronisation</strong> : <code>Synced</code> (conforme), <code>OutOfSync</code> (dérive détectée) ou inconnu.</li>
+            <li><strong>Statut de santé</strong> : état de santé Kubernetes de l&apos;Application (Healthy, Progressing, Degraded...).</li>
+            <li><strong>Synchroniser</strong> : déclenche manuellement une synchronisation (avec option <em>prune</em> pour supprimer les ressources qui ne sont plus déclarées).</li>
+            <li><strong>Rafraîchir</strong> : force ArgoCD à recomparer l&apos;état désiré avec l&apos;état réel du cluster.</li>
+            <li><strong>Historique &amp; rollback</strong> : chaque synchronisation est enregistrée ; vous pouvez revenir à une révision précédente directement depuis l&apos;interface.</li>
+            <li><strong>Synchronisation automatique</strong> : si activée (avec <em>self-heal</em>), ArgoCD réapplique automatiquement l&apos;état déclaré dès qu&apos;une dérive est détectée, sans action manuelle.</li>
+          </Box>
+        </Box>
+      )
+    case 'registry':
+      return (
+        <Box sx={contentSx}>
+          <Typography component="h1">Module Zot</Typography>
+          <Typography>
+            Le module Zot fournit un <strong>registre OCI privé</strong> pour héberger vos propres images de conteneurs et vos charts Helm, avec un suivi de signature <strong>Cosign</strong>. Il est propulsé par <a href="https://zotregistry.dev" target="_blank" rel="noreferrer">Zot</a>, un registre OCI léger (CNCF Sandbox).
+          </Typography>
+          <Typography>
+            Conformément au principe <strong>« Kura arrive nu »</strong>, Zot n&apos;est pas hébergé sur l&apos;infrastructure de Kura : il est déployé <strong>dans le cluster du client</strong>, au même titre qu&apos;ArgoCD ou cert-manager. Kura s&apos;y connecte à distance via le kubeconfig du cluster actif, en ouvrant un tunnel (port-forward) vers le pod Zot — aucune donnée du client n&apos;est stockée côté Kura.
+          </Typography>
+          <Typography component="h2">Déployer Zot dans votre cluster</Typography>
+          <Typography>
+            Zot se déploie comme une <strong>Application ArgoCD</strong> (chart Helm officiel ou manifests Git), dans un namespace dédié <code>zot</code>. Pour que le module Zot de Kura fonctionne, le déploiement doit respecter :
+          </Typography>
+          <Box component="ul">
+            <li>Namespace : <code>zot</code></li>
+            <li>Label du pod : <code>app=zot</code> (utilisé par Kura pour localiser le pod via le port-forward)</li>
+            <li>Service nommé <code>zot</code>, exposant le port <code>5000</code></li>
+          </Box>
+          <Typography>
+            Une fois déployé et <strong>Synced/Healthy</strong> dans ArgoCD, la page Zot de Kura affiche automatiquement le contenu du registre. Si aucun pod Zot n&apos;est trouvé dans le cluster actif, la page affiche un message d&apos;erreur explicite.
+          </Typography>
+          <Typography component="h2">Pourquoi Zot plutôt que Harbor ?</Typography>
+          <Typography>
+            Zot est un binaire Go unique, sans base de données externe ni scanner de vulnérabilités imposé. Harbor impose une stack plus lourde (PostgreSQL, Redis, Trivy). Kura n&apos;intègre <strong>volontairement aucun scanner de vulnérabilités type Trivy</strong> — le module Registre se concentre sur l&apos;hébergement et la <strong>signature cryptographique</strong> des artefacts via Cosign, qui constitue une garantie d&apos;intégrité et de provenance indépendante d&apos;un scanner CVE.
+          </Typography>
+          <Typography component="h2">Parcourir le registre</Typography>
+          <Typography>
+            La page Zot liste tous les <strong>dépôts</strong> (repositories) présents dans Zot, avec leur nombre de tags. En cliquant sur un dépôt, vous accédez au détail de chaque tag : son <strong>type</strong> (image de conteneur ou chart Helm, détecté via le <code>mediaType</code> OCI du manifeste), sa <strong>taille</strong>, et son statut de signature.
+          </Typography>
+          <Typography component="h2">Statut de signature Cosign</Typography>
+          <Typography>
+            Cosign stocke chaque signature comme un artefact OCI séparé, associé à l&apos;image via un tag au format <code>&lt;algo&gt;-&lt;digest&gt;.sig</code> (ex : <code>sha256-abcd1234....sig</code>). Kura détecte la présence de ce tag pour chaque manifeste et affiche le badge <strong>« Signé (Cosign) »</strong> (vert) ou <strong>« Non signé »</strong> en conséquence — sans appel à un service externe.
+          </Typography>
+          <Typography component="h2">Pousser des images depuis vos pipelines CI/CD</Typography>
+          <Typography>
+            Le registre Zot est joignable depuis l&apos;intérieur du cluster client à l&apos;adresse <code>zot.zot.svc.cluster.local:5000</code> (DNS du Service Kubernetes dans le namespace <code>zot</code>). Pour pousser depuis un pipeline CI/CD externe au cluster, exposez le Service via un <code>Ingress</code> ou un <code>LoadBalancer</code> et utilisez cette adresse à la place. Stockez les identifiants éventuels dans <strong>Vault</strong> (voir la section <em>Vault</em>) et utilisez-les dans votre pipeline, par exemple avec Docker :
+          </Typography>
+          <Box component="ul">
+            <li><code>docker login zot.zot.svc.cluster.local:5000 -u $REGISTRY_USER -p $REGISTRY_PASSWORD</code></li>
+            <li><code>docker build -t zot.zot.svc.cluster.local:5000/mon-app:1.0.0 .</code></li>
+            <li><code>docker push zot.zot.svc.cluster.local:5000/mon-app:1.0.0</code></li>
+          </Box>
+          <Typography>
+            Pour signer l&apos;image après le push avec <strong>Cosign</strong> :
+          </Typography>
+          <Box component="ul">
+            <li><code>cosign generate-key-pair</code> (une seule fois, à conserver dans Vault)</li>
+            <li><code>cosign sign --key cosign.key zot.zot.svc.cluster.local:5000/mon-app:1.0.0</code></li>
+          </Box>
+          <Typography>
+            Une fois la signature poussée, le badge « Signé (Cosign) » apparaît automatiquement dans la page Zot pour ce tag.
+          </Typography>
+          <Typography component="h2">Charts Helm internes et catalogue ArgoCD</Typography>
+          <Typography>
+            Les charts Helm publiés au format OCI dans Zot (<code>mediaType</code> <code>application/vnd.cncf.helm.config.v1+json</code>) apparaissent automatiquement dans l&apos;onglet <strong>« Zot »</strong> du catalogue Helm de la page ArgoCD, aux côtés des charts publics d&apos;ArtifactHub. La sélection d&apos;un chart interne pré-remplit le formulaire de création d&apos;Application avec <code>oci://zot.zot.svc.cluster.local:5000</code> comme dépôt, exactement comme pour un chart ArtifactHub.
+          </Typography>
+        </Box>
+      )
     case 'terraform':
       return (
         <Box sx={contentSx}>
@@ -242,6 +345,77 @@ provider "google" {
           <Typography component="h2">Résultats</Typography>
           <Typography>
             La page de résultat liste chaque ressource du tfstate avec son statut et un message explicatif. Les différences (attributs modifiés) sont affichées pour les ressources en drift. La note en bas de page rappelle que la détection utilise les APIs réelles des providers pour comparer l&apos;état réel au tfstate.
+          </Typography>
+
+          <Typography component="h2">Détection de drift « fine » (via OpenTofu)</Typography>
+          <Typography>
+            En complément du mode <strong>Fast</strong> (détecteurs dédiés par type de ressource, décrit ci-dessus), Kura propose un mode <strong>Fine</strong> : il exécute <code>tofu plan -refresh-only</code> directement sur vos fichiers <code>.tf</code> récupérés depuis GitHub. Ce mode fonctionne pour <strong>n&apos;importe quel type de ressource</strong>, sur n&apos;importe quel provider (GCP, AWS, Azure…), sans nécessiter de support spécifique côté Kura.
+          </Typography>
+          <Typography component="h3">1. Configurer un token GitHub</Typography>
+          <Typography>
+            Depuis l&apos;onglet <strong>Configuration</strong> du module Terraform, renseignez un <strong>token d&apos;accès personnel GitHub</strong> (scope <code>repo</code> pour un dépôt privé, ou <code>public_repo</code> pour un dépôt public). Un badge indique si un token est configuré (« Token configuré » / « Aucun token configuré »). Le token est partagé par toutes les sources du projet et peut être supprimé via le bouton <strong>Supprimer</strong>.
+          </Typography>
+          <Typography component="h3">2. Configurer le dépôt sur la source</Typography>
+          <Typography>
+            Dans le formulaire d&apos;ajout/édition d&apos;une source (section « Drift fine (optionnel) »), renseignez :
+          </Typography>
+          <Box component="ul">
+            <li><strong>Owner</strong> : le compte ou l&apos;organisation GitHub (ex : <code>MPFabio</code> pour <code>github.com/MPFabio/mon-repo</code>)</li>
+            <li><strong>Repo</strong> : le nom du dépôt (ex : <code>mon-repo</code>)</li>
+            <li><strong>Path</strong> : le chemin du dossier contenant les fichiers <code>.tf</code> (ex : <code>terraform</code>, ou vide pour la racine)</li>
+            <li><strong>Ref</strong> : la branche ou le tag à utiliser (par défaut <code>main</code>)</li>
+          </Box>
+          <Typography component="h3">3. Conventions attendues pour vos fichiers .tf</Typography>
+          <Box component="ul">
+            <li>Seuls les fichiers <code>.tf</code> situés <strong>directement</strong> dans le dossier indiqué par <em>Path</em> sont chargés (pas les sous-dossiers/modules).</li>
+            <li>Tout bloc <code>backend &quot;...&quot; {'{ }'}</code> à l&apos;intérieur du bloc <code>terraform {'{ }'}</code> est automatiquement retiré : Kura utilise toujours le tfstate déjà importé dans la plateforme, jamais votre backend distant (S3, GCS, etc.).</li>
+            <li>
+              Les <strong>variables sans valeur par défaut</strong> sont résolues automatiquement, dans l&apos;ordre suivant :
+              <Box component="ol" sx={{ pl: 2.5, mt: 0.5, '& li': { mb: 0.5 } }}>
+                <li>une <em>output</em> du tfstate portant exactement le même nom ;</li>
+                <li>pour les variables contenant <code>zone</code> ou <code>region</code> : une output dont le nom contient ce mot-clé, ou une région dérivée d&apos;une output « zone » (ex : <code>europe-west1-b</code> → <code>europe-west1</code>) ;</li>
+                <li>une valeur par défaut neutre selon le type déclaré (<code>0</code> pour <code>number</code>, <code>false</code> pour <code>bool</code>, chaîne vide sinon).</li>
+              </Box>
+            </li>
+            <li>
+              Ces heuristiques évitent d&apos;avoir à modifier votre dépôt, mais peuvent produire des valeurs imprécises si aucune output pertinente n&apos;existe dans le tfstate (ex : <code>node_count</code> résolu à <code>0</code>). Pour des résultats fiables, déclarez des <code>default</code> explicites dans <code>variables.tf</code> pour les variables qui ne correspondent à aucune output.
+            </li>
+          </Box>
+          <Typography component="h3">4. Lancer une détection et lire le résultat</Typography>
+          <Typography>
+            Le paramètre <code>method</code> contrôle le mode utilisé : <code>fine</code> (force le mode fin, erreur si aucun dépôt n&apos;est configuré sur la source), <code>fast</code> (détecteurs existants), ou <code>auto</code> (par défaut : <strong>fine</strong> si un dépôt GitHub est configuré sur la source, sinon <strong>fast</strong>, avec repli automatique sur <strong>fast</strong> si le mode fine échoue).
+          </Typography>
+          <Typography>
+            Chaque résultat de drift affiche un badge <strong>Fine</strong> ou <strong>Fast</strong> selon la méthode utilisée pour l&apos;obtenir. En mode <strong>Fine</strong>, les statuts <strong>drifted</strong>/<strong>in_sync</strong>/<strong>missing</strong> reflètent le diff <code>tofu plan -refresh-only</code> attribut par attribut (chemin pointé, valeur attendue vs. valeur réelle), pour n&apos;importe quel type de ressource déclaré dans vos fichiers <code>.tf</code>.
+          </Typography>
+          <Typography component="h3">Bruit lié à l&apos;évolution du schéma du provider</Typography>
+          <Typography>
+            Lorsqu&apos;une nouvelle version du provider (ex : <code>hashicorp/google</code>) introduit des attributs ou blocs calculés qui n&apos;existaient pas au moment de l&apos;écriture du tfstate, ces blocs peuvent techniquement apparaître comme des différences (ex : <code>node_config[0]</code>, <code>node_pool[0]</code>, <code>null</code> → bloc renseigné) même si l&apos;infrastructure n&apos;a pas changé. Kura filtre automatiquement ces écarts (valeurs <code>null</code> ↔ vides, et ajout d&apos;un bloc complet là où l&apos;ancien state avait <code>null</code>) afin de ne conserver que les véritables différences sur des attributs scalaires existants (ex : <code>master_version</code>).
+          </Typography>
+        </Box>
+      )
+    case 'code':
+      return (
+        <Box sx={contentSx}>
+          <Typography component="h1">Module Repository</Typography>
+          <Typography>
+            Le module <strong>Repository</strong> permet de parcourir, en lecture seule, le code source des dépôts GitHub liés à votre projet : arborescence des fichiers, contenu avec coloration syntaxique, et historique des commits avec leurs diffs.
+          </Typography>
+          <Typography component="h2">1. Lier un ou plusieurs dépôts au projet</Typography>
+          <Typography>
+            Un projet peut être lié à <strong>plusieurs dépôts GitHub</strong> via les mappings de projet (page Projets → votre projet → dépôts liés). Chaque dépôt lié apparaît dans le sélecteur de dépôt en haut de la page Code.
+          </Typography>
+          <Typography component="h2">2. Configurer le token GitHub</Typography>
+          <Typography>
+            Le module Repository réutilise le <strong>token GitHub</strong> déjà configuré pour la détection de drift Terraform (Terraform → Configuration). Aucune configuration supplémentaire n&apos;est nécessaire si ce token est déjà renseigné et dispose d&apos;un accès en lecture sur les dépôts liés.
+          </Typography>
+          <Typography component="h2">3. Naviguer dans les fichiers</Typography>
+          <Typography>
+            L&apos;onglet <strong>Fichiers</strong> affiche l&apos;arborescence du dépôt sélectionné (à la branche/ref indiquée, <code>main</code> par défaut). Cliquez sur un dossier pour le déplier, ou sur un fichier pour afficher son contenu avec coloration syntaxique. Les fichiers de plus de 1 Mo ne sont pas affichés (aperçu indisponible).
+          </Typography>
+          <Typography component="h2">4. Consulter l&apos;historique des commits</Typography>
+          <Typography>
+            L&apos;onglet <strong>Historique</strong> liste les derniers commits de la branche sélectionnée. Cliquez sur un commit pour afficher le détail des fichiers modifiés et leur diff (lignes ajoutées en vert, supprimées en rouge).
           </Typography>
         </Box>
       )
@@ -312,28 +486,34 @@ provider "google" {
     case 'monitoring':
       return (
         <Box sx={contentSx}>
-          <Typography component="h1">Module Monitoring</Typography>
+          <Typography component="h1">Module Observabilité</Typography>
           <Typography>
-            Le module Monitoring agrège les métriques de santé de tous les services Kura via Prometheus, et intègre un dashboard Grafana directement dans l&apos;interface.
+            Le module Observabilité réunit les trois piliers — <strong>métriques</strong> (Prometheus), <strong>logs</strong> (Loki) et <strong>traces</strong> (Tempo) — pour l&apos;ensemble des services Kura, avec un dashboard <strong>Grafana</strong> intégré directement dans l&apos;interface. La page est organisée en trois onglets : Métriques, Logs et Traces.
           </Typography>
-          <Typography component="h2">Ce que vous voyez</Typography>
+          <Typography component="h2">Onglet Métriques</Typography>
           <Box component="ul">
             <li><strong>KPI globaux</strong> : nombre de services actifs / hors ligne, goroutines totales, mémoire totale</li>
-            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, Terraform, Ansible, Pipeline, Metrics) — vérifié par health check direct</li>
+            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, Terraform, Ansible, Pipeline, Vault, Code, Metrics) — vérifié par health check direct</li>
             <li><strong>Tableau de métriques</strong> : goroutines, CPU rate, mémoire RSS par service (données Prometheus)</li>
-            <li><strong>Dashboard Grafana</strong> : vue temporelle des métriques (goroutines, mémoire, état des services sur le temps)</li>
+            <li><strong>Dashboard Grafana</strong> : vue temporelle des métriques (goroutines, mémoire, état des services dans le temps)</li>
           </Box>
-          <Typography component="h2">Sources de données</Typography>
           <Typography>
             Le <strong>metrics-service</strong> interroge l&apos;API HTTP de Prometheus (<code>/api/v1/query</code>) et effectue des health checks directs sur chaque service. Les données sont mises en cache 30 secondes dans Redis pour éviter de surcharger Prometheus. La page se rafraîchit automatiquement toutes les 30 secondes.
           </Typography>
+          <Typography component="h2">Onglet Logs</Typography>
+          <Typography>
+            Affiche les logs centralisés de tous les services, collectés par <strong>Promtail</strong> et stockés dans <strong>Loki</strong>. Vous pouvez filtrer par service et effectuer une recherche texte sur les lignes de log. La liste se rafraîchit automatiquement toutes les 15 secondes.
+          </Typography>
+          <Typography component="h2">Onglet Traces</Typography>
+          <Typography>
+            Affiche les traces distribuées collectées via <strong>OpenTelemetry</strong> et stockées dans <strong>Tempo</strong>. Chaque service est instrumenté (middleware HTTP automatique) et exporte ses spans vers Tempo. Vous pouvez filtrer par service et par durée minimale, et déplier une trace pour voir le détail de ses spans (chronologie, durée de chaque étape).
+          </Typography>
+          <Typography>
+            Les endpoints <code>/health</code> et <code>/metrics</code> (healthchecks Docker et scraping Prometheus) sont exclus du tracing pour éviter de saturer Tempo avec du bruit à très haute fréquence.
+          </Typography>
           <Typography component="h2">Dashboard Grafana</Typography>
           <Typography>
-            Le dashboard <strong>Kura Platform Overview</strong> est accessible à <code>/grafana</code> (en production) ou <code>http://localhost:3000</code> (en local). Il affiche les métriques Go runtime de tous les services sur une fenêtre temporelle glissante. L&apos;accès anonyme est activé (lecture seule) pour permettre l&apos;affichage dans l&apos;iframe Kura.
-          </Typography>
-          <Typography component="h2">Note sur l&apos;instrumentation</Typography>
-          <Typography>
-            Actuellement, <strong>ansible-service</strong> et <strong>pipeline-service</strong> exposent un endpoint <code>/metrics</code> complet. Les autres services Go exposent les métriques runtime Go par défaut (goroutines, mémoire, CPU). L&apos;instrumentation HTTP complète (temps de réponse, taux d&apos;erreur) est prévue en Phase 3 du roadmap.
+            Le dashboard <strong>Kura Platform Overview</strong> est accessible à <code>/grafana</code> (en production) ou <code>http://localhost:3000</code> (en local). Grafana est préconfiguré avec les sources de données Prometheus, Loki, Tempo et Alertmanager. L&apos;accès anonyme est activé (lecture seule) pour permettre l&apos;affichage dans l&apos;iframe Kura.
           </Typography>
         </Box>
       )
@@ -458,7 +638,7 @@ export default function DocumentationPage() {
 
   useEffect(() => {
     if (sectionParam) {
-      const validIds = ['intro', 'getting-started', 'k8s', 'terraform', 'ansible', 'pipelines', 'monitoring', 'users', 'projects', 'faq']
+      const validIds = ['intro', 'getting-started', 'k8s', 'argocd', 'registry', 'terraform', 'ansible', 'pipelines', 'monitoring', 'users', 'projects', 'faq']
       if (validIds.includes(sectionParam)) {
         setSelectedId(sectionParam)
       }

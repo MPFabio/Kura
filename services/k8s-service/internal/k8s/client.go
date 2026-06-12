@@ -120,6 +120,17 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	}, nil
 }
 
+// RestConfig retourne la configuration REST sous-jacente (utile pour construire
+// un dynamic client ou un port-forward SPDY vers un service du cluster).
+func (c *Client) RestConfig() *rest.Config {
+	return c.restConfig
+}
+
+// Clientset retourne le clientset Kubernetes typé sous-jacent.
+func (c *Client) Clientset() *kubernetes.Clientset {
+	return c.clientset
+}
+
 // ListNamespaces retourne la liste des namespaces.
 func (c *Client) ListNamespaces(ctx context.Context) ([]corev1.Namespace, error) {
 	nsList, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})

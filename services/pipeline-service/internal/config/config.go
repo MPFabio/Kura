@@ -40,6 +40,9 @@ type Config struct {
 	JenkinsURL      string
 	JenkinsUsername string
 	JenkinsToken    string
+
+	// Tracing (OpenTelemetry)
+	OTLPEndpoint string
 }
 
 func Load() (*Config, error) {
@@ -48,6 +51,8 @@ func Load() (*Config, error) {
 		Environment:    getEnv("ENV", "development"),
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
+
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}
 
 	// Redis

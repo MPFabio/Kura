@@ -26,6 +26,7 @@ class Config:
         semaphore_project_id: int = 1,
         k8s_service_url: str = "http://k8s-service:8081",
         internal_api_secret: Optional[str] = None,
+        otlp_endpoint: str = "tempo:4317",
     ):
         """Initialise la configuration."""
         self.server_port = server_port
@@ -46,6 +47,7 @@ class Config:
         self.semaphore_project_id = semaphore_project_id
         self.k8s_service_url = k8s_service_url
         self.internal_api_secret = internal_api_secret
+        self.otlp_endpoint = otlp_endpoint
 
 
 def load_config() -> Config:
@@ -69,4 +71,5 @@ def load_config() -> Config:
         semaphore_project_id=int(os.getenv("SEMAPHORE_PROJECT_ID", "1")),
         k8s_service_url=os.getenv("K8S_SERVICE_URL", "http://k8s-service:8081"),
         internal_api_secret=os.getenv("INTERNAL_API_SECRET"),
+        otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
     )

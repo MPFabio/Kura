@@ -1,9 +1,163 @@
 _format_version: "3.0"
 _transform: true
 
+# Chaque service backend est ciblé via un objet `upstream` (plutôt qu'une
+# URL `http://<nom>:<port>` directe) avec des health checks actifs activés.
+# Sans ça, le balancer DNS de Kong met en cache l'IP résolue d'un conteneur
+# pour la durée de vie du worker nginx : quand `docker compose up --build`
+# recrée un service (nouvelle IP Docker), Kong continue de cibler l'ancienne
+# IP et renvoie 502 "Connection refused" jusqu'à un redémarrage manuel.
+# Les health checks actifs (intervalle court) détectent la cible morte,
+# la marquent unhealthy, et le balancer ré-interroge le DNS Docker
+# (127.0.0.11) pour retrouver la nouvelle IP du conteneur recréé.
+upstreams:
+- name: auth-service-upstream
+  targets:
+  - target: auth-service:8080
+  healthchecks:
+    active:
+      type: http
+      http_path: /health
+      timeout: 2
+      concurrency: 1
+      healthy:
+        interval: 5
+        successes: 1
+      unhealthy:
+        interval: 2
+        http_failures: 1
+        tcp_failures: 1
+        timeouts: 1
+
+- name: k8s-service-upstream
+  targets:
+  - target: k8s-service:8081
+  healthchecks:
+    active:
+      type: http
+      http_path: /health
+      timeout: 2
+      concurrency: 1
+      healthy:
+        interval: 5
+        successes: 1
+      unhealthy:
+        interval: 2
+        http_failures: 1
+        tcp_failures: 1
+        timeouts: 1
+
+- name: terraform-service-upstream
+  targets:
+  - target: terraform-service:8082
+  healthchecks:
+    active:
+      type: http
+      http_path: /health
+      timeout: 2
+      concurrency: 1
+      healthy:
+        interval: 5
+        successes: 1
+      unhealthy:
+        interval: 2
+        http_failures: 1
+        tcp_failures: 1
+        timeouts: 1
+
+- name: ansible-service-upstream
+  targets:
+  - target: ansible-service:8083
+  healthchecks:
+    active:
+      type: http
+      http_path: /health
+      timeout: 2
+      concurrency: 1
+      healthy:
+        interval: 5
+        successes: 1
+      unhealthy:
+        interval: 2
+        http_failures: 1
+        tcp_failures: 1
+        timeouts: 1
+
+- name: metrics-service-upstream
+  targets:
+  - target: metrics-service:8086
+  healthchecks:
+    active:
+      type: http
+      http_path: /health
+      timeout: 2
+      concurrency: 1
+      healthy:
+        interval: 5
+        successes: 1
+      unhealthy:
+        interval: 2
+        http_failures: 1
+        tcp_failures: 1
+        timeouts: 1
+
+- name: code-service-upstream
+  targets:
+  - target: code-service:8088
+  healthchecks:
+    active:
+      type: http
+      http_path: /health
+      timeout: 2
+      concurrency: 1
+      healthy:
+        interval: 5
+        successes: 1
+      unhealthy:
+        interval: 2
+        http_failures: 1
+        tcp_failures: 1
+        timeouts: 1
+
+- name: vault-service-upstream
+  targets:
+  - target: vault-service:8087
+  healthchecks:
+    active:
+      type: http
+      http_path: /health
+      timeout: 2
+      concurrency: 1
+      healthy:
+        interval: 5
+        successes: 1
+      unhealthy:
+        interval: 2
+        http_failures: 1
+        tcp_failures: 1
+        timeouts: 1
+
+- name: pipeline-service-upstream
+  targets:
+  - target: pipeline-service:8084
+  healthchecks:
+    active:
+      type: http
+      http_path: /health
+      timeout: 2
+      concurrency: 1
+      healthy:
+        interval: 5
+        successes: 1
+      unhealthy:
+        interval: 2
+        http_failures: 1
+        tcp_failures: 1
+        timeouts: 1
+
 services:
 - name: auth-service
-  url: http://auth-service:8080
+  url: http://auth-service-upstream
   routes:
   - name: auth-route
     paths:
@@ -33,7 +187,7 @@ services:
     - DELETE
 
 - name: k8s-service
-  url: http://k8s-service:8081
+  url: http://k8s-service-upstream
   connect_timeout: 15000   # 15s pour établir la connexion
   read_timeout: 120000     # 120s (auth GKE + appel API peuvent être lents)
   write_timeout: 60000     # 60s
@@ -53,7 +207,7 @@ services:
     - https
 
 - name: terraform-service
-  url: http://terraform-service:8082
+  url: http://terraform-service-upstream
   routes:
   - name: terraform-route
     paths:
@@ -66,7 +220,7 @@ services:
     - DELETE
 
 - name: ansible-service
-  url: http://ansible-service:8083
+  url: http://ansible-service-upstream
   routes:
   - name: ansible-route
     paths:
@@ -85,7 +239,7 @@ services:
     - POST
 
 - name: metrics-service
-  url: http://metrics-service:8086
+  url: http://metrics-service-upstream
   routes:
   - name: metrics-route
     paths:
@@ -95,8 +249,19 @@ services:
     - GET
     - OPTIONS
 
+- name: code-service
+  url: http://code-service-upstream
+  routes:
+  - name: code-route
+    paths:
+    - /api/v1/code
+    strip_path: false
+    methods:
+    - GET
+    - OPTIONS
+
 - name: vault-service
-  url: http://vault-service:8087
+  url: http://vault-service-upstream
   routes:
   - name: vault-route
     paths:
@@ -109,7 +274,7 @@ services:
     - OPTIONS
 
 - name: pipeline-service
-  url: http://pipeline-service:8084
+  url: http://pipeline-service-upstream
   routes:
   - name: pipeline-route
     paths:

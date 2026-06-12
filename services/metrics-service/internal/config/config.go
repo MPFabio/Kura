@@ -15,11 +15,22 @@ type Config struct {
 
 	PrometheusURL string
 	GrafanaURL    string
+	LokiURL       string
+	TempoURL      string
 	CacheTTL      time.Duration
+
+	// DeploymentMode vaut "saas" (par défaut) ou "self-hosted".
+	// En mode "saas", l'observabilité interne de la plateforme Kura
+	// (santé/metrics des microservices Kura) n'est pas exposée aux clients.
+	DeploymentMode               string
+	InternalObservabilityEnabled bool
 
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       int
+
+	// Tracing (OpenTelemetry)
+	OTLPEndpoint string
 }
 
 func Load() (*Config, error) {
@@ -30,6 +41,10 @@ func Load() (*Config, error) {
 		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
 		PrometheusURL:  getEnv("PROMETHEUS_URL", "http://prometheus:9090"),
 		GrafanaURL:     getEnv("GRAFANA_URL", "http://grafana:3000"),
+		LokiURL:        getEnv("LOKI_URL", "http://loki:3100"),
+		TempoURL:       getEnv("TEMPO_URL", "http://tempo:3200"),
+
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}
 
 	redisHost := getEnv("REDIS_HOST", "localhost")
@@ -43,6 +58,9 @@ func Load() (*Config, error) {
 	}
 	cfg.CacheTTL = ttl
 
+	cfg.DeploymentMode = getEnv("DEPLOYMENT_MODE", "saas")
+	cfg.InternalObservabilityEnabled = getEnvBool("INTERNAL_OBSERVABILITY_ENABLED", cfg.DeploymentMode != "saas")
+
 	return cfg, nil
 }
 
@@ -51,4 +69,12 @@ func getEnv(key, defaultValue string) string {
 		return v
 	}
 	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return defaultValue
+	}
+	return v == "true" || v == "1"
 }

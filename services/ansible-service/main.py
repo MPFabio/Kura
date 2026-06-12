@@ -1,5 +1,6 @@
 """Point d'entrée principal du service Ansible."""
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 
@@ -17,6 +18,7 @@ from internal.handler.ansible_handler import AnsibleHandler, create_router
 from internal.handler.webhook_handler import WebhookHandler, create_webhook_router
 from internal.handler.websocket_handler import WebSocketHandler
 from internal.metrics.prometheus import get_metrics_response
+from internal.tracing.tracing import init_provider, instrument_app
 
 # Configuration du logging
 logging.basicConfig(
@@ -48,6 +50,13 @@ async def lifespan(app: FastAPI):
     try:
         config = load_config()
         logger.info(f"Configuration chargée - Port: {config.server_port}, Env: {config.environment}")
+
+        # Initialiser le tracing OpenTelemetry (export vers Tempo)
+        try:
+            init_provider("ansible-service", config.otlp_endpoint)
+            logger.info("Tracing OpenTelemetry initialisé")
+        except Exception as e:
+            logger.warning(f"Tracing OpenTelemetry désactivé ({e})")
 
         # Initialiser Redis
         try:
@@ -129,6 +138,12 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Instrumentation OpenTelemetry (doit être faite avant le démarrage de l'app)
+try:
+    instrument_app(app)
+except Exception as e:
+    logger.warning(f"Instrumentation OpenTelemetry désactivée ({e})")
 
 # Middleware CORS
 app.add_middleware(

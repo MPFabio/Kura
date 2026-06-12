@@ -72,6 +72,7 @@ type DriftResult struct {
 	Differences     []DriftDifference `json:"differences,omitempty"`
 	DetectedAt      time.Time         `json:"detected_at"`
 	Message         string            `json:"message,omitempty"`
+	Method          string            `json:"method,omitempty"` // "fine" ou "fast"
 }
 
 // DriftDifference représente une différence détectée entre l'état Terraform et l'état réel.
@@ -133,6 +134,12 @@ type SourceConfig struct {
 	// Pour synchronisation
 	SyncInterval string `json:"sync_interval,omitempty"` // "5m", "15m", "1h", etc.
 	AutoSync     bool   `json:"auto_sync"`
+
+	// Pour le drift "fine" (fichiers .tf source via GitHub)
+	GitHubOwner string `json:"github_owner,omitempty"`
+	GitHubRepo  string `json:"github_repo,omitempty"`
+	GitHubPath  string `json:"github_path,omitempty"`
+	GitHubRef   string `json:"github_ref,omitempty"`
 }
 
 // SyncJob représente un job de synchronisation.

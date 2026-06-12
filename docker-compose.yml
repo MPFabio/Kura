@@ -120,6 +120,15 @@ services:
       KONG_DNS_RESOLVER: "127.0.0.11"
       KONG_DNS_ORDER: "LAST,A,CNAME"
       KONG_NGINX_WORKER_PROCESSES: "1"
+      # Le résolveur DNS embarqué de Docker renvoie un TTL de 600s pour les
+      # noms de service du réseau compose. Kong respecte ce TTL pour ses
+      # cibles d'upstream (DNS-based targets) : sans le réduire, l'IP d'un
+      # service recréé par `docker compose up --build` (nouvelle IP Docker)
+      # n'est ré-résolue par Kong qu'au bout de 10 minutes, provoquant des
+      # 502/503 jusqu'à un redémarrage manuel. On force un TTL court pour
+      # que les health checks actifs des upstreams (kong.yml) détectent et
+      # ré-résolvent la nouvelle IP en quelques secondes.
+      KONG_DNS_VALID_TTL: "5"
     volumes:
       - ./infrastructure/docker/kong.yml:/usr/local/kong/kong.yml:ro
     depends_on:
@@ -158,6 +167,7 @@ services:
       - '--storage.tsdb.retention.time=15d'
     volumes:
       - ./infrastructure/docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/docker/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus-data:/prometheus
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
@@ -198,6 +208,93 @@ services:
     networks:
       - kura-network
 
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: kura-loki
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    ports:
+      - "3100:3100"
+    command:
+      - '-config.file=/etc/loki/loki.yml'
+    volumes:
+      - ./infrastructure/docker/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kura-network
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: kura-promtail
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    command:
+      - '-config.file=/etc/promtail/promtail.yml'
+    volumes:
+      - ./infrastructure/docker/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+    networks:
+      - kura-network
+
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: kura-tempo
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    command:
+      - '-config.file=/etc/tempo/tempo.yml'
+    volumes:
+      - ./infrastructure/docker/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/var/tempo
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3200/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kura-network
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: kura-alertmanager
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./infrastructure/docker/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kura-network
+
   auth-service:
     build:
       context: ./services/auth-service
@@ -220,8 +317,11 @@ services:
       JWT_EXPIRATION: 24h
       ENV: development
       LOG_LEVEL: info
+      OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317
     depends_on:
       postgres:
+        condition: service_healthy
+      tempo:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
@@ -269,10 +369,13 @@ services:
       TERRAFORM_CACHE_TTL: "5m"
       LOG_LEVEL: info
       TERRAFORM_ENCRYPTION_KEY: ${TERRAFORM_ENCRYPTION_KEY}
+      OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317
     depends_on:
       redis:
         condition: service_healthy
       auth-service:
+        condition: service_healthy
+      tempo:
         condition: service_healthy
     # Pas de healthcheck : image distroless sans wget/curl
     networks:
@@ -303,12 +406,15 @@ services:
       K8S_API_TIMEOUT: "60s"
       LOG_LEVEL: info
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       redis:
         condition: service_healthy
       auth-service:
+        condition: service_healthy
+      tempo:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "test -f /app/k8s-service || exit 1"]
@@ -338,7 +444,7 @@ services:
     depends_on:
       - kong
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -393,12 +499,15 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: "0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317
     depends_on:
       vault:
         condition: service_started
       redis:
         condition: service_healthy
       auth-service:
+        condition: service_healthy
+      tempo:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8087/health"]
@@ -463,12 +572,15 @@ services:
       SEMAPHORE_PROJECT_ID: ${SEMAPHORE_PROJECT_ID:-1}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       K8S_SERVICE_URL: http://k8s-service:8081
+      OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317
     depends_on:
       redis:
         condition: service_healthy
       auth-service:
         condition: service_healthy
       semaphore:
+        condition: service_healthy
+      tempo:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
@@ -496,11 +608,18 @@ services:
       LOG_LEVEL: info
       PROMETHEUS_URL: http://prometheus:9090
       GRAFANA_URL: http://grafana:3000
+      LOKI_URL: http://loki:3100
+      TEMPO_URL: http://tempo:3200
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # "saas" : l'observabilité interne de la plateforme Kura est masquée aux clients.
+      # "self-hosted" (défaut) : le client opère sa propre instance Kura et peut superviser sa santé,
+      # avec la possibilité de basculer entre observabilité interne et observabilité du projet.
+      DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
       REDIS_DB: "0"
       METRICS_CACHE_TTL: "30s"
+      OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317
     depends_on:
       redis:
         condition: service_healthy
@@ -508,8 +627,41 @@ services:
         condition: service_healthy
       auth-service:
         condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8086/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kura-network
+
+  code-service:
+    build:
+      context: ./services/code-service
+      dockerfile: Dockerfile
+    container_name: kura-code-service
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    ports:
+      - "8088:8088"
+    environment:
+      CODE_SERVICE_PORT: "8088"
+      ENV: development
+      AUTH_SERVICE_URL: http://auth-service:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8088/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -538,10 +690,13 @@ services:
       REDIS_DB: "0"
       PIPELINE_CACHE_TTL: "24h"
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317
     depends_on:
       redis:
         condition: service_healthy
       auth-service:
+        condition: service_healthy
+      tempo:
         condition: service_healthy
     # Pas de healthcheck : image distroless sans wget/curl
     networks:
@@ -554,6 +709,9 @@ volumes:
   redis-data:
   minio-data:
   semaphore-data:
+  loki-data:
+  tempo-data:
+  alertmanager-data:
 
 networks:
   kura-network:

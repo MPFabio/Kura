@@ -38,6 +38,12 @@ type Config struct {
 	S3Endpoint    string // ex. http://minio:9000 pour MinIO
 	S3AccessKeyID string
 	S3SecretKey   string
+
+	// Drift "fine" : chemin du binaire OpenTofu (vide = chemin par défaut)
+	TofuPath string
+
+	// Tracing (OpenTelemetry)
+	OTLPEndpoint string
 }
 
 func Load() (*Config, error) {
@@ -46,6 +52,8 @@ func Load() (*Config, error) {
 		Environment:    getEnv("ENV", "development"),
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
+
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}
 
 	// Redis
@@ -90,6 +98,9 @@ func Load() (*Config, error) {
 	cfg.S3Endpoint = getEnv("S3_ENDPOINT", "")
 	cfg.S3AccessKeyID = getEnv("AWS_ACCESS_KEY_ID", "")
 	cfg.S3SecretKey = getEnv("AWS_SECRET_ACCESS_KEY", "")
+
+	// Drift "fine" : binaire OpenTofu
+	cfg.TofuPath = getEnv("TOFU_PATH", "")
 
 	return cfg, nil
 }
