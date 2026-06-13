@@ -289,7 +289,7 @@ export default function AnsiblePage() {
 
   return (
     <Box>
-      <ModuleTitle>Ansible</ModuleTitle>
+      <ModuleTitle>Semaphore</ModuleTitle>
 
       {/* Panneau de configuration Semaphore */}
       <ModuleCard sx={{ mb: 2 }}>
@@ -542,7 +542,7 @@ export default function AnsiblePage() {
                 ))}
               </Grid>
             ) : (
-              <Alert severity="info">Aucun inventaire trouvé. Connectez Ansible Tower/AWX pour en voir.</Alert>
+              <Alert severity="info">Aucun inventaire trouvé dans ce projet Semaphore.</Alert>
             )}
           </TabPanel>
 
@@ -606,7 +606,7 @@ export default function AnsiblePage() {
                 ))}
               </Grid>
             ) : (
-              <Alert severity="info">Aucun template trouvé. Connectez Ansible Tower/AWX pour en voir.</Alert>
+              <Alert severity="info">Aucun template trouvé dans ce projet Semaphore.</Alert>
             )}
           </TabPanel>
         </ModuleCard>

@@ -45,6 +45,9 @@ import {
   Sync as SyncIcon,
   CloudQueue as CloudQueueIcon,
   Edit as EditIcon,
+  CheckCircle as CheckCircleIcon,
+  ErrorOutline as ErrorOutlineIcon,
+  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material'
 import { terraformService, TerraformState, terraformSourceService, TerraformDriftResult } from '../services/terraformService'
 import { projectService } from '../services/projectService'
@@ -98,6 +101,13 @@ export default function TerraformPage() {
     sync_interval: '15m',
     auto_sync: true,
   })
+  const [githubConfig, setGithubConfig] = useState({
+    owner: '',
+    repo: '',
+    path: '',
+    ref: 'main',
+  })
+  const [githubTokenInput, setGithubTokenInput] = useState('')
   const [selectedStateForSource, setSelectedStateForSource] = useState<string>('')
   const [createStateFromSource, setCreateStateFromSource] = useState(false)
   const [newStateName, setNewStateName] = useState('')
@@ -147,6 +157,35 @@ export default function TerraformPage() {
     queryFn: () => terraformSourceService.getSources(),
   })
 
+  const { data: terraformConfig, refetch: refetchTerraformConfig } = useQuery({
+    queryKey: ['terraform-config'],
+    queryFn: () => terraformService.getConfig(),
+  })
+
+  const saveConfigMutation = useMutation({
+    mutationFn: (data: { github_token?: string }) => terraformService.setConfig(data),
+    onSuccess: () => {
+      refetchTerraformConfig()
+      setGithubTokenInput('')
+      setSnackbar({ open: true, message: 'Configuration mise à jour', severity: 'success' })
+    },
+    onError: () => {
+      setSnackbar({ open: true, message: 'Erreur lors de la mise à jour de la configuration', severity: 'error' })
+    },
+  })
+
+  const deleteGithubTokenMutation = useMutation({
+    mutationFn: () => terraformService.deleteConfigKey('github_token'),
+    onSuccess: () => {
+      refetchTerraformConfig()
+      setGithubTokenInput('')
+      setSnackbar({ open: true, message: 'Token GitHub supprimé', severity: 'success' })
+    },
+    onError: () => {
+      setSnackbar({ open: true, message: 'Erreur lors de la suppression du token', severity: 'error' })
+    },
+  })
+
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!selectedFile) throw new Error('Aucun fichier sélectionné')
@@ -158,7 +197,7 @@ export default function TerraformPage() {
       setUploadDialogOpen(false)
       setStateName('')
       setSelectedFile(null)
-      setSnackbar({ open: true, message: 'État Terraform uploadé avec succès', severity: 'success' })
+      setSnackbar({ open: true, message: 'État OpenTofu uploadé avec succès', severity: 'success' })
       if (currentProject && data?.id) {
         try {
           await projectService.createProjectMapping(currentProject.id, { terraform_state_id: data.id })
@@ -170,7 +209,7 @@ export default function TerraformPage() {
     onError: (error: any) => {
       setSnackbar({
         open: true,
-        message: error.response?.data?.error || 'Erreur lors de l\'upload de l\'état Terraform',
+        message: error.response?.data?.error || 'Erreur lors de l\'upload de l\'état OpenTofu',
         severity: 'error',
       })
     },
@@ -180,7 +219,7 @@ export default function TerraformPage() {
     mutationFn: (id: string) => terraformService.deleteState(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['terraform-states'] })
-      setSnackbar({ open: true, message: 'État Terraform supprimé avec succès', severity: 'success' })
+      setSnackbar({ open: true, message: 'État OpenTofu supprimé avec succès', severity: 'success' })
     },
     onError: () => {
       setSnackbar({ open: true, message: 'Erreur lors de la suppression de l\'état', severity: 'error' })
@@ -201,7 +240,7 @@ export default function TerraformPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet état Terraform ?')) {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet état OpenTofu ?')) {
       deleteMutation.mutate(id)
     }
   }
@@ -258,6 +297,12 @@ export default function TerraformPage() {
       sync_interval: '15m',
       auto_sync: true,
     })
+    setGithubConfig({
+      owner: '',
+      repo: '',
+      path: '',
+      ref: 'main',
+    })
     setCreateStateFromSource(false)
     setSelectedStateForSource('')
     setNewStateName('')
@@ -299,6 +344,12 @@ export default function TerraformPage() {
           auto_sync: source.config.auto_sync !== false,
         })
       }
+      setGithubConfig({
+        owner: source.config.github_owner || '',
+        repo: source.config.github_repo || '',
+        path: source.config.github_path || '',
+        ref: source.config.github_ref || 'main',
+      })
       setCreateStateFromSource(false)
       setSelectedStateForSource(source.state_file_id || '')
       setSourceType(source.type)
@@ -318,7 +369,7 @@ export default function TerraformPage() {
         stateFileID = `temp-${newStateName}-${Date.now()}`
       } else {
         if (!selectedStateForSource) {
-          throw new Error('Veuillez sélectionner un état Terraform ou créer un nouvel état')
+          throw new Error('Veuillez sélectionner un état OpenTofu ou créer un nouvel état')
         }
       }
       let sourceConfig: any = {}
@@ -363,6 +414,12 @@ export default function TerraformPage() {
           sync_interval: azureConfig.sync_interval,
           auto_sync: azureConfig.auto_sync,
         }
+      }
+      if (githubConfig.owner && githubConfig.repo) {
+        sourceConfig.github_owner = githubConfig.owner
+        sourceConfig.github_repo = githubConfig.repo
+        sourceConfig.github_path = githubConfig.path || undefined
+        sourceConfig.github_ref = githubConfig.ref || 'main'
       }
       if (editingSource) {
         return await terraformSourceService.updateSource(editingSource.id, {
@@ -423,7 +480,7 @@ export default function TerraformPage() {
   return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" sx={{ mb: 2 }}>
-          Erreur lors du chargement des états Terraform : {error instanceof Error ? error.message : 'Erreur inconnue'}
+          Erreur lors du chargement des états OpenTofu : {error instanceof Error ? error.message : 'Erreur inconnue'}
         </Alert>
         <Button onClick={() => refetch()} startIcon={<RefreshIcon />}>
           Réessayer
@@ -435,7 +492,7 @@ export default function TerraformPage() {
   return (
     <Box sx={{ p: 0 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
-        <ModuleTitle sx={{ mb: 0 }}>Terraform</ModuleTitle>
+        <ModuleTitle sx={{ mb: 0 }}>OpenTofu</ModuleTitle>
         <Box>
           <ModuleButton
             startIcon={<CloudUploadIcon />}
@@ -471,6 +528,7 @@ export default function TerraformPage() {
       <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} sx={{ mb: 4 }}>
         <Tab label="États" />
         <Tab label="Sources de synchronisation" />
+        <Tab label="Configuration" />
       </Tabs>
 
       {activeTab === 0 && (
@@ -483,13 +541,13 @@ export default function TerraformPage() {
       ) : !states || states.items.length === 0 ? (
         <ModuleCard sx={{ textAlign: 'center', py: 6 }}>
             <ModuleSubtitle sx={{ mb: 2 }}>
-              Aucun état Terraform
+              Aucun état OpenTofu
             </ModuleSubtitle>
             <ModuleSecondaryText sx={{ mb: 3 }}>
-              Commencez par uploader un fichier tfstate pour voir vos ressources Terraform.
+              Commencez par uploader un fichier tfstate pour voir vos ressources OpenTofu.
             </ModuleSecondaryText>
                 <ModuleButton startIcon={<CloudUploadIcon />} onClick={() => setUploadDialogOpen(true)}>
-                  Uploader un état Terraform
+                  Uploader un état OpenTofu
                 </ModuleButton>
         </ModuleCard>
       ) : (
@@ -564,7 +622,7 @@ export default function TerraformPage() {
 
       {/* Dialog d'upload */}
       <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Uploader un état Terraform</DialogTitle>
+        <DialogTitle>Uploader un état OpenTofu</DialogTitle>
         <DialogContent>
           <TextField
             fullWidth
@@ -617,7 +675,7 @@ export default function TerraformPage() {
               {/* Infos générales — grid de stats */}
               <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 3, mt: 1 }}>
                 {[
-                  { label: 'Version Terraform', value: selectedState.state?.terraform_version || 'N/A' },
+                  { label: 'Version OpenTofu', value: selectedState.state?.terraform_version || 'N/A' },
                   { label: 'Révision', value: selectedState.state?.serial },
                   { label: 'Ressources', value: selectedState.state?.resources?.length || 0 },
                   { label: 'Sorties', value: Object.keys(selectedState.state?.outputs || {}).length },
@@ -635,16 +693,16 @@ export default function TerraformPage() {
 
               {selectedState.state?.resources && selectedState.state.resources.length > 0 ? (
                 <TableContainer component={Paper} sx={{ maxHeight: 400, mt: 1 }}>
-                  <Table size="small" stickyHeader>
+                  <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
                     <TableHead>
                       <TableRow>
                         <TableCell sx={{ width: 40 }}>#</TableCell>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Nom</TableCell>
-                        <TableCell>Provider</TableCell>
-                        <TableCell>Mode</TableCell>
-                        <TableCell>Module</TableCell>
-                        <TableCell>Inst.</TableCell>
+                        <TableCell sx={{ width: 180 }}>Type</TableCell>
+                        <TableCell sx={{ width: 120 }}>Nom</TableCell>
+                        <TableCell sx={{ width: 160 }}>Provider</TableCell>
+                        <TableCell sx={{ width: 100 }}>Mode</TableCell>
+                        <TableCell sx={{ width: 90 }}>Module</TableCell>
+                        <TableCell sx={{ width: 70 }}>Inst.</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -656,13 +714,13 @@ export default function TerraformPage() {
                           onClick={() => { setSelectedResource(resource); setResourceDialogOpen(true) }}
                         >
                           <TableCell sx={{ color: kuraColors.text2, fontSize: '0.75rem', fontFamily: '"JetBrains Mono", monospace' }}>{idx + 1}</TableCell>
-                          <TableCell sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: kuraColors.accent, fontWeight: 500 }}>
+                          <TableCell sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: kuraColors.accent, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {resource.type}
                           </TableCell>
-                          <TableCell sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: kuraColors.text0 }}>
+                          <TableCell sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: kuraColors.text0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {resource.name}
                           </TableCell>
-                          <TableCell sx={{ fontSize: '0.75rem', color: kuraColors.text2, maxWidth: 160 }}>
+                          <TableCell title={resource.provider} sx={{ fontSize: '0.75rem', color: kuraColors.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {resource.provider}
                           </TableCell>
                           <TableCell>
@@ -677,7 +735,7 @@ export default function TerraformPage() {
                               }}
                             />
                           </TableCell>
-                          <TableCell sx={{ color: kuraColors.text2, fontSize: '0.75rem' }}>
+                          <TableCell title={resource.module || ''} sx={{ color: kuraColors.text2, fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {resource.module || '—'}
                           </TableCell>
                           <TableCell>
@@ -725,6 +783,7 @@ export default function TerraformPage() {
                       <TableCell>Ressource</TableCell>
                       <TableCell>Type</TableCell>
                       <TableCell>Statut</TableCell>
+                      <TableCell>Méthode</TableCell>
                       <TableCell>Message</TableCell>
                     </TableRow>
                   </TableHead>
@@ -738,22 +797,52 @@ export default function TerraformPage() {
                         </TableCell>
                         <TableCell>{result.resource_type}</TableCell>
                         <TableCell>
-                          <Chip
-                            label={result.status}
-                            size="small"
-                            color={
-                              result.status === 'in_sync'
-                                ? 'success'
-                                : result.status === 'drifted' || result.status === 'missing'
-                                ? 'error'
-                                : 'warning'
+                          {(() => {
+                            const statusConfig: Record<string, { label: string; color: string; icon: JSX.Element }> = {
+                              in_sync: { label: 'Conforme', color: kuraColors.success, icon: <CheckCircleIcon fontSize="small" /> },
+                              drifted: { label: 'Dérive détectée', color: kuraColors.error, icon: <WarningIcon fontSize="small" /> },
+                              missing: { label: 'Ressource manquante', color: kuraColors.error, icon: <ErrorOutlineIcon fontSize="small" /> },
+                              unknown: { label: 'Indéterminé', color: kuraColors.warning, icon: <HelpOutlineIcon fontSize="small" /> },
                             }
-                          />
+                            const config = statusConfig[result.status] ?? statusConfig.unknown
+                            return (
+                              <Chip
+                                label={config.label}
+                                icon={config.icon}
+                                size="small"
+                                sx={{
+                                  fontSize: '0.6875rem', fontWeight: 600,
+                                  bgcolor: `${config.color}22`,
+                                  border: `1px solid ${config.color}`,
+                                  color: config.color,
+                                  '& .MuiChip-icon': { color: config.color },
+                                }}
+                              />
+                            )
+                          })()}
                         </TableCell>
                         <TableCell>
-                          <ModuleSecondaryText>
-                            {result.message || 'Aucun message'}
-                          </ModuleSecondaryText>
+                          {result.method && (
+                            <Chip
+                              label={result.method === 'fine' ? 'Fine' : 'Fast'}
+                              size="small"
+                              sx={{
+                                fontSize: '0.6875rem', fontWeight: 600,
+                                bgcolor: result.method === 'fine' ? `${kuraColors.info}22` : `${kuraColors.text2}22`,
+                                border: `1px solid ${result.method === 'fine' ? kuraColors.info : kuraColors.text2}`,
+                                color: result.method === 'fine' ? kuraColors.info : kuraColors.text2,
+                              }}
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {result.message ? (
+                            <ModuleSecondaryText>{result.message}</ModuleSecondaryText>
+                          ) : !result.differences || result.differences.length === 0 ? (
+                            <ModuleSecondaryText sx={{ color: kuraColors.text2 }}>
+                              {result.status === 'in_sync' ? 'Aucune différence' : 'Aucun message'}
+                            </ModuleSecondaryText>
+                          ) : null}
                           {result.differences && result.differences.length > 0 && (
                             <Box sx={{ mt: 1 }}>
                               <ModuleCaption sx={{ color: 'error.main', fontWeight: 'bold' }}>
@@ -772,8 +861,9 @@ export default function TerraformPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Alert severity="warning" sx={{ mt: 2 }}>
-                Note : La détection de drift utilise les APIs réelles des providers cloud (GCP, AWS, Azure) pour comparer l'état réel avec le tfstate.
+              <Alert severity="info" sx={{ mt: 2 }}>
+                « Conforme » signifie que la ressource a été comparée à l'état réel via les APIs du provider cloud (GCP, AWS, Azure)
+                et qu'aucune différence n'a été trouvée avec le tfstate. « Dérive détectée » indique qu'au moins un attribut diffère.
               </Alert>
             </Box>
           )}
@@ -783,7 +873,7 @@ export default function TerraformPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de détails d'une ressource Terraform */}
+      {/* Dialog de détails d'une ressource OpenTofu */}
       <Dialog 
         open={resourceDialogOpen} 
         onClose={() => { setResourceDialogOpen(false); setSelectedResource(null) }} 
@@ -936,7 +1026,7 @@ export default function TerraformPage() {
 ${moduleLine}${instanceBlocks}
 }`
                   return (
-                    <CodeBlock language="hcl" label="Bloc Terraform" showLineNumbers>
+                    <CodeBlock language="hcl" label="Bloc OpenTofu" showLineNumbers>
                       {hclBlock}
                     </CodeBlock>
                   )
@@ -1003,7 +1093,7 @@ ${moduleLine}${instanceBlocks}
             <TextField
               fullWidth
               select
-              label="État Terraform existant"
+              label="État OpenTofu existant"
               value={selectedStateForSource}
               onChange={(e) => setSelectedStateForSource(e.target.value)}
               margin="normal"
@@ -1313,6 +1403,55 @@ ${moduleLine}${instanceBlocks}
               />
             </>
           )}
+
+          <ModuleSubtitle sx={{ mt: 3, mb: 1 }}>
+            Drift fine (optionnel)
+          </ModuleSubtitle>
+          <ModuleSecondaryText sx={{ mb: 1 }}>
+            Pour une détection de drift précise sur n'importe quel type de ressource, indiquez le dépôt GitHub contenant les fichiers .tf source. Le token GitHub se configure dans la configuration globale OpenTofu.
+          </ModuleSecondaryText>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Propriétaire (owner)"
+                value={githubConfig.owner}
+                onChange={(e) => setGithubConfig({ ...githubConfig, owner: e.target.value })}
+                margin="normal"
+                placeholder="mon-organisation"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Dépôt (repo)"
+                value={githubConfig.repo}
+                onChange={(e) => setGithubConfig({ ...githubConfig, repo: e.target.value })}
+                margin="normal"
+                placeholder="mon-infra"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Chemin"
+                value={githubConfig.path}
+                onChange={(e) => setGithubConfig({ ...githubConfig, path: e.target.value })}
+                margin="normal"
+                placeholder="environments/prod"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Branche / ref"
+                value={githubConfig.ref}
+                onChange={(e) => setGithubConfig({ ...githubConfig, ref: e.target.value })}
+                margin="normal"
+                placeholder="main"
+              />
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Annuler</Button>
@@ -1338,7 +1477,7 @@ ${moduleLine}${instanceBlocks}
                   Aucune source de synchronisation
                 </ModuleSubtitle>
                 <ModuleSecondaryText sx={{ mb: 3 }}>
-                  Liez une source cloud pour synchroniser automatiquement vos états Terraform.
+                  Liez une source cloud pour synchroniser automatiquement vos états OpenTofu.
                 </ModuleSecondaryText>
                 <Button variant="contained" startIcon={<CloudQueueIcon />} onClick={() => setSourceDialogOpen(true)}>
                   Lier une source cloud
@@ -1431,6 +1570,73 @@ ${moduleLine}${instanceBlocks}
             </Grid>
           )}
         </>
+      )}
+
+      {activeTab === 2 && (
+        <ModuleCard sx={{ maxWidth: 600 }}>
+          <ModuleSubtitle sx={{ mb: 1 }}>
+            Token GitHub (drift fine)
+          </ModuleSubtitle>
+          <ModuleSecondaryText sx={{ mb: 2 }}>
+            Ce token est utilisé pour récupérer les fichiers .tf source depuis vos dépôts GitHub
+            lors de la détection de drift "fine" (un seul token, réutilisé par toutes les sources du projet).
+            Scope requis : <code>repo</code> (lecture seule).
+          </ModuleSecondaryText>
+          <Box sx={{ mb: 2 }}>
+            {terraformConfig?.github_token === '***' ? (
+              <Chip
+                size="small"
+                icon={<CheckCircleIcon fontSize="small" />}
+                label="Token configuré"
+                sx={{
+                  bgcolor: `${kuraColors.success}22`,
+                  color: kuraColors.success,
+                  border: `1px solid ${kuraColors.success}55`,
+                  '& .MuiChip-icon': { color: kuraColors.success },
+                }}
+              />
+            ) : (
+              <Chip
+                size="small"
+                label="Aucun token configuré"
+                sx={{
+                  bgcolor: `${kuraColors.text2}22`,
+                  color: kuraColors.text2,
+                  border: `1px solid ${kuraColors.text2}55`,
+                }}
+              />
+            )}
+          </Box>
+          <TextField
+            fullWidth
+            size="small"
+            label="Token GitHub"
+            type="password"
+            placeholder={terraformConfig?.github_token === '***' ? '•••••••• (laisser vide pour conserver)' : 'ghp_xxx...'}
+            value={githubTokenInput}
+            onChange={(e) => setGithubTokenInput(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              disabled={!githubTokenInput || saveConfigMutation.isPending}
+              onClick={() => saveConfigMutation.mutate({ github_token: githubTokenInput })}
+            >
+              Enregistrer
+            </Button>
+            {terraformConfig?.github_token === '***' && (
+              <Button
+                variant="outlined"
+                color="error"
+                disabled={deleteGithubTokenMutation.isPending}
+                onClick={() => deleteGithubTokenMutation.mutate()}
+              >
+                Supprimer
+              </Button>
+            )}
+          </Box>
+        </ModuleCard>
       )}
 
       {/* Snackbar pour les notifications */}

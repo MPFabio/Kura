@@ -51,9 +51,11 @@ type UpdateProjectRequest struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// AddProjectMemberRequest représente une requête d'ajout de membre
+// AddProjectMemberRequest représente une requête d'ajout de membre.
+// L'utilisateur à ajouter peut être désigné par UserID ou par Email (l'un des deux requis).
 type AddProjectMemberRequest struct {
-	UserID string `json:"user_id" binding:"required"`
+	UserID string `json:"user_id,omitempty"`
+	Email  string `json:"email,omitempty"`
 	Role   string `json:"role" binding:"required,oneof=admin member"` // "owner" ne peut pas être assigné
 }
 

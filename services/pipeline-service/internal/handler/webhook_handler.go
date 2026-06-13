@@ -45,13 +45,20 @@ func (h *WebhookHandler) verifyGitHubSignature(body []byte, signature string) bo
 	return hmac.Equal([]byte(expected), []byte(signature))
 }
 
-// verifyGitLabToken valide le token secret envoyé par GitLab.
-// GitLab inclut l'en-tête X-Gitlab-Token: <secret>
-func (h *WebhookHandler) verifyGitLabToken(token string) bool {
-	if h.cfg.GitLabWebhookSecret == "" {
+// verifyForgejoSignature valide la signature HMAC-SHA256 envoyée par Forgejo.
+// Forgejo inclut l'en-tête X-Hub-Signature-256: sha256=<hex> (format identique à GitHub).
+// Si le secret n'est pas configuré, la vérification est ignorée (mode développement).
+func (h *WebhookHandler) verifyForgejoSignature(body []byte, signature string) bool {
+	if h.cfg.ForgejoWebhookSecret == "" {
 		return true
 	}
-	return hmac.Equal([]byte(token), []byte(h.cfg.GitLabWebhookSecret))
+	if !strings.HasPrefix(signature, "sha256=") {
+		return false
+	}
+	expectedMAC := hmac.New(sha256.New, []byte(h.cfg.ForgejoWebhookSecret))
+	expectedMAC.Write(body)
+	expected := "sha256=" + hex.EncodeToString(expectedMAC.Sum(nil))
+	return hmac.Equal([]byte(expected), []byte(signature))
 }
 
 // HandleGitHub gère les webhooks GitHub Actions
@@ -94,71 +101,38 @@ func (h *WebhookHandler) HandleGitHub(c *gin.Context) {
 	})
 }
 
-// HandleGitLab gère les webhooks GitLab CI
-// POST /api/v1/pipeline/webhooks/gitlab
-func (h *WebhookHandler) HandleGitLab(c *gin.Context) {
+// HandleForgejo gère les webhooks Forgejo Actions
+// POST /api/v1/pipeline/webhooks/forgejo
+func (h *WebhookHandler) HandleForgejo(c *gin.Context) {
 	start := time.Now()
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "error").Inc()
+		metrics.WebhooksReceivedTotal.WithLabelValues("forgejo", "error").Inc()
 		c.JSON(http.StatusBadRequest, gin.H{"error": "lecture du corps impossible"})
 		return
 	}
 
-	if !h.verifyGitLabToken(c.GetHeader("X-Gitlab-Token")) {
-		metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "unauthorized").Inc()
-		log.Printf("⚠️ Webhook GitLab rejeté : token invalide")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalide"})
+	if !h.verifyForgejoSignature(body, c.GetHeader("X-Hub-Signature-256")) {
+		metrics.WebhooksReceivedTotal.WithLabelValues("forgejo", "unauthorized").Inc()
+		log.Printf("⚠️ Webhook Forgejo rejeté : signature HMAC invalide")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "signature invalide"})
 		return
 	}
 
-	run, err := h.svc.ProcessWebhook(c.Request.Context(), models.ProviderGitLab, body)
-	metrics.WebhookProcessingDuration.WithLabelValues("gitlab").Observe(time.Since(start).Seconds())
+	run, err := h.svc.ProcessWebhook(c.Request.Context(), models.ProviderForgejo, body)
+	metrics.WebhookProcessingDuration.WithLabelValues("forgejo").Observe(time.Since(start).Seconds())
 	if err != nil {
-		metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "error").Inc()
-		log.Printf("Erreur webhook GitLab: %v", err)
+		metrics.WebhooksReceivedTotal.WithLabelValues("forgejo", "error").Inc()
+		log.Printf("Erreur webhook Forgejo: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "traitement du webhook échoué"})
 		return
 	}
-	metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "ok").Inc()
+	metrics.WebhooksReceivedTotal.WithLabelValues("forgejo", "ok").Inc()
 	if run == nil {
 		c.JSON(http.StatusOK, gin.H{"message": "événement ignoré"})
 		return
 	}
-	metrics.RunsStoredTotal.WithLabelValues("gitlab", string(run.Status)).Inc()
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "webhook traité",
-		"run_id":  run.ID,
-		"status":  run.Status,
-	})
-}
-
-// HandleJenkins gère les webhooks Jenkins
-// POST /api/v1/pipeline/webhooks/jenkins
-func (h *WebhookHandler) HandleJenkins(c *gin.Context) {
-	start := time.Now()
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		metrics.WebhooksReceivedTotal.WithLabelValues("jenkins", "error").Inc()
-		c.JSON(http.StatusBadRequest, gin.H{"error": "lecture du corps impossible"})
-		return
-	}
-
-	run, err := h.svc.ProcessWebhook(c.Request.Context(), models.ProviderJenkins, body)
-	metrics.WebhookProcessingDuration.WithLabelValues("jenkins").Observe(time.Since(start).Seconds())
-	if err != nil {
-		metrics.WebhooksReceivedTotal.WithLabelValues("jenkins", "error").Inc()
-		log.Printf("Erreur webhook Jenkins: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "traitement du webhook échoué"})
-		return
-	}
-	metrics.WebhooksReceivedTotal.WithLabelValues("jenkins", "ok").Inc()
-	if run == nil {
-		c.JSON(http.StatusOK, gin.H{"message": "événement ignoré"})
-		return
-	}
-	metrics.RunsStoredTotal.WithLabelValues("jenkins", string(run.Status)).Inc()
+	metrics.RunsStoredTotal.WithLabelValues("forgejo", string(run.Status)).Inc()
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "webhook traité",
@@ -178,11 +152,11 @@ func (h *WebhookHandler) HandleGeneric(c *gin.Context) {
 	}
 
 	xGitHub := c.GetHeader("X-GitHub-Event")
-	xGitLab := c.GetHeader("X-Gitlab-Event")
+	xForgejo := c.GetHeader("X-Forgejo-Event")
 
-	provider := h.svc.DetectProvider(xGitHub, xGitLab)
+	provider := h.svc.DetectProvider(xGitHub, xForgejo)
 	if provider == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "impossible de détecter le provider (headers X-GitHub-Event ou X-Gitlab-Event requis). Utilisez /webhooks/github, /webhooks/gitlab ou /webhooks/jenkins"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "impossible de détecter le provider (headers X-GitHub-Event ou X-Forgejo-Event requis). Utilisez /webhooks/github ou /webhooks/forgejo"})
 		return
 	}
 
@@ -194,11 +168,11 @@ func (h *WebhookHandler) HandleGeneric(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "signature invalide"})
 			return
 		}
-	} else if provider == models.ProviderGitLab {
-		if !h.verifyGitLabToken(c.GetHeader("X-Gitlab-Token")) {
-			metrics.WebhooksReceivedTotal.WithLabelValues("gitlab", "unauthorized").Inc()
-			log.Printf("⚠️ Webhook GitLab (generic) rejeté : token invalide")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalide"})
+	} else if provider == models.ProviderForgejo {
+		if !h.verifyForgejoSignature(body, c.GetHeader("X-Hub-Signature-256")) {
+			metrics.WebhooksReceivedTotal.WithLabelValues("forgejo", "unauthorized").Inc()
+			log.Printf("⚠️ Webhook Forgejo (generic) rejeté : signature HMAC invalide")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "signature invalide"})
 			return
 		}
 	}

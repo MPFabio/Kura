@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	vault "github.com/hashicorp/vault/api"
+	vault "github.com/openbao/openbao/api/v2"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/modulops/vault-service/internal/config"
@@ -151,7 +151,6 @@ func (s *VaultService) ListSecrets(ctx context.Context, path string) ([]string, 
 }
 
 // GetSecret lit un secret KV v2.
-// Les valeurs sont masquées dans la réponse (on retourne les clés, pas les valeurs).
 func (s *VaultService) GetSecret(ctx context.Context, path string) (*models.Secret, error) {
 	cacheKey := fmt.Sprintf("vault:secret:%s", path)
 	if s.rdb != nil {
@@ -175,15 +174,9 @@ func (s *VaultService) GetSecret(ctx context.Context, path string) (*models.Secr
 	data, _ := raw.Data["data"].(map[string]interface{})
 	meta, _ := raw.Data["metadata"].(map[string]interface{})
 
-	// Masquer les valeurs — on expose uniquement les clés présentes
-	maskedData := make(map[string]interface{}, len(data))
-	for k := range data {
-		maskedData[k] = "***"
-	}
-
 	sec := &models.Secret{
 		Path: path,
-		Data: maskedData,
+		Data: data,
 		Metadata: models.SecretMetadata{
 			Path:    path,
 			Version: intFromMeta(meta, "version"),

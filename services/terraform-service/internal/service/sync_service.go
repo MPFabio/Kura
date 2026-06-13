@@ -434,6 +434,37 @@ func (s *SyncService) SyncState(ctx context.Context, sourceID string) (*models.S
 	return job, nil
 }
 
+// SyncStateSync synchronise immédiatement (de façon bloquante) le tfstate local
+// d'une source depuis son backend distant (GCS/S3/Azure). Utilisé avant une
+// détection de drift pour garantir que la comparaison se fait contre l'état
+// réellement courant, et non contre une copie locale potentiellement périmée
+// (synchronisée seulement sur l'intervalle planifié).
+func (s *SyncService) SyncStateSync(ctx context.Context, sourceID string) error {
+	source, err := s.GetSource(ctx, sourceID)
+	if err != nil {
+		return err
+	}
+
+	job := &models.SyncJob{
+		ID:          fmt.Sprintf("job-%d", time.Now().UnixNano()),
+		StateFileID: source.StateFileID,
+		SourceID:    sourceID,
+		Status:      "running",
+		StartedAt:   time.Now(),
+	}
+
+	s.executeSync(ctx, source, job)
+
+	s.mu.Lock()
+	s.jobs[job.ID] = job
+	s.mu.Unlock()
+
+	if job.Status == "failed" {
+		return fmt.Errorf("%s", job.Error)
+	}
+	return nil
+}
+
 // executeSync exécute la synchronisation.
 func (s *SyncService) executeSync(ctx context.Context, source *models.StateSource, job *models.SyncJob) {
 	// #region agent log

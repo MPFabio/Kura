@@ -64,12 +64,33 @@ export interface UpdateProjectRequest {
 }
 
 export interface AddProjectMemberRequest {
-  user_id: string
+  user_id?: string
+  email?: string
   role: 'admin' | 'member'
 }
 
 export interface UpdateProjectMemberRequest {
   role: 'admin' | 'member'
+}
+
+export interface ProjectMapping {
+  id: string
+  project_id: string
+  github_repository?: string
+  terraform_state_id?: string
+  terraform_source_id?: string
+  cluster_id?: string
+  cluster_namespace?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateProjectMappingRequest {
+  github_repository?: string
+  terraform_state_id?: string
+  terraform_source_id?: string
+  cluster_id?: string
+  cluster_namespace?: string
 }
 
 export const projectService = {
@@ -159,6 +180,38 @@ export const projectService = {
       await getProjectClient().delete(`/v1/projects/${projectId}/members/${userId}`)
     } catch (error) {
       console.error(`Erreur lors de la suppression du membre ${userId} du projet ${projectId}:`, error)
+      throw error
+    }
+  },
+
+  listMappings: async (projectId: string): Promise<{ items: ProjectMapping[] }> => {
+    try {
+      const response = await getProjectClient().get<{ items: ProjectMapping[] }>(`/v1/projects/${projectId}/mappings`)
+      if (!response.data || !response.data.items) {
+        return { items: [] }
+      }
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des mappings du projet ${projectId}:`, error)
+      throw error
+    }
+  },
+
+  createMapping: async (projectId: string, mapping: CreateProjectMappingRequest): Promise<ProjectMapping> => {
+    try {
+      const response = await getProjectClient().post<ProjectMapping>(`/v1/projects/${projectId}/mappings`, mapping)
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la création du mapping pour le projet ${projectId}:`, error)
+      throw error
+    }
+  },
+
+  deleteMapping: async (projectId: string, mappingId: string): Promise<void> => {
+    try {
+      await getProjectClient().delete(`/v1/projects/${projectId}/mappings/${mappingId}`)
+    } catch (error) {
+      console.error(`Erreur lors de la suppression du mapping ${mappingId} du projet ${projectId}:`, error)
       throw error
     }
   },

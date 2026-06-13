@@ -18,7 +18,7 @@ const pipelineClient = pipelineBaseURL
 
 const getClient = () => pipelineClient
 
-export type PipelineProvider = 'github' | 'gitlab' | 'jenkins'
+export type PipelineProvider = 'github' | 'forgejo'
 
 export type PipelineRunStatus =
   | 'pending'
@@ -75,6 +75,9 @@ export interface PipelineProvidersResponse {
 export interface PipelineConfig {
   github_repos: string[]
   linked: boolean
+  forgejo_url?: string
+  forgejo_repos?: string[]
+  forgejo_linked?: boolean
 }
 
 // Intercepteur auth pour pipelineClient (copie le token si on utilise l'URL directe)
@@ -139,6 +142,9 @@ export const pipelineService = {
   setConfig: async (data: {
     github_token?: string
     github_repos?: string[]
+    forgejo_url?: string
+    forgejo_token?: string
+    forgejo_repos?: string[]
   }): Promise<{ message: string; config: PipelineConfig }> => {
     const response = await getClient().post<{ message: string; config: PipelineConfig }>(
       '/v1/pipeline/config',
@@ -151,6 +157,14 @@ export const pipelineService = {
   sync: async (): Promise<{ message: string; runs: number }> => {
     const response = await getClient().post<{ message: string; runs: number }>(
       '/v1/pipeline/sync'
+    )
+    return response.data
+  },
+
+  /** Déclenche une sync manuelle depuis l'API Forgejo Actions */
+  syncForgejo: async (): Promise<{ message: string; runs: number }> => {
+    const response = await getClient().post<{ message: string; runs: number }>(
+      '/v1/pipeline/sync/forgejo'
     )
     return response.data
   },

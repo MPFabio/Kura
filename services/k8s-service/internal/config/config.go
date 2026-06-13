@@ -14,6 +14,9 @@ type Config struct {
 	LogLevel       string
 	AuthServiceURL string
 
+	// Authentification interne (appels service-à-service, ex: Semaphore)
+	InternalAPISecret string
+
 	// Kubernetes
 	KubeconfigPath string
 	InCluster      bool
@@ -25,6 +28,9 @@ type Config struct {
 	RedisPassword string
 	RedisDB       int
 	CacheTTL      time.Duration
+
+	// Tracing (OpenTelemetry)
+	OTLPEndpoint string
 }
 
 func Load() (*Config, error) {
@@ -34,6 +40,10 @@ func Load() (*Config, error) {
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
 		KubeconfigPath: getEnv("KUBECONFIG_PATH", ""),
+
+		InternalAPISecret: getEnv("INTERNAL_API_SECRET", ""),
+
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}
 
 	// In-cluster ou kubeconfig
@@ -90,4 +100,3 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-

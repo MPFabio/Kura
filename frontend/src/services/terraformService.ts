@@ -54,13 +54,39 @@ export interface TerraformDriftResult {
   }>
   detected_at: string
   message?: string
+  method?: 'fine' | 'fast'
 }
 
 export interface TerraformDriftResponse {
   items: TerraformDriftResult[]
 }
 
+export interface TerraformConfig {
+  state_backend: string
+  s3_bucket: string
+  s3_key_prefix: string
+  s3_region: string
+  s3_endpoint: string
+  encryption_key: string
+  github_token: string
+}
+
 export const terraformService = {
+  getConfig: async (): Promise<TerraformConfig> => {
+    const response = await apiClient.get<TerraformConfig>('/v1/terraform/config')
+    return response.data
+  },
+
+  setConfig: async (data: { github_token?: string }): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>('/v1/terraform/config', data)
+    return response.data
+  },
+
+  deleteConfigKey: async (key: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/v1/terraform/config/${key}`)
+    return response.data
+  },
+
   getStates: async (projectId: string): Promise<TerraformStateResponse> => {
     try {
       const response = await apiClient.get<TerraformStateResponse>(`/v1/terraform/states?project_id=${projectId}`)
@@ -114,9 +140,9 @@ export const terraformService = {
     }
   },
 
-  detectDrift: async (id: string): Promise<TerraformDriftResponse> => {
+  detectDrift: async (id: string, method: 'auto' | 'fine' | 'fast' = 'auto'): Promise<TerraformDriftResponse> => {
     try {
-      const response = await apiClient.post<TerraformDriftResponse>(`/v1/terraform/states/${id}/drift`)
+      const response = await apiClient.post<TerraformDriftResponse>(`/v1/terraform/states/${id}/drift?method=${method}`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la détection de drift pour l'état ${id}:`, error)
@@ -193,6 +219,11 @@ export interface TerraformSource {
     // Synchronisation
     sync_interval?: string
     auto_sync: boolean
+    // Drift "fine" (fichiers .tf source via GitHub)
+    github_owner?: string
+    github_repo?: string
+    github_path?: string
+    github_ref?: string
   }
   enabled: boolean
   last_sync?: string

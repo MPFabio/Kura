@@ -120,6 +120,25 @@ func (c *Client) Set(ctx context.Context, key, value string) error {
 	return c.SetMany(ctx, map[string]string{key: value})
 }
 
+// Delete supprime une clé.
+func (c *Client) Delete(ctx context.Context, key string) error {
+	url := fmt.Sprintf("%s/internal/config/%s/%s", c.authServiceURL, c.service, key)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("configstore: DELETE %s/%s → %d: %s", c.service, key, resp.StatusCode, b)
+	}
+	return nil
+}
+
 // GetOrFallback retourne la valeur Postgres si elle existe et est non vide,
 // sinon retourne la valeur de fallback (typiquement depuis une env var).
 func (c *Client) GetOrFallback(ctx context.Context, key, fallback string) string {

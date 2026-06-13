@@ -11,16 +11,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"github.com/modulops/metrics-service/internal/config"
 	"github.com/modulops/metrics-service/internal/handler"
 	"github.com/modulops/metrics-service/internal/service"
+	"github.com/modulops/metrics-service/internal/tracing"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Erreur configuration: %v", err)
+	}
+
+	// Initialiser le tracing OpenTelemetry (export vers Tempo)
+	shutdownTracing, err := tracing.Init(context.Background(), "metrics-service", cfg.OTLPEndpoint)
+	if err != nil {
+		log.Printf("⚠️  Tracing OpenTelemetry désactivé (%v)", err)
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = shutdownTracing(ctx)
+		}()
 	}
 
 	rdb := redis.NewClient(&redis.Options{
@@ -70,6 +84,10 @@ func setupRouter(h *handler.MetricsHandler, cfg *config.Config) *gin.Engine {
 	}
 
 	router := gin.Default()
+
+	// Middleware de tracing OpenTelemetry
+	router.Use(otelgin.Middleware("metrics-service", otelgin.WithFilter(tracing.SkipHealthAndMetrics)))
+
 	router.Use(corsMiddleware())
 
 	router.GET("/health", func(c *gin.Context) {
@@ -79,11 +97,23 @@ func setupRouter(h *handler.MetricsHandler, cfg *config.Config) *gin.Engine {
 	v1 := router.Group("/api/v1")
 	metrics := v1.Group("/metrics")
 	{
-		metrics.GET("/health", h.GetHealth)
-		metrics.GET("/services", h.GetServices)
-		metrics.GET("/overview", h.GetOverview)
-		metrics.GET("/config", h.GetConfig)
-		metrics.POST("/config", h.SetConfig)
+		// platform-config est toujours accessible : il indique au frontend si
+		// le reste de l'observabilité interne (ci-dessous) doit être affiché.
+		metrics.GET("/platform-config", h.GetPlatformConfig)
+
+		internal := metrics.Group("")
+		internal.Use(h.RequireInternalObservability())
+		{
+			internal.GET("/health", h.GetHealth)
+			internal.GET("/services", h.GetServices)
+			internal.GET("/overview", h.GetOverview)
+			internal.GET("/logs", h.GetLogs)
+			internal.GET("/logs/services", h.GetLogServices)
+			internal.GET("/traces", h.SearchTraces)
+			internal.GET("/traces/:traceID", h.GetTrace)
+			internal.GET("/config", h.GetConfig)
+			internal.POST("/config", h.SetConfig)
+		}
 	}
 
 	return router

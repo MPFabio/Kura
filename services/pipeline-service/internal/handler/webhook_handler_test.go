@@ -15,7 +15,6 @@ func buildWebhookHandler(secret string) *WebhookHandler {
 		svc: nil, // non utilisé dans les tests HMAC
 		cfg: &config.Config{
 			GitHubWebhookSecret: secret,
-			GitLabWebhookSecret: secret,
 		},
 	}
 }
@@ -90,37 +89,5 @@ func TestVerifyGitHubSignature_NoSecretConfigured(t *testing.T) {
 	// Sans secret configuré, tout webhook est accepté (développement local)
 	if !h.verifyGitHubSignature(body, "n'importe-quoi") {
 		t.Fatal("sans secret configuré, le webhook devrait être accepté (mode dev)")
-	}
-}
-
-func TestVerifyGitLabToken_ValidToken(t *testing.T) {
-	h := buildWebhookHandler("gitlab-secret")
-
-	if !h.verifyGitLabToken("gitlab-secret") {
-		t.Fatal("un token GitLab valide devrait être accepté")
-	}
-}
-
-func TestVerifyGitLabToken_WrongToken(t *testing.T) {
-	h := buildWebhookHandler("correct-token")
-
-	if h.verifyGitLabToken("wrong-token") {
-		t.Fatal("un token GitLab incorrect devrait être rejeté")
-	}
-}
-
-func TestVerifyGitLabToken_EmptyToken(t *testing.T) {
-	h := buildWebhookHandler("correct-token")
-
-	if h.verifyGitLabToken("") {
-		t.Fatal("un token vide devrait être rejeté lorsque le secret est configuré")
-	}
-}
-
-func TestVerifyGitLabToken_NoSecretConfigured(t *testing.T) {
-	h := buildWebhookHandler("") // mode dev
-
-	if !h.verifyGitLabToken("n'importe-quoi") {
-		t.Fatal("sans secret configuré, tout token GitLab devrait être accepté (mode dev)")
 	}
 }

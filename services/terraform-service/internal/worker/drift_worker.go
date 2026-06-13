@@ -2,11 +2,8 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"time"
-
-	"github.com/segmentio/kafka-go"
 
 	"github.com/modulops/terraform-service/internal/config"
 	"github.com/modulops/terraform-service/internal/models"
@@ -15,8 +12,6 @@ import (
 
 const (
 	defaultDriftInterval = 1 * time.Hour
-	kafkaTopic           = "terraform.drift.detected"
-	kafkaWriteTimeout    = 10 * time.Second
 )
 
 // DriftWorker exécute la détection de drift en arrière-plan pour les sources avec auto_sync.
@@ -50,7 +45,7 @@ func NewDriftWorker(terraformService *service.TerraformService, syncService *ser
 func (w *DriftWorker) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	w.cancel = cancel
-	log.Printf("🔄 Drift worker démarré (intervalle: %s, topic: %s)", w.interval, kafkaTopic)
+	log.Printf("🔄 Drift worker démarré (intervalle: %s)", w.interval)
 	go w.run(ctx)
 }
 
@@ -135,16 +130,6 @@ func (w *DriftWorker) runDriftCheck(ctx context.Context) {
 	}
 }
 
-// DriftEventPayload représente le payload publié sur le topic terraform.drift.detected.
-type DriftEventPayload struct {
-	EventType   string               `json:"event_type"`
-	StateFileID string               `json:"state_file_id"`
-	SourceID    string               `json:"source_id"`
-	DetectedAt  time.Time            `json:"detected_at"`
-	DriftCount  int                  `json:"drift_count"`
-	Results     []*models.DriftResult `json:"results,omitempty"`
-}
-
 func (w *DriftWorker) emitDriftEvent(ctx context.Context, stateFileID, sourceID string, results []*models.DriftResult) {
 	driftCount := 0
 	for _, r := range results {
@@ -153,50 +138,5 @@ func (w *DriftWorker) emitDriftEvent(ctx context.Context, stateFileID, sourceID 
 		}
 	}
 
-	payload := DriftEventPayload{
-		EventType:   "terraform.drift.detected",
-		StateFileID: stateFileID,
-		SourceID:    sourceID,
-		DetectedAt:  time.Now(),
-		DriftCount:  driftCount,
-		Results:     results,
-	}
-
-	body, err := json.Marshal(payload)
-	if err != nil {
-		log.Printf("⚠️  Drift worker: marshal event: %v", err)
-		return
-	}
-
-	if w.cfg != nil && w.cfg.KafkaBrokers != "" {
-		if err := w.publishKafka(ctx, stateFileID, body); err != nil {
-			log.Printf("⚠️  Drift worker: publish Kafka: %v", err)
-		} else {
-			log.Printf("📤 Drift event publié sur %s: state=%s source=%s count=%d",
-				kafkaTopic, stateFileID, sourceID, driftCount)
-		}
-	} else {
-		log.Printf("🔔 Drift détecté (Kafka non configuré): state=%s source=%s count=%d",
-			stateFileID, sourceID, driftCount)
-	}
-}
-
-// publishKafka publie le payload sur le topic terraform.drift.detected via kafka-go.
-// La clé du message est le stateFileID pour garantir l'ordre par état Terraform.
-func (w *DriftWorker) publishKafka(ctx context.Context, key string, body []byte) error {
-	writeCtx, cancel := context.WithTimeout(ctx, kafkaWriteTimeout)
-	defer cancel()
-
-	writer := &kafka.Writer{
-		Addr:                   kafka.TCP(w.cfg.KafkaBrokers),
-		Topic:                  kafkaTopic,
-		Balancer:               &kafka.LeastBytes{},
-		AllowAutoTopicCreation: true,
-	}
-	defer writer.Close()
-
-	return writer.WriteMessages(writeCtx, kafka.Message{
-		Key:   []byte(key),
-		Value: body,
-	})
+	log.Printf("🔔 Drift détecté: state=%s source=%s count=%d", stateFileID, sourceID, driftCount)
 }

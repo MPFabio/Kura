@@ -23,23 +23,19 @@ type Config struct {
 	RedisDB       int
 	CacheTTL      time.Duration
 
-	// Kafka (pour futur usage)
-	KafkaBrokers string
-	KafkaGroupID string
-
 	// CI/CD - GitHub
 	GitHubToken         string
 	GitHubRepos         []string // ex: ["owner/repo1", "owner/repo2"]
 	GitHubWebhookSecret string
 
-	// CI/CD - GitLab
-	GitLabToken         string
-	GitLabWebhookSecret string
+	// CI/CD - Forgejo
+	ForgejoURL           string
+	ForgejoToken         string
+	ForgejoRepos         []string // ex: ["owner/repo1", "owner/repo2"]
+	ForgejoWebhookSecret string
 
-	// CI/CD - Jenkins
-	JenkinsURL      string
-	JenkinsUsername string
-	JenkinsToken    string
+	// Tracing (OpenTelemetry)
+	OTLPEndpoint string
 }
 
 func Load() (*Config, error) {
@@ -48,6 +44,8 @@ func Load() (*Config, error) {
 		Environment:    getEnv("ENV", "development"),
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
+
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}
 
 	// Redis
@@ -71,10 +69,6 @@ func Load() (*Config, error) {
 	}
 	cfg.CacheTTL = cacheTTL
 
-	// Kafka
-	cfg.KafkaBrokers = getEnv("KAFKA_BROKERS", "localhost:9092")
-	cfg.KafkaGroupID = getEnv("KAFKA_GROUP_ID", "pipeline-service")
-
 	// GitHub
 	cfg.GitHubToken = getEnv("GITHUB_TOKEN", "")
 	// WEBHOOK_SECRET est le secret partagé pour valider les signatures HMAC de tous les providers
@@ -88,14 +82,17 @@ func Load() (*Config, error) {
 		}
 	}
 
-	// GitLab
-	cfg.GitLabToken = getEnv("GITLAB_TOKEN", "")
-	cfg.GitLabWebhookSecret = getEnv("GITLAB_WEBHOOK_SECRET", webhookSecret)
-
-	// Jenkins
-	cfg.JenkinsURL = getEnv("JENKINS_URL", "")
-	cfg.JenkinsUsername = getEnv("JENKINS_USERNAME", "")
-	cfg.JenkinsToken = getEnv("JENKINS_TOKEN", "")
+	// Forgejo
+	cfg.ForgejoURL = getEnv("FORGEJO_URL", "")
+	cfg.ForgejoToken = getEnv("FORGEJO_TOKEN", "")
+	cfg.ForgejoWebhookSecret = getEnv("FORGEJO_WEBHOOK_SECRET", webhookSecret)
+	if reposStr := getEnv("FORGEJO_REPOS", ""); reposStr != "" {
+		for _, r := range splitAndTrim(reposStr, ",") {
+			if r != "" {
+				cfg.ForgejoRepos = append(cfg.ForgejoRepos, r)
+			}
+		}
+	}
 
 	return cfg, nil
 }

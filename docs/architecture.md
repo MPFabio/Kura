@@ -1,6 +1,6 @@
 ## Contexte et objectifs du projet
 
-Kura est une plateforme DevOps unifiée qui vise à donner **une vue centrale** sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, Terraform, Ansible, pipelines CI/CD, métriques et alertes.
+Kura est une plateforme DevOps unifiée qui vise à donner **une vue centrale** sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, Terraform, Semaphore, pipelines CI/CD, métriques et alertes.
 
 ### Ce qui existe déjà sur le marché
 
@@ -9,7 +9,7 @@ Kura est une plateforme DevOps unifiée qui vise à donner **une vue centrale** 
   - Outils Terraform (Terraform Cloud, Atlantis),
   - Interfaces Ansible Tower / AWX,
   - Outils CI/CD (GitHub Actions, GitLab CI, Jenkins),
-  - Stacks d’observabilité (Prometheus / Grafana).
+  - Stacks d’observabilité (VictoriaMetrics / Grafana).
   
 - **Portails développeur / Developer Portals** :
   - **Backstage (Spotify)** : plateforme open-source pour créer des portails développeur, catalogue de services, documentation, plugins CI/CD.
@@ -35,7 +35,7 @@ Kura est une plateforme DevOps unifiée qui vise à donner **une vue centrale** 
 
 - Tous les composants ciblés exposent déjà :
   - Des **API HTTP** (Kubernetes, Terraform Cloud, Ansible Tower, outils CI/CD),
-  - Des **endpoints d’observabilité** (Prometheus, logs, etc.).
+  - Des **endpoints d’observabilité** (VictoriaMetrics, logs, etc.).
 - L’architecture choisie (microservices + Kafka + Postgres + Redis) est **classique et éprouvée** dans l’écosystème cloud-native.
 - Le périmètre est découpé par domaines (`auth-service`, `k8s-service`, `terraform-service`, etc.) ce qui permet d’avancer **service par service** sans tout faire d’un coup.
 
@@ -59,8 +59,9 @@ graph TB
     Gateway --> Auth[Auth Service Go]
     Gateway --> K8s[K8s Service Go]
     Gateway --> Terraform[Terraform Service Go]
-    Gateway --> Ansible[Ansible Service Python]
+    Gateway --> Ansible[Semaphore Service Python - Ansible]
     Gateway --> Pipeline[Pipeline Service Go]
+    Gateway --> Vault[Vault Service Go - OpenBao]
     
     K8s --> Kafka[Kafka Event Bus]
     Terraform --> Kafka
@@ -73,6 +74,7 @@ graph TB
     K8s --> Redis[(Redis Cache)]
     Terraform --> Redis
     Ansible --> Redis
+    Vault --> Redis
     
     K8s --> Postgres[(PostgreSQL)]
     Terraform --> Postgres
@@ -84,7 +86,9 @@ graph TB
     
     Terraform --> GCPAPI[GCP Compute API]
     
-    Metrics --> Prometheus[(Prometheus)]
+    Vault --> ExtVault[(OpenBao du client)]
+    
+    Metrics --> Prometheus[(VictoriaMetrics)]
     Metrics --> Grafana[Grafana]
 ```
 
@@ -178,7 +182,7 @@ graph TD
 
 En résumé :
 
-- le schéma global explique **comment les services discutent entre eux** (Kong, Kafka, Postgres, Redis, Prometheus, Grafana) ;
+- le schéma global explique **comment les services discutent entre eux** (Kong, Kafka, Postgres, Redis, VictoriaMetrics, Grafana) ;
 - le schéma détaillé d’`auth-service` montre **comment l’authentification est centralisée et découplée** :
   - les `Handlers` gèrent uniquement HTTP,
   - `AuthService` porte la logique métier (mots de passe, rôles, JWT, refresh tokens),

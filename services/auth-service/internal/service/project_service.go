@@ -148,17 +148,33 @@ func (s *ProjectService) AddProjectMember(userID, projectID string, req *models.
 		return nil, errors.New("seuls les propriétaires et administrateurs peuvent ajouter des membres")
 	}
 
-	// Vérifier que l'utilisateur à ajouter existe
-	_, err = s.repo.GetUserByID(req.UserID)
-	if err != nil {
-		return nil, errors.New("utilisateur non trouvé")
+	// Résoudre l'utilisateur à ajouter, par ID ou par email
+	var targetUser *models.User
+	switch {
+	case req.UserID != "":
+		targetUser, err = s.repo.GetUserByID(req.UserID)
+		if err != nil {
+			return nil, errors.New("utilisateur non trouvé")
+		}
+	case req.Email != "":
+		targetUser, err = s.repo.GetUserByEmail(req.Email)
+		if err != nil {
+			return nil, errors.New("aucun utilisateur trouvé avec cet email")
+		}
+	default:
+		return nil, errors.New("user_id ou email requis")
+	}
+
+	// Vérifier que l'utilisateur n'est pas déjà membre du projet
+	if existing, err := s.repo.GetProjectMember(projectID, targetUser.ID); err == nil && existing != nil {
+		return nil, errors.New("cet utilisateur est déjà membre du projet")
 	}
 
 	// Créer le membre
 	newMember := &models.ProjectMember{
 		ID:        uuid.New().String(),
 		ProjectID: projectID,
-		UserID:    req.UserID,
+		UserID:    targetUser.ID,
 		Role:      req.Role,
 		JoinedAt:  time.Now(),
 	}
@@ -167,12 +183,7 @@ func (s *ProjectService) AddProjectMember(userID, projectID string, req *models.
 		return nil, fmt.Errorf("erreur lors de l'ajout du membre: %w", err)
 	}
 
-	// Charger l'utilisateur pour le retourner
-	user, err := s.repo.GetUserByID(req.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("erreur lors du chargement de l'utilisateur: %w", err)
-	}
-	newMember.User = user
+	newMember.User = targetUser
 
 	return newMember, nil
 }

@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'victoriametrics'
+    static_configs:
+      - targets: ['victoriametrics:8428']
+
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8080']
+
+  - job_name: 'k8s-service'
+    static_configs:
+      - targets: ['k8s-service:8081']
+
+  - job_name: 'terraform-service'
+    static_configs:
+      - targets: ['terraform-service:8082']
+
+  - job_name: 'ansible-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ansible-service:8083']
+
+  - job_name: 'pipeline-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['pipeline-service:8084']
+
+  - job_name: 'metrics-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['metrics-service:8086']
+
+  - job_name: 'kong'
+    static_configs:
+      - targets: ['kong:8001']
