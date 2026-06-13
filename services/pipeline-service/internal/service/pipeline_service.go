@@ -39,8 +39,6 @@ type PipelineService struct {
 func NewPipelineService(c *cache.RedisClient, cfg *config.Config) *PipelineService {
 	adapters := map[models.Provider]adapter.PipelineAdapter{
 		models.ProviderGitHub:  adapter.NewGitHubAdapter(),
-		models.ProviderGitLab:  adapter.NewGitLabAdapter(),
-		models.ProviderJenkins: adapter.NewJenkinsAdapter(),
 		models.ProviderForgejo: adapter.NewForgejoAdapter(),
 	}
 
@@ -598,16 +596,12 @@ func (s *PipelineService) RerunRun(ctx context.Context, runID string) error {
 }
 
 // DetectProvider tente de détecter le provider à partir des headers
-func (s *PipelineService) DetectProvider(headerXGitHub, headerXGitLab, headerXForgejo string) models.Provider {
+func (s *PipelineService) DetectProvider(headerXGitHub, headerXForgejo string) models.Provider {
 	if headerXGitHub != "" {
 		return models.ProviderGitHub
-	}
-	if headerXGitLab != "" {
-		return models.ProviderGitLab
 	}
 	if headerXForgejo != "" {
 		return models.ProviderForgejo
 	}
-	// Jenkins : utiliser l'endpoint dédié /webhooks/jenkins pour les webhooks Jenkins
 	return ""
 }

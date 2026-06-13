@@ -101,8 +101,6 @@ func (h *PipelineHandler) ListProviders(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"providers": []gin.H{
 			{"id": string(models.ProviderGitHub), "name": "GitHub Actions"},
-			{"id": string(models.ProviderGitLab), "name": "GitLab CI"},
-			{"id": string(models.ProviderJenkins), "name": "Jenkins"},
 			{"id": string(models.ProviderForgejo), "name": "Forgejo Actions"},
 		},
 	})

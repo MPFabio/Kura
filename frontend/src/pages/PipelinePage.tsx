@@ -50,15 +50,11 @@ import { jellyfishColors } from '../theme'
 
 const providerLabels: Record<string, string> = {
   github: 'GitHub Actions',
-  gitlab: 'GitLab CI',
-  jenkins: 'Jenkins',
   forgejo: 'Forgejo Actions',
 }
 
 const providerColors: Record<string, string> = {
   github: jellyfishColors.cyanSoft,
-  gitlab: jellyfishColors.violetMedium,
-  jenkins: jellyfishColors.magenta,
   forgejo: jellyfishColors.successSoft,
 }
 

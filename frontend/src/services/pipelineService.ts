@@ -18,7 +18,7 @@ const pipelineClient = pipelineBaseURL
 
 const getClient = () => pipelineClient
 
-export type PipelineProvider = 'github' | 'gitlab' | 'jenkins' | 'forgejo'
+export type PipelineProvider = 'github' | 'forgejo'
 
 export type PipelineRunStatus =
   | 'pending'
