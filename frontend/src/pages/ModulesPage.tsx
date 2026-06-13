@@ -252,20 +252,20 @@ export default function ModulesPage() {
     },
     {
       id: 'ansible',
-      name: 'Ansible',
+      name: 'Semaphore',
       icon: <AnsibleIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/ansible',
       active: true,
       status: 'active',
       statusText: 'Module actif',
-      description: 'Automatisation de vos déploiements via Ansible Semaphore. Gestion des jobs, inventaires, templates et exécution de playbooks.',
+      description: 'Automatisation de vos déploiements via Semaphore. Gestion des jobs, inventaires, templates et exécution de playbooks Ansible.',
       stats: [
         { label: 'Jobs', value: formatStat(ansibleJobsCount) },
         { label: 'Inventaires', value: formatStat(ansibleInventoriesCount) },
         { label: 'Templates', value: formatStat(ansibleTemplatesCount) },
       ],
       features: [
-        'Intégration Ansible Semaphore',
+        'Intégration Semaphore',
         'Gestion des inventaires et hôtes',
         'Exécution de playbooks et templates',
       ],

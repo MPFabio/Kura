@@ -32,7 +32,7 @@ export default function LandingPage() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Logo variant="icon" size="small" />
           <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 3 }}>
-            {['Kubernetes', 'OpenTofu', 'Ansible', 'Pipelines'].map((item) => (
+            {['Kubernetes', 'OpenTofu', 'Semaphore', 'Pipelines'].map((item) => (
               <Link key={item} to="/login" style={{ color: kuraColors.text2, textDecoration: 'none', fontSize: '0.875rem' }}>
                 {item}
               </Link>
@@ -99,7 +99,7 @@ export default function LandingPage() {
             </Typography>
 
             <Typography sx={{ fontSize: '1.0625rem', color: kuraColors.text1, lineHeight: 1.7, mb: 4, maxWidth: 500 }}>
-              Kubernetes, OpenTofu, Ansible, pipelines CI/CD et monitoring — centralisés dans une interface unique.
+              Kubernetes, OpenTofu, Semaphore, pipelines CI/CD et monitoring — centralisés dans une interface unique.
             </Typography>
 
             {/* Terminal */}
@@ -212,7 +212,7 @@ export default function LandingPage() {
           Intégrations natives
         </Typography>
         <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 4 }}>
-          {['Kubernetes', 'OpenTofu', 'Ansible', 'GitHub Actions', 'Prometheus', 'Grafana'].map((tool) => (
+          {['Kubernetes', 'OpenTofu', 'Semaphore', 'GitHub Actions', 'VictoriaMetrics', 'Grafana'].map((tool) => (
             <Typography key={tool} sx={{ fontSize: '0.9375rem', color: kuraColors.text2, fontWeight: 500 }}>
               {tool}
             </Typography>

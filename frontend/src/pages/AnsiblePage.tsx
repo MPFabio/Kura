@@ -289,7 +289,7 @@ export default function AnsiblePage() {
 
   return (
     <Box>
-      <ModuleTitle>Ansible</ModuleTitle>
+      <ModuleTitle>Semaphore</ModuleTitle>
 
       {/* Panneau de configuration Semaphore */}
       <ModuleCard sx={{ mb: 2 }}>
