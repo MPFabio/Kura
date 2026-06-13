@@ -278,7 +278,7 @@ export default function ModulesPage() {
       active: true,
       status: 'active',
       statusText: vaultStatusData?.sealed ? 'OpenBao scellé' : 'Module actif',
-      description: 'Gestion centralisée des secrets avec OpenBao (ou HashiCorp Vault). Stockage, consultation et rotation sécurisés des credentials.',
+      description: 'Gestion centralisée des secrets avec OpenBao. Stockage, consultation et rotation sécurisés des credentials.',
       stats: [
         { label: 'Secrets', value: formatStat(vaultSecretsData?.keys?.length ?? null) },
         { label: 'Statut', value: vaultStatusData?.sealed ? 'Scellé' : 'Déscellé' },
