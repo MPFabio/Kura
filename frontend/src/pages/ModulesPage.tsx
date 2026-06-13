@@ -350,7 +350,7 @@ export default function ModulesPage() {
         },
       ],
       features: [
-        'Workflows GitHub Actions / GitLab CI',
+        'Workflows GitHub Actions / Forgejo Actions',
         'Déploiement OpenTofu et K8s',
         'Historique et statut des runs',
       ],
