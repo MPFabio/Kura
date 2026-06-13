@@ -86,7 +86,7 @@ graph TB
     
     Terraform --> GCPAPI[GCP Compute API]
     
-    Vault --> ExtVault[(OpenBao/Vault du client)]
+    Vault --> ExtVault[(OpenBao du client)]
     
     Metrics --> Prometheus[(Prometheus)]
     Metrics --> Grafana[Grafana]

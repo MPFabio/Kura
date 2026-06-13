@@ -143,7 +143,7 @@ function DocContent({ docId }: { docId: string }) {
             <li><strong>OpenTofu</strong> : uploadez un fichier <code>.tfstate</code> ou liez un bucket cloud → consultez vos ressources et détectez les dérives</li>
             <li><strong>Pipelines</strong> : connectez votre token GitHub → suivez vos workflows en temps réel</li>
             <li><strong>Ansible</strong> : connectez votre instance Semaphore → lancez et suivez vos playbooks</li>
-            <li><strong>OpenBao</strong> : connectez votre instance OpenBao (ou HashiCorp Vault) → parcourez et gérez vos secrets</li>
+            <li><strong>OpenBao</strong> : connectez votre instance OpenBao → parcourez et gérez vos secrets</li>
             <li><strong>Observabilité</strong> : disponible automatiquement, aucune configuration requise</li>
           </Box>
         </Box>
@@ -274,7 +274,7 @@ function DocContent({ docId }: { docId: string }) {
           </Typography>
           <Typography component="h2">Pousser des images depuis vos pipelines CI/CD</Typography>
           <Typography>
-            Le registre Zot est joignable depuis l&apos;intérieur du cluster client à l&apos;adresse <code>zot.zot.svc.cluster.local:5000</code> (DNS du Service Kubernetes dans le namespace <code>zot</code>). Pour pousser depuis un pipeline CI/CD externe au cluster, exposez le Service via un <code>Ingress</code> ou un <code>LoadBalancer</code> et utilisez cette adresse à la place. Stockez les identifiants éventuels dans <strong>Vault</strong> (voir la section <em>Vault</em>) et utilisez-les dans votre pipeline, par exemple avec Docker :
+            Le registre Zot est joignable depuis l&apos;intérieur du cluster client à l&apos;adresse <code>zot.zot.svc.cluster.local:5000</code> (DNS du Service Kubernetes dans le namespace <code>zot</code>). Pour pousser depuis un pipeline CI/CD externe au cluster, exposez le Service via un <code>Ingress</code> ou un <code>LoadBalancer</code> et utilisez cette adresse à la place. Stockez les identifiants éventuels dans <strong>OpenBao</strong> (voir la section <em>OpenBao</em>) et utilisez-les dans votre pipeline, par exemple avec Docker :
           </Typography>
           <Box component="ul">
             <li><code>docker login zot.zot.svc.cluster.local:5000 -u $REGISTRY_USER -p $REGISTRY_PASSWORD</code></li>
@@ -455,11 +455,11 @@ provider "google" {
         <Box sx={contentSx}>
           <Typography component="h1">Module OpenBao</Typography>
           <Typography>
-            Le module OpenBao vous permet de parcourir, créer et supprimer des secrets stockés dans votre instance <strong>OpenBao</strong> (ou HashiCorp Vault), directement depuis Kura.
+            Le module OpenBao vous permet de parcourir, créer et supprimer des secrets stockés dans votre instance <strong>OpenBao</strong>, directement depuis Kura.
           </Typography>
           <Typography component="h2">Connecter votre instance OpenBao</Typography>
           <Typography>
-            Kura ne fournit pas d&apos;OpenBao : vous connectez <strong>votre propre instance</strong> (auto-hébergée, OpenBao ou HashiCorp Vault/HCP Vault). Depuis la page OpenBao, ouvrez le panneau <strong>Connexion OpenBao</strong> et renseignez :
+            Kura ne fournit pas d&apos;OpenBao : vous connectez <strong>votre propre instance</strong> (auto-hébergée). Depuis la page OpenBao, ouvrez le panneau <strong>Connexion OpenBao</strong> et renseignez :
           </Typography>
           <Box component="ul">
             <li><strong>Adresse OpenBao</strong> : l&apos;URL de votre instance OpenBao, joignable depuis Kura (ex : <code>https://vault.monentreprise.com:8200</code>)</li>
