@@ -1,5 +1,5 @@
 import { Box, SxProps, Theme } from '@mui/material'
-import vaultLogo from '../../assets/vault_logo.png'
+import vaultLogo from '../../assets/openbao_logo.png'
 
 interface VaultIconProps {
   sx?: SxProps<Theme>

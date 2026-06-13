@@ -32,7 +32,7 @@ const docSections: { id: string; label: string; children?: { id: string; label: 
       { id: 'terraform', label: 'OpenTofu' },
       { id: 'code', label: 'Repository' },
       { id: 'ansible', label: 'Ansible' },
-      { id: 'vault', label: 'Vault' },
+      { id: 'vault', label: 'OpenBao' },
       { id: 'pipelines', label: 'Pipelines CI/CD' },
       { id: 'monitoring', label: 'Observabilité' },
     ],
@@ -143,7 +143,7 @@ function DocContent({ docId }: { docId: string }) {
             <li><strong>OpenTofu</strong> : uploadez un fichier <code>.tfstate</code> ou liez un bucket cloud → consultez vos ressources et détectez les dérives</li>
             <li><strong>Pipelines</strong> : connectez votre token GitHub → suivez vos workflows en temps réel</li>
             <li><strong>Ansible</strong> : connectez votre instance Semaphore → lancez et suivez vos playbooks</li>
-            <li><strong>Vault</strong> : connectez votre instance HashiCorp Vault → parcourez et gérez vos secrets</li>
+            <li><strong>OpenBao</strong> : connectez votre instance OpenBao (ou HashiCorp Vault) → parcourez et gérez vos secrets</li>
             <li><strong>Observabilité</strong> : disponible automatiquement, aucune configuration requise</li>
           </Box>
         </Box>
@@ -285,7 +285,7 @@ function DocContent({ docId }: { docId: string }) {
             Pour signer l&apos;image après le push avec <strong>Cosign</strong> :
           </Typography>
           <Box component="ul">
-            <li><code>cosign generate-key-pair</code> (une seule fois, à conserver dans Vault)</li>
+            <li><code>cosign generate-key-pair</code> (une seule fois, à conserver dans OpenBao)</li>
             <li><code>cosign sign --key cosign.key zot.zot.svc.cluster.local:5000/mon-app:1.0.0</code></li>
           </Box>
           <Typography>
@@ -453,32 +453,32 @@ provider "google" {
     case 'vault':
       return (
         <Box sx={contentSx}>
-          <Typography component="h1">Module Vault</Typography>
+          <Typography component="h1">Module OpenBao</Typography>
           <Typography>
-            Le module Vault vous permet de parcourir, créer et supprimer des secrets stockés dans votre instance <strong>HashiCorp Vault</strong>, directement depuis Kura.
+            Le module OpenBao vous permet de parcourir, créer et supprimer des secrets stockés dans votre instance <strong>OpenBao</strong> (ou HashiCorp Vault), directement depuis Kura.
           </Typography>
-          <Typography component="h2">Connecter votre instance Vault</Typography>
+          <Typography component="h2">Connecter votre instance OpenBao</Typography>
           <Typography>
-            Kura ne fournit pas de Vault : vous connectez <strong>votre propre instance</strong> (auto-hébergée, ou HCP Vault). Depuis la page Vault, ouvrez le panneau <strong>Connexion Vault</strong> et renseignez :
+            Kura ne fournit pas d&apos;OpenBao : vous connectez <strong>votre propre instance</strong> (auto-hébergée, OpenBao ou HashiCorp Vault/HCP Vault). Depuis la page OpenBao, ouvrez le panneau <strong>Connexion OpenBao</strong> et renseignez :
           </Typography>
           <Box component="ul">
-            <li><strong>Adresse Vault</strong> : l&apos;URL de votre instance Vault, joignable depuis Kura (ex : <code>https://vault.monentreprise.com:8200</code>)</li>
-            <li><strong>Token Vault</strong> : un token avec les droits de lecture/écriture sur le mount KV utilisé (créé via <code>vault token create</code> ou une policy dédiée)</li>
+            <li><strong>Adresse OpenBao</strong> : l&apos;URL de votre instance OpenBao, joignable depuis Kura (ex : <code>https://vault.monentreprise.com:8200</code>)</li>
+            <li><strong>Token OpenBao</strong> : un token avec les droits de lecture/écriture sur le mount KV utilisé (créé via <code>bao token create</code> ou une policy dédiée)</li>
             <li><strong>Mount path</strong> : le chemin du moteur KV v2 à utiliser (par défaut <code>secret</code>)</li>
           </Box>
           <Typography>
-            Cliquez <strong>Connecter</strong>. Le badge passe à <strong>Connecté</strong> et indique l&apos;état de scellement (<strong>Scellé</strong> / <strong>Déscellé</strong>) de votre Vault. La configuration est mémorisée par projet.
+            Cliquez <strong>Connecter</strong>. Le badge passe à <strong>Connecté</strong> et indique l&apos;état de scellement (<strong>Scellé</strong> / <strong>Déscellé</strong>) de votre OpenBao. La configuration est mémorisée par projet.
           </Typography>
           <Typography component="h2">Ce que vous pouvez faire</Typography>
           <Box component="ul">
             <li><strong>Parcourir</strong> : naviguer dans l&apos;arborescence des secrets (dossiers et clés) via le fil d&apos;Ariane</li>
             <li><strong>Consulter</strong> : voir les clés d&apos;un secret, révéler ou masquer chaque valeur, et la copier dans le presse-papier</li>
             <li><strong>Créer</strong> : ajouter un nouveau secret à un chemin donné, avec une ou plusieurs paires clé/valeur</li>
-            <li><strong>Supprimer</strong> : retirer un secret de Vault après confirmation</li>
+            <li><strong>Supprimer</strong> : retirer un secret d&apos;OpenBao après confirmation</li>
           </Box>
           <Typography component="h2">Sécurité</Typography>
           <Typography>
-            Le token Vault est stocké côté serveur et n&apos;est jamais ré-affiché en clair (la configuration renvoie <code>***</code>). Les valeurs des secrets ne sont révélées que dans l&apos;UI, à la demande, et transitent toujours via une connexion authentifiée à Kura.
+            Le token OpenBao est stocké côté serveur et n&apos;est jamais ré-affiché en clair (la configuration renvoie <code>***</code>). Les valeurs des secrets ne sont révélées que dans l&apos;UI, à la demande, et transitent toujours via une connexion authentifiée à Kura.
           </Typography>
         </Box>
       )
@@ -492,7 +492,7 @@ provider "google" {
           <Typography component="h2">Onglet Métriques</Typography>
           <Box component="ul">
             <li><strong>KPI globaux</strong> : nombre de services actifs / hors ligne, goroutines totales, mémoire totale</li>
-            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, OpenTofu, Ansible, Pipeline, Vault, Code, Metrics) — vérifié par health check direct</li>
+            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, OpenTofu, Ansible, Pipeline, OpenBao, Code, Metrics) — vérifié par health check direct</li>
             <li><strong>Tableau de métriques</strong> : goroutines, CPU rate, mémoire RSS par service (données Prometheus)</li>
             <li><strong>Dashboard Grafana</strong> : vue temporelle des métriques (goroutines, mémoire, état des services dans le temps)</li>
           </Box>
@@ -581,9 +581,9 @@ provider "google" {
             Vérifiez que la connexion Semaphore est configurée : page Ansible → panneau <em>Connecter un backend Ansible</em> → le badge doit être vert. Si le token ou l&apos;ID projet est incorrect, reconfigurez-les. Lancez un job dans Semaphore, puis actualisez.
           </Typography>
 
-          <Typography component="h2">Vault affiche « Erreur lors de la connexion »</Typography>
+          <Typography component="h2">OpenBao affiche « Erreur lors de la connexion »</Typography>
           <Typography>
-            Vérifiez que l&apos;<strong>adresse Vault</strong> est joignable depuis l&apos;infrastructure Kura (pas une adresse <code>localhost</code> ou un réseau privé inaccessible), que le <strong>token</strong> est valide et non expiré, et que le <strong>mount path</strong> correspond bien à un moteur KV v2 activé sur votre Vault (<code>vault secrets list</code>).
+            Vérifiez que l&apos;<strong>adresse OpenBao</strong> est joignable depuis l&apos;infrastructure Kura (pas une adresse <code>localhost</code> ou un réseau privé inaccessible), que le <strong>token</strong> est valide et non expiré, et que le <strong>mount path</strong> correspond bien à un moteur KV v2 activé sur votre instance (<code>bao secrets list</code>).
           </Typography>
 
           <Typography component="h2">Kubernetes — « Impossible de récupérer les namespaces »</Typography>

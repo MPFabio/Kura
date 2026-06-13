@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	vault "github.com/hashicorp/vault/api"
+	vault "github.com/openbao/openbao/api/v2"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/modulops/vault-service/internal/config"

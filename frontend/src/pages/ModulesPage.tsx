@@ -272,13 +272,13 @@ export default function ModulesPage() {
     },
     {
       id: 'vault',
-      name: 'Vault',
+      name: 'OpenBao',
       icon: <VaultIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/vault',
       active: true,
       status: 'active',
-      statusText: vaultStatusData?.sealed ? 'Vault scellé' : 'Module actif',
-      description: 'Gestion centralisée des secrets avec HashiCorp Vault. Stockage, consultation et rotation sécurisés des credentials.',
+      statusText: vaultStatusData?.sealed ? 'OpenBao scellé' : 'Module actif',
+      description: 'Gestion centralisée des secrets avec OpenBao (ou HashiCorp Vault). Stockage, consultation et rotation sécurisés des credentials.',
       stats: [
         { label: 'Secrets', value: formatStat(vaultSecretsData?.keys?.length ?? null) },
         { label: 'Statut', value: vaultStatusData?.sealed ? 'Scellé' : 'Déscellé' },
