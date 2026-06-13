@@ -29,10 +29,10 @@ const (
 
 // PipelineService gère la logique métier des pipelines
 type PipelineService struct {
-	cache       *cache.RedisClient
-	cfg         *config.Config
-	cfgStore    *configstore.Client
-	adapters    map[models.Provider]adapter.PipelineAdapter
+	cache    *cache.RedisClient
+	cfg      *config.Config
+	cfgStore *configstore.Client
+	adapters map[models.Provider]adapter.PipelineAdapter
 }
 
 // NewPipelineService crée un nouveau service de pipelines.
@@ -41,6 +41,7 @@ func NewPipelineService(c *cache.RedisClient, cfg *config.Config) *PipelineServi
 		models.ProviderGitHub:  adapter.NewGitHubAdapter(),
 		models.ProviderGitLab:  adapter.NewGitLabAdapter(),
 		models.ProviderJenkins: adapter.NewJenkinsAdapter(),
+		models.ProviderForgejo: adapter.NewForgejoAdapter(),
 	}
 
 	return &PipelineService{
@@ -50,7 +51,6 @@ func NewPipelineService(c *cache.RedisClient, cfg *config.Config) *PipelineServi
 		adapters: adapters,
 	}
 }
-
 
 // ProcessWebhook traite un webhook et stocke le run
 func (s *PipelineService) ProcessWebhook(ctx context.Context, provider models.Provider, body []byte) (*models.PipelineRun, error) {
@@ -67,9 +67,9 @@ func (s *PipelineService) ProcessWebhook(ctx context.Context, provider models.Pr
 		return nil, nil
 	}
 
-	// ID stable pour GitHub (évite doublons webhook + API)
-	if run.Provider == models.ProviderGitHub && run.ExternalID != "" {
-		run.ID = "github_" + run.ExternalID
+	// ID stable pour GitHub/Forgejo (évite doublons webhook + API)
+	if (run.Provider == models.ProviderGitHub || run.Provider == models.ProviderForgejo) && run.ExternalID != "" {
+		run.ID = string(run.Provider) + "_" + run.ExternalID
 		if err := s.UpsertRun(ctx, run); err != nil {
 			return nil, err
 		}
@@ -168,13 +168,17 @@ func (s *PipelineService) UpsertRun(ctx context.Context, run *models.PipelineRun
 	return s.updateAggregation(ctx, aggKey, run, incrementCounts)
 }
 
-// PipelineConfig config GitHub (token jamais exposé au GET)
+// PipelineConfig config GitHub/Forgejo (tokens jamais exposés au GET)
 type PipelineConfig struct {
 	GitHubRepos []string `json:"github_repos"`
-	Linked      bool     `json:"linked"` // true si token + au moins 1 repo
+	Linked      bool     `json:"linked"` // true si token GitHub + au moins 1 repo
+
+	ForgejoURL    string   `json:"forgejo_url"`
+	ForgejoRepos  []string `json:"forgejo_repos"`
+	ForgejoLinked bool     `json:"forgejo_linked"` // true si token Forgejo + URL + au moins 1 repo
 }
 
-// GetConfig retourne la config (sans token)
+// GetConfig retourne la config (sans tokens)
 func (s *PipelineService) GetConfig(ctx context.Context) (*PipelineConfig, error) {
 	all, err := s.cfgStore.GetAll(ctx)
 	if err != nil {
@@ -190,9 +194,25 @@ func (s *PipelineService) GetConfig(ctx context.Context) (*PipelineConfig, error
 	}
 	tokenSet := all["github_token"] != "" || s.cfg.GitHubToken != ""
 
+	forgejoURL := all["forgejo_url"]
+	if forgejoURL == "" {
+		forgejoURL = s.cfg.ForgejoURL
+	}
+	var forgejoRepos []string
+	if reposStr := all["forgejo_repos"]; reposStr != "" {
+		_ = json.Unmarshal([]byte(reposStr), &forgejoRepos)
+	}
+	if len(forgejoRepos) == 0 {
+		forgejoRepos = s.cfg.ForgejoRepos
+	}
+	forgejoTokenSet := all["forgejo_token"] != "" || s.cfg.ForgejoToken != ""
+
 	return &PipelineConfig{
-		GitHubRepos: repos,
-		Linked:      tokenSet && len(repos) > 0,
+		GitHubRepos:   repos,
+		Linked:        tokenSet && len(repos) > 0,
+		ForgejoURL:    forgejoURL,
+		ForgejoRepos:  forgejoRepos,
+		ForgejoLinked: forgejoTokenSet && forgejoURL != "" && len(forgejoRepos) > 0,
 	}, nil
 }
 
@@ -208,6 +228,28 @@ func (s *PipelineService) SetConfig(ctx context.Context, token string, repos []s
 			return err
 		}
 		kv["github_repos"] = string(data)
+	}
+	if len(kv) == 0 {
+		return nil
+	}
+	return s.cfgStore.SetMany(ctx, kv)
+}
+
+// SetForgejoConfig enregistre URL, token et/ou repos Forgejo (depuis l'UI) dans Postgres via configstore.
+func (s *PipelineService) SetForgejoConfig(ctx context.Context, url, token string, repos []string) error {
+	kv := map[string]string{}
+	if url != "" {
+		kv["forgejo_url"] = url
+	}
+	if token != "" {
+		kv["forgejo_token"] = token
+	}
+	if repos != nil {
+		data, err := json.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		kv["forgejo_repos"] = string(data)
 	}
 	if len(kv) == 0 {
 		return nil
@@ -231,6 +273,29 @@ func (s *PipelineService) getGitHubConfig(ctx context.Context) (token string, re
 		repos = s.cfg.GitHubRepos
 	}
 	return token, repos
+}
+
+// getForgejoConfig retourne URL, token et repos Forgejo (Postgres prioritaire sur env vars)
+func (s *PipelineService) getForgejoConfig(ctx context.Context) (baseURL, token string, repos []string) {
+	all, _ := s.cfgStore.GetAll(ctx)
+
+	baseURL = all["forgejo_url"]
+	if baseURL == "" {
+		baseURL = s.cfg.ForgejoURL
+	}
+
+	token = all["forgejo_token"]
+	if token == "" {
+		token = s.cfg.ForgejoToken
+	}
+
+	if reposStr := all["forgejo_repos"]; reposStr != "" {
+		_ = json.Unmarshal([]byte(reposStr), &repos)
+	}
+	if len(repos) == 0 {
+		repos = s.cfg.ForgejoRepos
+	}
+	return baseURL, token, repos
 }
 
 // SyncFromGitHub récupère les workflow runs via l'API GitHub et les stocke
@@ -268,6 +333,46 @@ func (s *PipelineService) SyncFromGitHub(ctx context.Context) (int, error) {
 
 	if count > 0 {
 		log.Printf("✅ Sync GitHub: %d runs synchronisés", count)
+	}
+
+	return count, nil
+}
+
+// SyncFromForgejo récupère les runs Forgejo Actions via l'API et les stocke
+func (s *PipelineService) SyncFromForgejo(ctx context.Context) (int, error) {
+	baseURL, token, repos := s.getForgejoConfig(ctx)
+	if baseURL == "" || token == "" || len(repos) == 0 {
+		return 0, nil
+	}
+
+	apiClient := client.NewForgejoAPIClient(baseURL, token)
+	count := 0
+
+	for _, repo := range repos {
+		parts := strings.SplitN(repo, "/", 2)
+		if len(parts) != 2 {
+			log.Printf("⚠️ FORGEJO_REPOS ignoré (format invalide): %s", repo)
+			continue
+		}
+		owner, repoName := parts[0], parts[1]
+
+		runs, err := apiClient.FetchActionRuns(owner, repoName, 30)
+		if err != nil {
+			log.Printf("⚠️ Sync Forgejo %s: %v", repo, err)
+			continue
+		}
+
+		for _, run := range runs {
+			if err := s.UpsertRun(ctx, run); err != nil {
+				log.Printf("⚠️ Upsert run %s: %v", run.ID, err)
+				continue
+			}
+			count++
+		}
+	}
+
+	if count > 0 {
+		log.Printf("✅ Sync Forgejo: %d runs synchronisés", count)
 	}
 
 	return count, nil
@@ -429,19 +534,19 @@ func (s *PipelineService) GetAggregatedStatus(ctx context.Context, provider, rep
 	return agg, nil
 }
 
-// RerunRun relance un workflow run GitHub Actions via l'API GitHub.
-// Le run doit exister dans le cache et être associé au provider GitHub.
-// Sécurité : requiert le scope `workflow` sur le token GitHub.
+// RerunRun relance un workflow run GitHub Actions ou Forgejo Actions via l'API du provider.
+// Le run doit exister dans le cache.
+// Sécurité : requiert le scope `workflow` (GitHub) ou un token avec droit d'écriture Actions (Forgejo).
 func (s *PipelineService) RerunRun(ctx context.Context, runID string) error {
 	run, err := s.GetRun(ctx, runID)
 	if err != nil || run == nil {
 		return fmt.Errorf("run introuvable: %s", runID)
 	}
-	if run.Provider != models.ProviderGitHub {
-		return fmt.Errorf("relance uniquement supportée pour GitHub Actions (provider: %s)", run.Provider)
+	if run.Provider != models.ProviderGitHub && run.Provider != models.ProviderForgejo {
+		return fmt.Errorf("relance uniquement supportée pour GitHub Actions et Forgejo Actions (provider: %s)", run.Provider)
 	}
 	if run.ExternalID == "" {
-		return fmt.Errorf("ID externe GitHub manquant pour ce run")
+		return fmt.Errorf("ID externe manquant pour ce run")
 	}
 
 	// Extraire owner/repo depuis run.Repository ("owner/repo")
@@ -450,6 +555,26 @@ func (s *PipelineService) RerunRun(ctx context.Context, runID string) error {
 		return fmt.Errorf("format repository invalide: %s", run.Repository)
 	}
 	owner, repo := parts[0], parts[1]
+
+	if run.Provider == models.ProviderForgejo {
+		baseURL, token, _ := s.getForgejoConfig(ctx)
+		if baseURL == "" || token == "" {
+			return fmt.Errorf("connexion Forgejo non configurée — configurez-la dans la page Pipelines")
+		}
+
+		forgejoRunID, err := strconv.ParseInt(run.ExternalID, 10, 64)
+		if err != nil {
+			return fmt.Errorf("ID Forgejo invalide: %s", run.ExternalID)
+		}
+
+		fjClient := client.NewForgejoAPIClient(baseURL, token)
+		if err := fjClient.RerunActionTask(owner, repo, forgejoRunID); err != nil {
+			return fmt.Errorf("Forgejo API: %w", err)
+		}
+
+		log.Printf("▶ Pipeline relancé: %s/%s run #%s (Forgejo) par Kura", owner, repo, run.ExternalID)
+		return nil
+	}
 
 	// Récupérer le token GitHub depuis le cache (configuré via l'UI)
 	token, _ := s.getGitHubConfig(ctx)
@@ -473,12 +598,15 @@ func (s *PipelineService) RerunRun(ctx context.Context, runID string) error {
 }
 
 // DetectProvider tente de détecter le provider à partir des headers
-func (s *PipelineService) DetectProvider(headerXGitHub, headerXGitLab string) models.Provider {
+func (s *PipelineService) DetectProvider(headerXGitHub, headerXGitLab, headerXForgejo string) models.Provider {
 	if headerXGitHub != "" {
 		return models.ProviderGitHub
 	}
 	if headerXGitLab != "" {
 		return models.ProviderGitLab
+	}
+	if headerXForgejo != "" {
+		return models.ProviderForgejo
 	}
 	// Jenkins : utiliser l'endpoint dédié /webhooks/jenkins pour les webhooks Jenkins
 	return ""

@@ -87,6 +87,27 @@ func main() {
 		}
 	}()
 
+	// Sync périodique Forgejo Actions respectant le contexte d'arrêt.
+	syncForgejoDone := make(chan struct{})
+	go func() {
+		defer close(syncForgejoDone)
+		ticker := time.NewTicker(2 * time.Minute)
+		defer ticker.Stop()
+		if _, err := pipelineService.SyncFromForgejo(rootCtx); err != nil {
+			log.Printf("Sync Forgejo initial: %v", err)
+		}
+		for {
+			select {
+			case <-rootCtx.Done():
+				return
+			case <-ticker.C:
+				if _, err := pipelineService.SyncFromForgejo(rootCtx); err != nil {
+					log.Printf("Sync Forgejo: %v", err)
+				}
+			}
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -96,6 +117,7 @@ func main() {
 	// Annuler le contexte racine pour stopper les goroutines de sync.
 	rootCancel()
 	<-syncDone
+	<-syncForgejoDone
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -142,7 +164,10 @@ func setupRouter(pipelineHandler *handler.PipelineHandler, webhookHandler *handl
 			// Sync manuel (API GitHub - token + GITHUB_REPOS)
 			pipelineGroup.POST("/sync", pipelineHandler.SyncGitHub)
 
-			// Relance d'un run (scope GitHub `workflow` requis)
+			// Sync manuel (API Forgejo Actions - token + FORGEJO_REPOS)
+			pipelineGroup.POST("/sync/forgejo", pipelineHandler.SyncForgejo)
+
+			// Relance d'un run (scope GitHub `workflow` ou token Forgejo Actions requis)
 			pipelineGroup.POST("/runs/:id/rerun", pipelineHandler.RerunRun)
 
 			// Webhooks
@@ -150,6 +175,7 @@ func setupRouter(pipelineHandler *handler.PipelineHandler, webhookHandler *handl
 			pipelineGroup.POST("/webhooks/github", webhookHandler.HandleGitHub)
 			pipelineGroup.POST("/webhooks/gitlab", webhookHandler.HandleGitLab)
 			pipelineGroup.POST("/webhooks/jenkins", webhookHandler.HandleJenkins)
+			pipelineGroup.POST("/webhooks/forgejo", webhookHandler.HandleForgejo)
 		}
 	}
 
