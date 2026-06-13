@@ -44,28 +44,9 @@ cp .env.example .env
 docker compose -p kura --env-file .env -f docker-compose.yml up -d
 ```
 
-## Déploiement production (GCP)
+## Déploiement production
 
-Le déploiement est automatisé via GitHub Actions sur push sur `master`.
-
-**Secrets GitHub requis :**
-
-| Secret | Description |
-|--------|-------------|
-| `GCP_SA_KEY` | Clé JSON du service account Terraform |
-| `GCP_SA_JSON` | Clé JSON du service account runtime |
-| `GCP_PROJECT_ID` | ID du projet GCP |
-| `GCP_SSH_PRIVATE_KEY` | Clé SSH pour accéder à la VM |
-| `GCP_VM_IP` | IP de la VM de déploiement |
-| `GCP_VM_USER` | Utilisateur SSH |
-| `PROD_ENV_FILE` | Fichier `.env` encodé en base64 |
-| `KUBECONFIG_ANSIBLE` | Kubeconfig pour Ansible/Semaphore |
-
-**Relancer la stack sur la VM après redémarrage :**
-
-```bash
-cd /opt/kura/current && sudo docker compose -p kura --env-file .env -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
+L'infrastructure et le déploiement sont gérés dans le repo [Kuro](https://codeberg.org/MPFabio/Kuro) (Terraform + cloud-init). Sur la VM, le démarrage clone ce repo et lance `docker compose up -d`.
 
 ## Services
 
@@ -122,8 +103,7 @@ Kura/
 ├── frontend/               # React + TypeScript + Vite
 ├── infrastructure/
 │   ├── docker/             # Kong, Caddy, Prometheus config
-│   ├── k8s/                # Manifests Kubernetes
-│   └── terraform/gcp/      # Infrastructure GCP
+│   └── k8s/                # Manifests Kubernetes
 ├── docs/                   # Architecture, guides
 └── scripts/                # Scripts utilitaires
 ```
