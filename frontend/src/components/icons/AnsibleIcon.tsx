@@ -1,5 +1,5 @@
 import { Box, SxProps, Theme } from '@mui/material'
-import ansibleLogo from '../../assets/ansible_logo.png'
+import ansibleLogo from '../../assets/semaphore_logo.png'
 
 interface AnsibleIconProps {
   sx?: SxProps<Theme>
@@ -27,14 +27,14 @@ export default function AnsibleIcon({ sx, active = false }: AnsibleIconProps) {
     )
   }
 
-  // Actif : cercle noir + A blanc (double couche)
-  // Couche 1 (derrière) : cercle blanc visible à travers le A transparent du stencil
+  // Actif : cercle noir + points blancs (double couche)
+  // Couche 1 (derrière) : fond blanc visible à travers les points transparents du stencil
   // Couche 2 (devant) : masque noir = le cercle
   return (
     <Box sx={{ position: 'relative', width: size, height: size, flexShrink: 0, ...sx }}>
-      {/* Fond blanc — visible seulement à travers le A (zone transparente du stencil) */}
+      {/* Fond blanc — visible seulement à travers les points (zone transparente du stencil) */}
       <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'white', borderRadius: '50%' }} />
-      {/* Masque noir au-dessus = cercle noir, A = transparent → fond blanc visible */}
+      {/* Masque noir au-dessus = cercle noir, points = transparents → fond blanc visible */}
       <Box
         aria-hidden
         sx={{

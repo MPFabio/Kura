@@ -1,6 +1,6 @@
 ## Contexte et objectifs du projet
 
-Kura est une plateforme DevOps unifiée qui vise à donner **une vue centrale** sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, Terraform, Ansible, pipelines CI/CD, métriques et alertes.
+Kura est une plateforme DevOps unifiée qui vise à donner **une vue centrale** sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, Terraform, Semaphore, pipelines CI/CD, métriques et alertes.
 
 ### Ce qui existe déjà sur le marché
 
@@ -59,7 +59,7 @@ graph TB
     Gateway --> Auth[Auth Service Go]
     Gateway --> K8s[K8s Service Go]
     Gateway --> Terraform[Terraform Service Go]
-    Gateway --> Ansible[Ansible Service Python]
+    Gateway --> Ansible[Semaphore Service Python - Ansible]
     Gateway --> Pipeline[Pipeline Service Go]
     Gateway --> Vault[Vault Service Go - OpenBao]
     

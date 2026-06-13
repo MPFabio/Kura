@@ -54,7 +54,7 @@ const navItems = [
   { text: 'Kubernetes',    icon: <KubernetesIcon />, path: '/k8s',            custom: true },
   { text: 'ArgoCD',        icon: <ArgoCDIcon />,     path: '/argocd',         custom: true },
   { text: 'Zot',           icon: <ZotIcon active />, path: '/registry',       custom: true },
-  { text: 'Ansible',       icon: <AnsibleIcon />,    path: '/ansible',        custom: true },
+  { text: 'Semaphore',     icon: <AnsibleIcon />,    path: '/ansible',        custom: true },
   { text: 'OpenBao',       icon: <VaultIcon />,      path: '/vault',          custom: true },
   { text: 'Observabilité', icon: <ObservabilityIcon sx={{ width: 24, height: 24 }} active />, path: '/metrics',        custom: true, internalObservability: true },
   { text: 'Pipelines',     icon: <PipelinesIcon />,  path: '/pipelines',      custom: true },

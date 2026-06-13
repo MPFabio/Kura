@@ -31,7 +31,7 @@ const docSections: { id: string; label: string; children?: { id: string; label: 
       { id: 'registry', label: 'Zot' },
       { id: 'terraform', label: 'OpenTofu' },
       { id: 'code', label: 'Repository' },
-      { id: 'ansible', label: 'Ansible' },
+      { id: 'ansible', label: 'Semaphore' },
       { id: 'vault', label: 'OpenBao' },
       { id: 'pipelines', label: 'Pipelines CI/CD' },
       { id: 'monitoring', label: 'Observabilité' },
@@ -93,7 +93,7 @@ function DocContent({ docId }: { docId: string }) {
         <Box sx={contentSx}>
           <Typography component="h1">Bienvenue dans Kura</Typography>
           <Typography>
-            Kura est une plateforme DevOps unifiée qui vise à donner une vue centrale sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, OpenTofu, Ansible, pipelines CI/CD, métriques et alertes.
+            Kura est une plateforme DevOps unifiée qui vise à donner une vue centrale sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, OpenTofu, Semaphore, pipelines CI/CD, métriques et alertes.
           </Typography>
           <Typography component="h2">Ce qui existe déjà sur le marché</Typography>
           <Typography>
@@ -110,7 +110,7 @@ function DocContent({ docId }: { docId: string }) {
           <Box component="ul">
             <li>Gérer vos clusters Kubernetes (GKE, AKS, EKS, Proxmox ou générique)</li>
             <li>Consulter et gérer vos états OpenTofu, détecter les dérives (drift)</li>
-            <li>Lancer et suivre des jobs Ansible (via AWX/Tower)</li>
+            <li>Lancer et suivre des jobs Ansible (via Semaphore)</li>
             <li>Suivre les pipelines CI/CD et les webhooks</li>
             <li>Visualiser les métriques et configurer les alertes</li>
           </Box>
@@ -142,7 +142,7 @@ function DocContent({ docId }: { docId: string }) {
             <li><strong>Kubernetes</strong> : ajoutez un cluster via son kubeconfig → visualisez pods, services, logs</li>
             <li><strong>OpenTofu</strong> : uploadez un fichier <code>.tfstate</code> ou liez un bucket cloud → consultez vos ressources et détectez les dérives</li>
             <li><strong>Pipelines</strong> : connectez votre token GitHub → suivez vos workflows en temps réel</li>
-            <li><strong>Ansible</strong> : connectez votre instance Semaphore → lancez et suivez vos playbooks</li>
+            <li><strong>Semaphore</strong> : connectez votre instance Semaphore → lancez et suivez vos playbooks Ansible</li>
             <li><strong>OpenBao</strong> : connectez votre instance OpenBao → parcourez et gérez vos secrets</li>
             <li><strong>Observabilité</strong> : disponible automatiquement, aucune configuration requise</li>
           </Box>
@@ -153,7 +153,7 @@ function DocContent({ docId }: { docId: string }) {
         <Box sx={contentSx}>
           <Typography component="h1">Gérer ses projets</Typography>
           <Typography>
-            Un <strong>projet</strong> est l&apos;unité d&apos;organisation centrale de Kura. Toutes vos ressources (clusters Kubernetes, états OpenTofu, connexions Ansible, pipelines) sont rattachées à un projet.
+            Un <strong>projet</strong> est l&apos;unité d&apos;organisation centrale de Kura. Toutes vos ressources (clusters Kubernetes, états OpenTofu, connexions Semaphore, pipelines) sont rattachées à un projet.
           </Typography>
           <Typography component="h2">Créer un projet</Typography>
           <Typography>
@@ -169,7 +169,7 @@ function DocContent({ docId }: { docId: string }) {
           </Box>
           <Typography component="h2">Changer de projet</Typography>
           <Typography>
-            Utilisez le sélecteur de projet en haut de la barre latérale pour basculer entre vos projets. L&apos;ensemble des modules (Kubernetes, OpenTofu, Ansible…) se met à jour automatiquement avec les ressources du projet sélectionné.
+            Utilisez le sélecteur de projet en haut de la barre latérale pour basculer entre vos projets. L&apos;ensemble des modules (Kubernetes, OpenTofu, Semaphore…) se met à jour automatiquement avec les ressources du projet sélectionné.
           </Typography>
           <Typography component="h2">Isolation des données</Typography>
           <Typography>
@@ -421,13 +421,13 @@ provider "google" {
     case 'ansible':
       return (
         <Box sx={contentSx}>
-          <Typography component="h1">Module Ansible</Typography>
+          <Typography component="h1">Module Semaphore</Typography>
           <Typography>
-            Le module Ansible vous permet de suivre et lancer vos playbooks Ansible directement depuis Kura, sans quitter l&apos;interface.
+            Le module Semaphore vous permet de suivre et lancer vos playbooks Ansible directement depuis Kura, sans quitter l&apos;interface.
           </Typography>
-          <Typography component="h2">Connecter votre instance Ansible</Typography>
+          <Typography component="h2">Connecter votre instance Semaphore</Typography>
           <Typography>
-            Kura fonctionne avec <strong>Ansible Semaphore</strong> (interface open-source pour Ansible). Depuis la page Ansible, cliquez sur <strong>Connecter un backend Ansible</strong> et renseignez :
+            Kura fonctionne avec <strong>Semaphore</strong> (interface open-source pour Ansible). Depuis la page Semaphore, cliquez sur <strong>Connecter un backend Ansible</strong> et renseignez :
           </Typography>
           <Box component="ul">
             <li><strong>URL Semaphore</strong> : l&apos;adresse de votre instance Semaphore</li>
@@ -492,7 +492,7 @@ provider "google" {
           <Typography component="h2">Onglet Métriques</Typography>
           <Box component="ul">
             <li><strong>KPI globaux</strong> : nombre de services actifs / hors ligne, goroutines totales, mémoire totale</li>
-            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, OpenTofu, Ansible, Pipeline, OpenBao, Code, Metrics) — vérifié par health check direct</li>
+            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, OpenTofu, Semaphore, Pipeline, OpenBao, Code, Metrics) — vérifié par health check direct</li>
             <li><strong>Tableau de métriques</strong> : goroutines, CPU rate, mémoire RSS par service (données VictoriaMetrics)</li>
             <li><strong>Dashboard Grafana</strong> : vue temporelle des métriques (goroutines, mémoire, état des services dans le temps)</li>
           </Box>
@@ -521,7 +521,7 @@ provider "google" {
         <Box sx={contentSx}>
           <Typography component="h1">Module Pipelines</Typography>
           <Typography>
-            Le module Pipelines permet de suivre les pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) et de gérer les webhooks. Les exécutions et statuts sont agrégés dans la plateforme pour une vue transversale avec les autres modules (Kubernetes, OpenTofu, Ansible).
+            Le module Pipelines permet de suivre les pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) et de gérer les webhooks. Les exécutions et statuts sont agrégés dans la plateforme pour une vue transversale avec les autres modules (Kubernetes, OpenTofu, Semaphore).
           </Typography>
 
           <Typography component="h2">Option recommandée : Webhooks (temps réel)</Typography>
@@ -576,9 +576,9 @@ provider "google" {
         <Box sx={contentSx}>
           <Typography component="h1">FAQ & Dépannage</Typography>
 
-          <Typography component="h2">Le module Ansible affiche « Aucun historique disponible »</Typography>
+          <Typography component="h2">Le module Semaphore affiche « Aucun historique disponible »</Typography>
           <Typography>
-            Vérifiez que la connexion Semaphore est configurée : page Ansible → panneau <em>Connecter un backend Ansible</em> → le badge doit être vert. Si le token ou l&apos;ID projet est incorrect, reconfigurez-les. Lancez un job dans Semaphore, puis actualisez.
+            Vérifiez que la connexion Semaphore est configurée : page Semaphore → panneau <em>Connecter un backend Ansible</em> → le badge doit être vert. Si le token ou l&apos;ID projet est incorrect, reconfigurez-les. Lancez un job dans Semaphore, puis actualisez.
           </Typography>
 
           <Typography component="h2">OpenBao affiche « Erreur lors de la connexion »</Typography>
