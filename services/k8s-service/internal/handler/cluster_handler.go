@@ -119,6 +119,45 @@ func (h *ClusterHandler) GetCluster(c *gin.Context) {
 	c.JSON(http.StatusOK, cluster)
 }
 
+// GetClusterKubeconfig retourne le kubeconfig brut d'un cluster (route interne).
+// Protégée par un secret partagé (header X-Internal-Token) car non authentifiée par JWT.
+// Utilisé par les playbooks Ansible (Semaphore) pour obtenir un accès au cluster au moment de l'exécution.
+func (h *ClusterHandler) GetClusterKubeconfig(c *gin.Context) {
+	if h.cfg.InternalAPISecret == "" || c.GetHeader("X-Internal-Token") != h.cfg.InternalAPISecret {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "non autorisé"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	id := c.Param("id")
+
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id requis"})
+		return
+	}
+
+	cluster, err := h.clusterService.GetCluster(ctx, id)
+	if err != nil {
+		log.Printf("Erreur GetClusterKubeconfig pour id %s: %v", id, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	if cluster.Kubeconfig == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "kubeconfig manquant pour ce cluster"})
+		return
+	}
+
+	kubeconfig, err := h.clusterService.GetPortableKubeconfig(ctx, cluster)
+	if err != nil {
+		log.Printf("Erreur GetPortableKubeconfig pour id %s: %v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"kubeconfig": kubeconfig})
+}
+
 // ListClusters retourne la liste de tous les clusters.
 func (h *ClusterHandler) ListClusters(c *gin.Context) {
 	ctx := c.Request.Context()

@@ -11,15 +11,20 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2/google"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/modulops/k8s-service/internal/config"
 	"github.com/modulops/k8s-service/internal/configstore"
 	"github.com/modulops/k8s-service/internal/models"
 )
+
+// gkeAuthScopes sont les scopes OAuth2 nécessaires pour s'authentifier auprès de l'API GKE.
+var gkeAuthScopes = []string{"https://www.googleapis.com/auth/cloud-platform"}
 
 // ClusterCache définit l'interface du cache pour les clusters.
 type ClusterCache interface {
@@ -256,6 +261,50 @@ func (s *ClusterService) WriteGCPCredentialsToTempFile(cluster *models.Cluster) 
 		return "", fmt.Errorf("écriture des credentials GCP: %w", err)
 	}
 	return filePath, nil
+}
+
+// GetPortableKubeconfig retourne un kubeconfig utilisable depuis l'extérieur (ex: Semaphore).
+// Pour les clusters GKE, le bloc d'authentification "exec" (gke-gcloud-auth-plugin, dépendant
+// de la machine locale) est remplacé par un token d'accès OAuth2 de courte durée généré à partir
+// du compte de service GCP stocké (CloudCredentials), car ce plugin n'est pas disponible
+// dans les environnements d'exécution externes (ex: conteneur Semaphore).
+func (s *ClusterService) GetPortableKubeconfig(ctx context.Context, cluster *models.Cluster) (string, error) {
+	if cluster.Kubeconfig == "" {
+		return "", fmt.Errorf("kubeconfig manquant pour ce cluster")
+	}
+	if cluster.ClusterType != models.ClusterTypeGKE || cluster.CloudCredentials == "" {
+		return cluster.Kubeconfig, nil
+	}
+
+	cfg, err := clientcmd.Load([]byte(cluster.Kubeconfig))
+	if err != nil {
+		return "", fmt.Errorf("lecture du kubeconfig: %w", err)
+	}
+
+	creds, err := google.CredentialsFromJSON(ctx, []byte(cluster.CloudCredentials), gkeAuthScopes...)
+	if err != nil {
+		return "", fmt.Errorf("lecture des credentials GCP: %w", err)
+	}
+
+	token, err := creds.TokenSource.Token()
+	if err != nil {
+		return "", fmt.Errorf("génération du token GCP: %w", err)
+	}
+
+	for name, user := range cfg.AuthInfos {
+		if user.Exec != nil {
+			cfg.AuthInfos[name] = &clientcmdapi.AuthInfo{
+				Token: token.AccessToken,
+			}
+		}
+	}
+
+	out, err := clientcmd.Write(*cfg)
+	if err != nil {
+		return "", fmt.Errorf("génération du kubeconfig: %w", err)
+	}
+
+	return string(out), nil
 }
 
 // SaveKubeconfigToFile sauvegarde un kubeconfig dans un fichier temporaire.

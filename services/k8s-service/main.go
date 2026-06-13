@@ -12,12 +12,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"github.com/modulops/k8s-service/internal/cache"
 	"github.com/modulops/k8s-service/internal/config"
 	"github.com/modulops/k8s-service/internal/handler"
 	"github.com/modulops/k8s-service/internal/k8s"
 	"github.com/modulops/k8s-service/internal/service"
+	"github.com/modulops/k8s-service/internal/tracing"
 )
 
 func main() {
@@ -48,6 +50,18 @@ func main() {
 	// #endregion
 	if err != nil {
 		log.Fatalf("Erreur lors du chargement de la configuration: %v", err)
+	}
+
+	// Initialiser le tracing OpenTelemetry (export vers Tempo)
+	shutdownTracing, err := tracing.Init(context.Background(), "k8s-service", cfg.OTLPEndpoint)
+	if err != nil {
+		log.Printf("⚠️  Tracing OpenTelemetry désactivé (%v)", err)
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = shutdownTracing(ctx)
+		}()
 	}
 
 	// Initialiser le cache Redis
@@ -154,9 +168,18 @@ func main() {
 	// Initialiser les handlers HTTP
 	k8sHandler := handler.NewK8sHandler(k8sService, clusterService, redisClient, cfg)
 	clusterHandler := handler.NewClusterHandler(clusterService, cfg)
+	argocdService := service.NewArgoCDService(redisClient, clusterService, cfg)
+	helmCatalogService := service.NewHelmCatalogService(redisClient)
+	argocdHandler := handler.NewArgoCDHandler(argocdService, helmCatalogService)
+	registryService := service.NewRegistryService(redisClient, clusterService, cfg)
+	registryHandler := handler.NewRegistryHandler(registryService)
+	observabilityService := service.NewObservabilityService(clusterService)
+	observabilityHandler := handler.NewObservabilityHandler(observabilityService)
+	discoveryService := service.NewDiscoveryService(clusterService, argocdService)
+	discoveryHandler := handler.NewDiscoveryHandler(discoveryService)
 
 	// Configurer le routeur HTTP
-	router := setupRouter(k8sHandler, clusterHandler, k8sService, clusterService, redisClient, cfg)
+	router := setupRouter(k8sHandler, clusterHandler, argocdHandler, registryHandler, observabilityHandler, discoveryHandler, k8sService, clusterService, redisClient, cfg)
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
@@ -208,12 +231,15 @@ func main() {
 	log.Println("Service Kubernetes arrêté")
 }
 
-func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.ClusterHandler, k8sService *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *gin.Engine {
+func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.ClusterHandler, argocdHandler *handler.ArgoCDHandler, registryHandler *handler.RegistryHandler, observabilityHandler *handler.ObservabilityHandler, discoveryHandler *handler.DiscoveryHandler, k8sService *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.Default()
+
+	// Middleware de tracing OpenTelemetry
+	router.Use(otelgin.Middleware("k8s-service", otelgin.WithFilter(tracing.SkipHealthAndMetrics)))
 
 	// Middleware CORS simple
 	router.Use(corsMiddleware())
@@ -222,6 +248,13 @@ func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.Cluster
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "k8s-service"})
 	})
+
+	// Routes internes (réseau Docker uniquement, non exposées via Kong) :
+	// utilisées par d'autres services internes (ex: Semaphore via les playbooks Ansible).
+	internal := router.Group("/internal")
+	{
+		internal.GET("/k8s/clusters/:id/kubeconfig", clusterHandler.GetClusterKubeconfig)
+	}
 
 	v1 := router.Group("/api/v1")
 	{
@@ -286,6 +319,45 @@ func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.Cluster
 
 			// Webhook pour recevoir des événements Kubernetes (squelette)
 			k8sGroup.POST("/webhooks/events", k8sHandler.ReceiveEventWebhook)
+
+			// ArgoCD (GitOps CD)
+			argocdGroup := k8sGroup.Group("/argocd")
+			{
+				argocdGroup.POST("/install", argocdHandler.InstallArgoCD)
+				argocdGroup.GET("/status", argocdHandler.GetStatus)
+				argocdGroup.GET("/applications", argocdHandler.ListApplications)
+				argocdGroup.GET("/applications/:name", argocdHandler.GetApplication)
+				argocdGroup.POST("/applications", argocdHandler.CreateApplication)
+				argocdGroup.POST("/applications/:name/sync", argocdHandler.SyncApplication)
+				argocdGroup.POST("/applications/:name/refresh", argocdHandler.RefreshApplication)
+				argocdGroup.POST("/applications/:name/rollback", argocdHandler.RollbackApplication)
+				argocdGroup.PUT("/applications/:name/values", argocdHandler.UpdateApplicationValues)
+				argocdGroup.DELETE("/applications/:name", argocdHandler.DeleteApplication)
+				argocdGroup.GET("/helm-catalog", argocdHandler.SearchHelmCharts)
+			}
+
+			// Registre OCI interne (Zot)
+			registryGroup := k8sGroup.Group("/registry")
+			{
+				registryGroup.GET("/repositories", registryHandler.ListRepositories)
+				registryGroup.GET("/repositories/*name", registryHandler.GetRepository)
+			}
+
+			// Observabilité du projet (Prometheus/Loki/Tempo déployés dans le cluster client)
+			observabilityGroup := k8sGroup.Group("/observability")
+			{
+				observabilityGroup.GET("/overview", observabilityHandler.GetOverview)
+				observabilityGroup.GET("/services", observabilityHandler.GetServices)
+				observabilityGroup.GET("/logs", observabilityHandler.GetLogs)
+				observabilityGroup.GET("/logs/services", observabilityHandler.GetLogServices)
+				observabilityGroup.GET("/traces", observabilityHandler.SearchTraces)
+				observabilityGroup.GET("/traces/:traceID", observabilityHandler.GetTrace)
+				observabilityGroup.Any("/grafana/*path", observabilityHandler.ProxyGrafana)
+			}
+
+			// Auto-découverte des applications ArgoCD et composants
+			// d'observabilité du cluster client
+			k8sGroup.GET("/discovery", discoveryHandler.GetReport)
 		}
 	}
 

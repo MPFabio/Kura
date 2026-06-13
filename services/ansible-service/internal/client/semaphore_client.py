@@ -92,13 +92,14 @@ class SemaphoreClient:
         data = self._request("GET", f"/project/{pid}/tasks?sort=id&order=desc&limit={page_size}")
         if data is None:
             return None
-        results = [self._map_task(t) for t in (data if isinstance(data, list) else [])]
+        templates_by_id = self._get_templates_by_id()
+        results = [self._map_task(t, templates_by_id) for t in (data if isinstance(data, list) else [])]
         return {"count": len(results), "results": results}
 
     def get_job(self, job_id: int) -> Optional[Dict[str, Any]]:
         pid = self.project_id
         data = self._request("GET", f"/project/{pid}/tasks/{job_id}")
-        return self._map_task(data) if data else None
+        return self._map_task(data, self._get_templates_by_id()) if data else None
 
     def get_job_stdout(self, job_id: int) -> Optional[str]:
         pid = self.project_id
@@ -113,18 +114,68 @@ class SemaphoreClient:
                         page: int = 1, page_size: int = 50) -> Optional[Dict[str, Any]]:
         return self.get_jobs(page, page_size)
 
-    def _map_task(self, t: Dict) -> Dict:
+    def _compute_elapsed(self, started: Optional[str], finished: Optional[str]) -> float:
+        """Calcule la durée en secondes à partir de started/finished si Semaphore ne fournit pas duration."""
+        if not started or not finished:
+            return 0
+        try:
+            start_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
+            end_dt = datetime.fromisoformat(finished.replace("Z", "+00:00"))
+            return max((end_dt - start_dt).total_seconds(), 0)
+        except (ValueError, AttributeError):
+            return 0
+
+    def _get_templates_by_id(self) -> Dict[int, Dict]:
+        """Récupère les templates du projet indexés par id (pour enrichir les tasks)."""
+        pid = self.project_id
+        data = self._request("GET", f"/project/{pid}/templates")
+        if not isinstance(data, list):
+            return {}
+        return {t.get("id"): t for t in data if t.get("id") is not None}
+
+    def _get_inventories_by_id(self) -> Dict[int, Dict]:
+        """Récupère les inventaires du projet indexés par id (pour enrichir templates/tasks)."""
+        pid = self.project_id
+        data = self._request("GET", f"/project/{pid}/inventory")
+        if not isinstance(data, list):
+            return {}
+        return {i.get("id"): i for i in data if i.get("id") is not None}
+
+    def _map_task(self, t: Dict, templates_by_id: Optional[Dict[int, Dict]] = None) -> Dict:
         status = STATUS_MAP.get(t.get("status", ""), t.get("status", "unknown"))
-        template = t.get("template", {}) or {}
+        templates_by_id = templates_by_id if templates_by_id is not None else self._get_templates_by_id()
+        template = templates_by_id.get(t.get("template_id"), {}) or {}
+        template_name = template.get("alias") or template.get("name") or ""
+
+        inventory_name = None
+        inventory_id = template.get("inventory_id")
+        if inventory_id is not None:
+            inventory = self._get_inventories_by_id().get(inventory_id)
+            inventory_name = inventory.get("name") if inventory else None
+
+        project_name_data = self.get_project(self.project_id)
+        project_name = project_name_data.get("name") if project_name_data else None
+
+        elapsed = t.get("duration") or self._compute_elapsed(t.get("created"), t.get("end"))
+
         return {
             "id": t.get("id"),
-            "name": template.get("alias") or template.get("name") or f"Task #{t.get('id')}",
+            "name": template_name or f"Task #{t.get('id')}",
             "status": status,
             "started": t.get("created"),
             "finished": t.get("end"),
+            "elapsed": elapsed,
             "job_template": t.get("template_id"),
-            "job_template_name": template.get("alias") or template.get("name", ""),
-            "elapsed": t.get("duration", 0),
+            "job_template_name": template_name,
+            "inventory": inventory_id,
+            "inventory_name": inventory_name,
+            "project": self.project_id,
+            "project_name": project_name,
+            "summary_fields": {
+                "job_template": {"name": template_name} if template_name else None,
+                "inventory": {"name": inventory_name} if inventory_name else None,
+                "project": {"name": project_name} if project_name else None,
+            },
         }
 
     # ── Templates ─────────────────────────────────────────────────────────────
@@ -153,13 +204,29 @@ class SemaphoreClient:
         return self._map_task(data) if data else None
 
     def _map_template(self, t: Dict) -> Dict:
+        inventory_id = t.get("inventory_id")
+        inventory_name = None
+        if inventory_id is not None:
+            inventory = self._get_inventories_by_id().get(inventory_id)
+            inventory_name = inventory.get("name") if inventory else None
+
+        project_id = t.get("project_id") or self.project_id
+        project_data = self.get_project(project_id)
+        project_name = project_data.get("name") if project_data else None
+
         return {
             "id": t.get("id"),
             "name": t.get("alias") or t.get("name", ""),
             "description": t.get("description", ""),
             "playbook": t.get("playbook", ""),
-            "inventory": t.get("inventory_id"),
-            "project": t.get("project_id") or self.project_id,
+            "inventory": inventory_id,
+            "inventory_name": inventory_name,
+            "project": project_id,
+            "project_name": project_name,
+            "summary_fields": {
+                "inventory": {"name": inventory_name} if inventory_name else None,
+                "project": {"name": project_name} if project_name else None,
+            },
         }
 
     # ── Inventaires ───────────────────────────────────────────────────────────

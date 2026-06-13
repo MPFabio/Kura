@@ -248,6 +248,40 @@ export const k8sService = {
     }
   },
 
+  patchDeploymentEnv: async (
+    namespace: string,
+    name: string,
+    container: string,
+    env: { name: string; value?: string }[]
+  ): Promise<void> => {
+    try {
+      await apiClient.patch(
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/env`,
+        { container, env }
+      )
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour des env vars du deployment ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
+  patchDeploymentResources: async (
+    namespace: string,
+    name: string,
+    container: string,
+    resources: { cpu_request?: string; cpu_limit?: string; mem_request?: string; mem_limit?: string }
+  ): Promise<void> => {
+    try {
+      await apiClient.patch(
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/deployments/${encodeURIComponent(name)}/resources`,
+        { container, ...resources }
+      )
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour des ressources du deployment ${namespace}/${name}:`, error)
+      throw error
+    }
+  },
+
   scaleDeployment: async (namespace: string, name: string, replicas: number): Promise<void> => {
     try {
       await apiClient.put(

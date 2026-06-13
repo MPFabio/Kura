@@ -227,15 +227,62 @@ func (d *Detector) detectComputeNetworkDrift(ctx context.Context, resource *mode
 		Network: name,
 	}
 
-	_, err = networksClient.Get(ctx, req)
+	gcpNetwork, err := networksClient.Get(ctx, req)
 	if err != nil {
 		result.Status = "missing"
 		result.Message = fmt.Sprintf("Réseau %s non trouvé dans GCP: %v", name, err)
 		return result, nil
 	}
 
-	result.Status = "in_sync"
-	result.Message = "Réseau synchronisé avec l'infrastructure GCP"
+	differences := make([]models.DriftDifference, 0)
+
+	if expected, ok := instance.Attributes["auto_create_subnetworks"].(bool); ok {
+		actual := gcpNetwork.GetAutoCreateSubnetworks()
+		if expected != actual {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "auto_create_subnetworks",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if expected, ok := instance.Attributes["routing_mode"].(string); ok && expected != "" {
+		actual := ""
+		if rc := gcpNetwork.GetRoutingConfig(); rc != nil {
+			actual = rc.GetRoutingMode()
+		}
+		if expected != actual {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "routing_mode",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if expected, ok := instance.Attributes["mtu"].(float64); ok && expected != 0 {
+		actual := float64(gcpNetwork.GetMtu())
+		if expected != actual {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "mtu",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if len(differences) > 0 {
+		result.Status = "drifted"
+		result.Message = fmt.Sprintf("%d différence(s) détectée(s)", len(differences))
+		result.Differences = differences
+	} else {
+		result.Status = "in_sync"
+		result.Message = "Réseau synchronisé avec l'infrastructure GCP"
+	}
 	return result, nil
 }
 
@@ -411,15 +458,59 @@ func (d *Detector) detectComputeSubnetworkDrift(ctx context.Context, resource *m
 		Subnetwork: name,
 	}
 
-	_, err = subnetworksClient.Get(ctx, req)
+	gcpSubnet, err := subnetworksClient.Get(ctx, req)
 	if err != nil {
 		result.Status = "missing"
 		result.Message = fmt.Sprintf("Sous-réseau %s non trouvé dans GCP: %v", name, err)
 		return result, nil
 	}
 
-	result.Status = "in_sync"
-	result.Message = "Sous-réseau synchronisé avec l'infrastructure GCP"
+	differences := make([]models.DriftDifference, 0)
+
+	if expected, ok := instance.Attributes["ip_cidr_range"].(string); ok && expected != "" {
+		actual := gcpSubnet.GetIpCidrRange()
+		if expected != actual {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "ip_cidr_range",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if expected, ok := instance.Attributes["private_ip_google_access"].(bool); ok {
+		actual := gcpSubnet.GetPrivateIpGoogleAccess()
+		if expected != actual {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "private_ip_google_access",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if expected, ok := instance.Attributes["stack_type"].(string); ok && expected != "" {
+		actual := gcpSubnet.GetStackType()
+		if expected != actual {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "stack_type",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if len(differences) > 0 {
+		result.Status = "drifted"
+		result.Message = fmt.Sprintf("%d différence(s) détectée(s)", len(differences))
+		result.Differences = differences
+	} else {
+		result.Status = "in_sync"
+		result.Message = "Sous-réseau synchronisé avec l'infrastructure GCP"
+	}
 	return result, nil
 }
 
@@ -472,15 +563,80 @@ func (d *Detector) detectContainerClusterDrift(ctx context.Context, resource *mo
 		Name: parent,
 	}
 
-	_, err = clusterManagerClient.GetCluster(ctx, req)
+	gcpCluster, err := clusterManagerClient.GetCluster(ctx, req)
 	if err != nil {
 		result.Status = "missing"
 		result.Message = fmt.Sprintf("Cluster GKE %s non trouvé dans GCP: %v", name, err)
 		return result, nil
 	}
 
-	result.Status = "in_sync"
-	result.Message = "Cluster GKE synchronisé avec l'infrastructure GCP"
+	differences := make([]models.DriftDifference, 0)
+
+	if expected, ok := instance.Attributes["min_master_version"].(string); ok && expected != "" {
+		actual := gcpCluster.GetCurrentMasterVersion()
+		if expected != actual {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "master_version",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	// node_locations n'est comparé que si explicitement défini dans le tfstate :
+	// GCP assigne toujours au moins une zone par défaut, donc une liste vide
+	// côté tfstate ne signifie pas un drift.
+	if expectedLocs, ok := instance.Attributes["node_locations"].([]interface{}); ok && len(expectedLocs) > 0 {
+		expected := make([]string, 0, len(expectedLocs))
+		for _, l := range expectedLocs {
+			if s, ok := l.(string); ok {
+				expected = append(expected, s)
+			}
+		}
+		actual := gcpCluster.GetLocations()
+		if !sameStringSet(expected, actual) {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "node_locations",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if expected, ok := instance.Attributes["network"].(string); ok && expected != "" {
+		actual := gcpCluster.GetNetwork()
+		if lastSegment(expected) != lastSegment(actual) {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "network",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if expected, ok := instance.Attributes["subnetwork"].(string); ok && expected != "" {
+		actual := gcpCluster.GetSubnetwork()
+		if lastSegment(expected) != lastSegment(actual) {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "subnetwork",
+				Expected:   expected,
+				Actual:     actual,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	if len(differences) > 0 {
+		result.Status = "drifted"
+		result.Message = fmt.Sprintf("%d différence(s) détectée(s)", len(differences))
+		result.Differences = differences
+	} else {
+		result.Status = "in_sync"
+		result.Message = "Cluster GKE synchronisé avec l'infrastructure GCP"
+	}
 	return result, nil
 }
 
@@ -538,15 +694,139 @@ func (d *Detector) detectContainerNodePoolDrift(ctx context.Context, resource *m
 		Name: parent,
 	}
 
-	_, err = clusterManagerClient.GetNodePool(ctx, req)
+	gcpNodePool, err := clusterManagerClient.GetNodePool(ctx, req)
 	if err != nil {
 		result.Status = "missing"
 		result.Message = fmt.Sprintf("Node pool %s non trouvé dans GCP: %v", name, err)
 		return result, nil
 	}
 
-	result.Status = "in_sync"
-	result.Message = "Node pool GKE synchronisé avec l'infrastructure GCP"
+	differences := make([]models.DriftDifference, 0)
+
+	// Nombre de nœuds : comparer soit avec autoscaling (min/max) soit initial_node_count
+	if expectedAutoscaling, ok := instance.Attributes["autoscaling"].([]interface{}); ok && len(expectedAutoscaling) > 0 {
+		if cfg, ok := expectedAutoscaling[0].(map[string]interface{}); ok {
+			actualAutoscaling := gcpNodePool.GetAutoscaling()
+			expectedMin, _ := toInt64(cfg["min_node_count"])
+			expectedMax, _ := toInt64(cfg["max_node_count"])
+			actualEnabled := actualAutoscaling.GetEnabled()
+			actualMin := actualAutoscaling.GetMinNodeCount()
+			actualMax := actualAutoscaling.GetMaxNodeCount()
+			if !actualEnabled {
+				differences = append(differences, models.DriftDifference{
+					Attribute:  "autoscaling.enabled",
+					Expected:   true,
+					Actual:     actualEnabled,
+					ChangeType: "modified",
+				})
+			} else {
+				if expectedMin != int64(actualMin) {
+					differences = append(differences, models.DriftDifference{
+						Attribute:  "autoscaling.min_node_count",
+						Expected:   expectedMin,
+						Actual:     actualMin,
+						ChangeType: "modified",
+					})
+				}
+				if expectedMax != int64(actualMax) {
+					differences = append(differences, models.DriftDifference{
+						Attribute:  "autoscaling.max_node_count",
+						Expected:   expectedMax,
+						Actual:     actualMax,
+						ChangeType: "modified",
+					})
+				}
+			}
+		}
+	} else if expected, ok := instance.Attributes["initial_node_count"]; ok {
+		expectedCount, _ := toInt64(expected)
+		actualCount := int64(gcpNodePool.GetInitialNodeCount())
+		if expectedCount != 0 && expectedCount != actualCount {
+			differences = append(differences, models.DriftDifference{
+				Attribute:  "initial_node_count",
+				Expected:   expectedCount,
+				Actual:     actualCount,
+				ChangeType: "modified",
+			})
+		}
+	}
+
+	// node_config : machine_type, disk_size_gb, disk_type, spot/preemptible
+	if nodeConfigList, ok := instance.Attributes["node_config"].([]interface{}); ok && len(nodeConfigList) > 0 {
+		if cfg, ok := nodeConfigList[0].(map[string]interface{}); ok {
+			actualConfig := gcpNodePool.GetConfig()
+
+			if expected, ok := cfg["machine_type"].(string); ok && expected != "" {
+				actual := actualConfig.GetMachineType()
+				if expected != actual {
+					differences = append(differences, models.DriftDifference{
+						Attribute:  "node_config.machine_type",
+						Expected:   expected,
+						Actual:     actual,
+						ChangeType: "modified",
+					})
+				}
+			}
+
+			if expected, ok := cfg["disk_size_gb"]; ok {
+				expectedSize, _ := toInt64(expected)
+				actualSize := int64(actualConfig.GetDiskSizeGb())
+				if expectedSize != 0 && expectedSize != actualSize {
+					differences = append(differences, models.DriftDifference{
+						Attribute:  "node_config.disk_size_gb",
+						Expected:   expectedSize,
+						Actual:     actualSize,
+						ChangeType: "modified",
+					})
+				}
+			}
+
+			if expected, ok := cfg["disk_type"].(string); ok && expected != "" {
+				actual := actualConfig.GetDiskType()
+				if expected != actual {
+					differences = append(differences, models.DriftDifference{
+						Attribute:  "node_config.disk_type",
+						Expected:   expected,
+						Actual:     actual,
+						ChangeType: "modified",
+					})
+				}
+			}
+
+			if expected, ok := cfg["spot"].(bool); ok {
+				actual := actualConfig.GetSpot()
+				if expected != actual {
+					differences = append(differences, models.DriftDifference{
+						Attribute:  "node_config.spot",
+						Expected:   expected,
+						Actual:     actual,
+						ChangeType: "modified",
+					})
+				}
+			}
+
+			if expected, ok := cfg["preemptible"].(bool); ok {
+				actual := actualConfig.GetPreemptible()
+				if expected != actual {
+					differences = append(differences, models.DriftDifference{
+						Attribute:  "node_config.preemptible",
+						Expected:   expected,
+						Actual:     actual,
+						ChangeType: "modified",
+					})
+				}
+			}
+		}
+	}
+
+	if len(differences) > 0 {
+		result.Status = "drifted"
+		result.Message = fmt.Sprintf("%d différence(s) détectée(s)", len(differences))
+		result.Differences = differences
+	} else {
+		result.Status = "in_sync"
+		result.Message = "Node pool GKE synchronisé avec l'infrastructure GCP"
+	}
 	return result, nil
 }
 
@@ -696,6 +976,44 @@ func (d *Detector) detectGenericDriftViaAssetAPI(ctx context.Context, resource *
 	result.Status = "in_sync"
 	result.Message = "Ressource synchronisée avec l'infrastructure GCP (vérification via Asset Inventory)"
 	return result, nil
+}
+
+// toInt64 convertit une valeur d'attribut tfstate (généralement float64 ou string) en int64.
+func toInt64(v interface{}) (int64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return int64(n), true
+	case int64:
+		return n, true
+	case int:
+		return int64(n), true
+	case string:
+		var i int64
+		if _, err := fmt.Sscanf(n, "%d", &i); err == nil {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// sameStringSet compare deux listes de chaînes sans tenir compte de l'ordre.
+func sameStringSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	counts := make(map[string]int, len(a))
+	for _, s := range a {
+		counts[s]++
+	}
+	for _, s := range b {
+		counts[s]--
+	}
+	for _, c := range counts {
+		if c != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // buildResourceAddress construit l'adresse complète d'une ressource.

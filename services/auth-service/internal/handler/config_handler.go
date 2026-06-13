@@ -42,6 +42,18 @@ func (h *ConfigHandler) GetServiceKey(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"service": service, "key": key, "value": value})
 }
 
+// DeleteServiceKey supprime une clé spécifique d'un service.
+// DELETE /internal/config/:service/:key
+func (h *ConfigHandler) DeleteServiceKey(c *gin.Context) {
+	service := c.Param("service")
+	key := c.Param("key")
+	if err := h.repo.DeleteServiceConfig(service, key); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"service": service, "key": key, "deleted": true})
+}
+
 // SetServiceConfigs insère ou met à jour plusieurs clés d'un service.
 // POST /internal/config/:service
 // Body: { "key1": "value1", "key2": "value2" }

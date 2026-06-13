@@ -2,55 +2,13 @@
 
 Ce guide décrit comment mettre la solution en ligne pour la faire tester par d’autres personnes.
 
-## Option recommandée : VM GCP (déjà prévue dans le projet)
+## Option recommandée : VM GCP (repo Kuro)
 
-Le Terraform GCP du projet crée une VM avec Docker et Docker Compose. C’est la voie la plus simple pour un environnement de démo/test partagé.
+L'infrastructure (VMs GCP, réseau, firewall) et le bootstrap (cloud-init Docker Compose) sont gérés dans le repo séparé [Kuro](https://codeberg.org/MPFabio/Kuro) (Terraform/OpenTofu). Se référer à son README pour la provision et le cycle stop/start des VMs.
 
-### 1. Créer la VM (si ce n’est pas déjà fait)
+Une fois la VM `kuro-kura` provisionnée et démarrée, le cloud-init clone ce repo (Kura) et lance `docker compose up -d` automatiquement.
 
-```bash
-cd infrastructure/terraform/gcp
-terraform init
-terraform plan -var-file=terraform.tfvars
-terraform apply -var-file=terraform.tfvars
-```
-
-Récupère l’IP publique affichée en sortie : `vm_external_ip`.
-
-### 2. Ouvrir le port du frontend
-
-Le firewall autorise déjà les ports 80, 443, 8000, 8001 et **5173** (interface utilisateur). Aucune modification nécessaire si tu utilises le Terraform à jour.
-
-### 3. Déployer sur la VM
-
-Sur ta machine, définis l’URL publique (remplace `VM_IP` par l’IP de la VM) :
-
-```bash
-export VM_IP="<vm_external_ip>"
-export VITE_API_BASE_URL="http://${VM_IP}:8000"
-export VITE_AUTH_URL="http://${VM_IP}:8000"
-export VITE_PIPELINE_URL="http://${VM_IP}:8000"
-export VITE_SOCKET_URL="http://${VM_IP}:8000"
-```
-
-Puis sur la VM (après `ssh ubuntu@${VM_IP}`) :
-
-```bash
-cd /opt/kura   # ou l’endroit où tu clones le repo
-git clone <ton-repo> .   # ou copie du code
-
-# Les variables VITE_* doivent être passées au build. Option 1 : fichier .env sur la VM
-echo "VITE_API_BASE_URL=http://${VM_IP}:8000" > .env
-echo "VITE_AUTH_URL=http://${VM_IP}:8000" >> .env
-echo "VITE_PIPELINE_URL=http://${VM_IP}:8000" >> .env
-echo "VITE_SOCKET_URL=http://${VM_IP}:8000" >> .env
-
-docker compose up -d --build
-```
-
-Ou option 2 : build en local avec les bonnes variables, puis déploiement des images sur la VM (CI/CD ou manuel).
-
-### 4. URLs à donner aux testeurs
+### URLs à donner aux testeurs
 
 - **Interface (frontend)** : `http://<VM_IP>:5173`
 - **API (Kong)** : `http://<VM_IP>:8000`

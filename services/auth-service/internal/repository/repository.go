@@ -99,6 +99,15 @@ func (r *Repository) SetServiceConfig(service, key, value string) error {
 	return err
 }
 
+// DeleteServiceConfig supprime une clé pour un service donné.
+func (r *Repository) DeleteServiceConfig(service, key string) error {
+	_, err := r.db.Exec(
+		`DELETE FROM service_configs WHERE service=$1 AND key=$2`,
+		service, key,
+	)
+	return err
+}
+
 // SetServiceConfigs insère ou met à jour plusieurs clés pour un service en une transaction.
 func (r *Repository) SetServiceConfigs(service string, kv map[string]string) error {
 	tx, err := r.db.Begin()
