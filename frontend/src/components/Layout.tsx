@@ -37,7 +37,7 @@ import ZotIcon from './icons/ZotIcon'
 import AnsibleIcon from './icons/AnsibleIcon'
 import ModulesIcon from './icons/ModulesIcon'
 import ObservabilityIcon from './icons/ObservabilityIcon'
-import PipelinesIcon from './icons/PipelinesIcon'
+import ForgejoIcon from './icons/ForgejoIcon'
 import AlertsIcon from './icons/AlertsIcon'
 import SettingsIcon from './icons/SettingsIcon'
 import VaultIcon from './icons/VaultIcon'
@@ -57,7 +57,7 @@ const navItems = [
   { text: 'Semaphore',     icon: <AnsibleIcon />,    path: '/ansible',        custom: true },
   { text: 'OpenBao',       icon: <VaultIcon />,      path: '/vault',          custom: true },
   { text: 'Observabilité', icon: <ObservabilityIcon sx={{ width: 24, height: 24 }} active />, path: '/metrics',        custom: true, internalObservability: true },
-  { text: 'Pipelines',     icon: <PipelinesIcon />,  path: '/pipelines',      custom: true },
+  { text: 'Pipelines',     icon: <ForgejoIcon active />,  path: '/pipelines',      custom: true },
   { text: 'Alertes',       icon: <AlertsIcon />,     path: '/alerts',         custom: true },
 ]
 

@@ -173,8 +173,6 @@ func setupRouter(pipelineHandler *handler.PipelineHandler, webhookHandler *handl
 			// Webhooks
 			pipelineGroup.POST("/webhooks", webhookHandler.HandleGeneric)
 			pipelineGroup.POST("/webhooks/github", webhookHandler.HandleGitHub)
-			pipelineGroup.POST("/webhooks/gitlab", webhookHandler.HandleGitLab)
-			pipelineGroup.POST("/webhooks/jenkins", webhookHandler.HandleJenkins)
 			pipelineGroup.POST("/webhooks/forgejo", webhookHandler.HandleForgejo)
 		}
 	}

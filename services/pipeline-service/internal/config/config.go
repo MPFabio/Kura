@@ -28,15 +28,6 @@ type Config struct {
 	GitHubRepos         []string // ex: ["owner/repo1", "owner/repo2"]
 	GitHubWebhookSecret string
 
-	// CI/CD - GitLab
-	GitLabToken         string
-	GitLabWebhookSecret string
-
-	// CI/CD - Jenkins
-	JenkinsURL      string
-	JenkinsUsername string
-	JenkinsToken    string
-
 	// CI/CD - Forgejo
 	ForgejoURL           string
 	ForgejoToken         string
@@ -90,15 +81,6 @@ func Load() (*Config, error) {
 			}
 		}
 	}
-
-	// GitLab
-	cfg.GitLabToken = getEnv("GITLAB_TOKEN", "")
-	cfg.GitLabWebhookSecret = getEnv("GITLAB_WEBHOOK_SECRET", webhookSecret)
-
-	// Jenkins
-	cfg.JenkinsURL = getEnv("JENKINS_URL", "")
-	cfg.JenkinsUsername = getEnv("JENKINS_USERNAME", "")
-	cfg.JenkinsToken = getEnv("JENKINS_TOKEN", "")
 
 	// Forgejo
 	cfg.ForgejoURL = getEnv("FORGEJO_URL", "")

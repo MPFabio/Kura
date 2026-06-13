@@ -521,7 +521,7 @@ provider "google" {
         <Box sx={contentSx}>
           <Typography component="h1">Module Pipelines</Typography>
           <Typography>
-            Le module Pipelines permet de suivre les pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) et de gérer les webhooks. Les exécutions et statuts sont agrégés dans la plateforme pour une vue transversale avec les autres modules (Kubernetes, OpenTofu, Semaphore).
+            Le module Pipelines permet de suivre les pipelines CI/CD (GitHub Actions, Forgejo Actions) et de gérer les webhooks. Les exécutions et statuts sont agrégés dans la plateforme pour une vue transversale avec les autres modules (Kubernetes, OpenTofu, Semaphore).
           </Typography>
 
           <Typography component="h2">Option recommandée : Webhooks (temps réel)</Typography>

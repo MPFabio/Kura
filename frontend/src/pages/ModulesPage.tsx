@@ -12,7 +12,7 @@ import TerraformIcon from '../components/icons/TerraformIcon'
 import KubernetesIcon from '../components/icons/KubernetesIcon'
 import ArgoCDIcon from '../components/icons/ArgoCDIcon'
 import AnsibleIcon from '../components/icons/AnsibleIcon'
-import PipelinesIcon from '../components/icons/PipelinesIcon'
+import ForgejoIcon from '../components/icons/ForgejoIcon'
 import ObservabilityIcon from '../components/icons/ObservabilityIcon'
 import { useProject } from '../contexts/ProjectContext'
 import { terraformService } from '../services/terraformService'
@@ -335,7 +335,7 @@ export default function ModulesPage() {
     {
       id: 'pipelines',
       name: 'Pipelines',
-      icon: <PipelinesIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
+      icon: <ForgejoIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/pipelines',
       active: true,
       status: 'active',
