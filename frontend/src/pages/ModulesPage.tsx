@@ -191,14 +191,14 @@ export default function ModulesPage() {
   const modules: Module[] = [
     {
       id: 'terraform',
-      name: 'Terraform',
+      name: 'OpenTofu',
       icon: <TerraformIcon sx={{ fontSize: 80, width: 80, height: 80 }} active={true} />,
       path: '/terraform',
       active: true,
       deploying: false,
       status: 'active',
       statusText: 'Module actif',
-      description: 'Gestion complète de vos états Terraform avec synchronisation cloud et détection de drift en temps réel.',
+      description: 'Gestion complète de vos états OpenTofu avec synchronisation cloud et détection de drift en temps réel.',
       stats: [
         { label: 'États', value: formatStat(statesCount) },
         { label: 'Sources', value: formatStat(statesCount) },
@@ -351,7 +351,7 @@ export default function ModulesPage() {
       ],
       features: [
         'Workflows GitHub Actions / GitLab CI',
-        'Déploiement Terraform et K8s',
+        'Déploiement OpenTofu et K8s',
         'Historique et statut des runs',
       ],
     },

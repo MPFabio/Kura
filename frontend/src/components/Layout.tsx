@@ -49,7 +49,7 @@ const DRAWER_WIDTH = 220
 
 const navItems = [
   { text: 'Modules',       icon: <ModulesIcon />,    path: '/modules',        custom: true },
-  { text: 'Terraform',     icon: <TerraformIcon />,  path: '/terraform',      custom: true },
+  { text: 'OpenTofu',      icon: <TerraformIcon />,  path: '/terraform',      custom: true },
   { text: 'Repository',    icon: <CodeIcon />,       path: '/code',           custom: true },
   { text: 'Kubernetes',    icon: <KubernetesIcon />, path: '/k8s',            custom: true },
   { text: 'ArgoCD',        icon: <ArgoCDIcon />,     path: '/argocd',         custom: true },

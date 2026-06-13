@@ -29,7 +29,7 @@ const docSections: { id: string; label: string; children?: { id: string; label: 
       { id: 'k8s', label: 'Kubernetes' },
       { id: 'argocd', label: 'ArgoCD & Helm' },
       { id: 'registry', label: 'Zot' },
-      { id: 'terraform', label: 'Terraform' },
+      { id: 'terraform', label: 'OpenTofu' },
       { id: 'code', label: 'Repository' },
       { id: 'ansible', label: 'Ansible' },
       { id: 'vault', label: 'Vault' },
@@ -93,23 +93,23 @@ function DocContent({ docId }: { docId: string }) {
         <Box sx={contentSx}>
           <Typography component="h1">Bienvenue dans Kura</Typography>
           <Typography>
-            Kura est une plateforme DevOps unifiée qui vise à donner une vue centrale sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, Terraform, Ansible, pipelines CI/CD, métriques et alertes.
+            Kura est une plateforme DevOps unifiée qui vise à donner une vue centrale sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, OpenTofu, Ansible, pipelines CI/CD, métriques et alertes.
           </Typography>
           <Typography component="h2">Ce qui existe déjà sur le marché</Typography>
           <Typography>
-            Les outils spécialisés (portails Kubernetes, Terraform Cloud, Ansible Tower, GitHub Actions, Prometheus/Grafana) sont souvent isolés : les équipes jonglent entre plusieurs interfaces, et il est difficile d&apos;avoir une vision transversale (par exemple : « ce pipeline déploie quels clusters ou quelles ressources Terraform ? »). L&apos;authentification et les rôles sont souvent dupliqués dans chaque outil.
+            Les outils spécialisés (portails Kubernetes, Terraform/OpenTofu Cloud, Ansible Tower, GitHub Actions, Prometheus/Grafana) sont souvent isolés : les équipes jonglent entre plusieurs interfaces, et il est difficile d&apos;avoir une vision transversale (par exemple : « ce pipeline déploie quels clusters ou quelles ressources OpenTofu ? »). L&apos;authentification et les rôles sont souvent dupliqués dans chaque outil.
           </Typography>
           <Typography component="h2">La valeur ajoutée de Kura</Typography>
           <Box component="ul">
             <li><strong>Point d&apos;entrée unique</strong> pour les équipes Ops / DevOps : un seul portail, une seule API Gateway.</li>
-            <li><strong>Agrégation</strong> des infos clés (clusters, états Terraform, jobs Ansible, pipelines, métriques) au même endroit.</li>
+            <li><strong>Agrégation</strong> des infos clés (clusters, états OpenTofu, jobs Ansible, pipelines, métriques) au même endroit.</li>
             <li><strong>Authentification centralisée</strong> (auth-service) et rôles homogènes sur tous les modules.</li>
-            <li>Focus sur l&apos;<strong>opérationnel actif</strong> (gestion K8s, exécution Terraform, jobs Ansible) plutôt que sur le catalogue seul.</li>
+            <li>Focus sur l&apos;<strong>opérationnel actif</strong> (gestion K8s, exécution OpenTofu, jobs Ansible) plutôt que sur le catalogue seul.</li>
           </Box>
           <Typography component="h2">Ce que vous pouvez faire</Typography>
           <Box component="ul">
             <li>Gérer vos clusters Kubernetes (GKE, AKS, EKS, Proxmox ou générique)</li>
-            <li>Consulter et gérer vos états Terraform, détecter les dérives (drift)</li>
+            <li>Consulter et gérer vos états OpenTofu, détecter les dérives (drift)</li>
             <li>Lancer et suivre des jobs Ansible (via AWX/Tower)</li>
             <li>Suivre les pipelines CI/CD et les webhooks</li>
             <li>Visualiser les métriques et configurer les alertes</li>
@@ -140,7 +140,7 @@ function DocContent({ docId }: { docId: string }) {
           </Typography>
           <Box component="ul">
             <li><strong>Kubernetes</strong> : ajoutez un cluster via son kubeconfig → visualisez pods, services, logs</li>
-            <li><strong>Terraform</strong> : uploadez un fichier <code>.tfstate</code> ou liez un bucket cloud → consultez vos ressources et détectez les dérives</li>
+            <li><strong>OpenTofu</strong> : uploadez un fichier <code>.tfstate</code> ou liez un bucket cloud → consultez vos ressources et détectez les dérives</li>
             <li><strong>Pipelines</strong> : connectez votre token GitHub → suivez vos workflows en temps réel</li>
             <li><strong>Ansible</strong> : connectez votre instance Semaphore → lancez et suivez vos playbooks</li>
             <li><strong>Vault</strong> : connectez votre instance HashiCorp Vault → parcourez et gérez vos secrets</li>
@@ -153,7 +153,7 @@ function DocContent({ docId }: { docId: string }) {
         <Box sx={contentSx}>
           <Typography component="h1">Gérer ses projets</Typography>
           <Typography>
-            Un <strong>projet</strong> est l&apos;unité d&apos;organisation centrale de Kura. Toutes vos ressources (clusters Kubernetes, états Terraform, connexions Ansible, pipelines) sont rattachées à un projet.
+            Un <strong>projet</strong> est l&apos;unité d&apos;organisation centrale de Kura. Toutes vos ressources (clusters Kubernetes, états OpenTofu, connexions Ansible, pipelines) sont rattachées à un projet.
           </Typography>
           <Typography component="h2">Créer un projet</Typography>
           <Typography>
@@ -169,7 +169,7 @@ function DocContent({ docId }: { docId: string }) {
           </Box>
           <Typography component="h2">Changer de projet</Typography>
           <Typography>
-            Utilisez le sélecteur de projet en haut de la barre latérale pour basculer entre vos projets. L&apos;ensemble des modules (Kubernetes, Terraform, Ansible…) se met à jour automatiquement avec les ressources du projet sélectionné.
+            Utilisez le sélecteur de projet en haut de la barre latérale pour basculer entre vos projets. L&apos;ensemble des modules (Kubernetes, OpenTofu, Ansible…) se met à jour automatiquement avec les ressources du projet sélectionné.
           </Typography>
           <Typography component="h2">Isolation des données</Typography>
           <Typography>
@@ -300,15 +300,15 @@ function DocContent({ docId }: { docId: string }) {
     case 'terraform':
       return (
         <Box sx={contentSx}>
-          <Typography component="h1">Module Terraform</Typography>
+          <Typography component="h1">Module OpenTofu</Typography>
           <Typography>
-            Le module Terraform permet d&apos;uploader et gérer des états Terraform (tfstate), de les associer à des sources de stockage (S3, GCS, Azure Blob), et de lancer une <strong>détection de drift</strong> entre l&apos;état déclaré dans le tfstate et l&apos;infrastructure réelle (GCP, AWS, Azure selon le provider).
+            Le module OpenTofu permet d&apos;uploader et gérer des états OpenTofu (tfstate), de les associer à des sources de stockage (S3, GCS, Azure Blob), et de lancer une <strong>détection de drift</strong> entre l&apos;état déclaré dans le tfstate et l&apos;infrastructure réelle (GCP, AWS, Azure selon le provider).
           </Typography>
           <Typography component="h2">Exemple de configuration</Typography>
           <Typography>
-            Voici un exemple typique de configuration Terraform (bloc <code>terraform</code> et provider Google) :
+            Voici un exemple typique de configuration OpenTofu (bloc <code>terraform</code> et provider Google) :
           </Typography>
-          <CodeBlock language="hcl" label="Bloc Terraform">
+          <CodeBlock language="hcl" label="Bloc OpenTofu">
             {`terraform {
   required_version = ">= 1.0"
   required_providers {
@@ -339,20 +339,20 @@ provider "google" {
           </Typography>
           <Typography component="h2">Détection de drift</Typography>
           <Typography>
-            La détection de drift compare l&apos;état Terraform avec l&apos;infrastructure réelle via les APIs des providers. Pour <strong>GCP</strong>, le service s&apos;appuie sur les APIs Compute, Container (GKE), etc. pour les types courants (réseau, sous-réseau, cluster GKE, node pool), et sur l&apos;API <strong>Cloud Asset Inventory</strong> pour tous les autres types de ressources. Les résultats indiquent pour chaque ressource : <strong>in_sync</strong> (synchronisée), <strong>drifted</strong> (différences détectées), <strong>missing</strong> (ressource absente côté cloud) ou <strong>unknown</strong> (erreur ou type non reconnu). Vous pouvez lancer un drift manuellement depuis l&apos;interface ou après une synchronisation.
+            La détection de drift compare l&apos;état OpenTofu avec l&apos;infrastructure réelle via les APIs des providers. Pour <strong>GCP</strong>, le service s&apos;appuie sur les APIs Compute, Container (GKE), etc. pour les types courants (réseau, sous-réseau, cluster GKE, node pool), et sur l&apos;API <strong>Cloud Asset Inventory</strong> pour tous les autres types de ressources. Les résultats indiquent pour chaque ressource : <strong>in_sync</strong> (synchronisée), <strong>drifted</strong> (différences détectées), <strong>missing</strong> (ressource absente côté cloud) ou <strong>unknown</strong> (erreur ou type non reconnu). Vous pouvez lancer un drift manuellement depuis l&apos;interface ou après une synchronisation.
           </Typography>
           <Typography component="h2">Résultats</Typography>
           <Typography>
             La page de résultat liste chaque ressource du tfstate avec son statut et un message explicatif. Les différences (attributs modifiés) sont affichées pour les ressources en drift. La note en bas de page rappelle que la détection utilise les APIs réelles des providers pour comparer l&apos;état réel au tfstate.
           </Typography>
 
-          <Typography component="h2">Détection de drift « fine » (via OpenTofu)</Typography>
+          <Typography component="h2">Détection de drift « fine »</Typography>
           <Typography>
             En complément du mode <strong>Fast</strong> (détecteurs dédiés par type de ressource, décrit ci-dessus), Kura propose un mode <strong>Fine</strong> : il exécute <code>tofu plan -refresh-only</code> directement sur vos fichiers <code>.tf</code> récupérés depuis GitHub. Ce mode fonctionne pour <strong>n&apos;importe quel type de ressource</strong>, sur n&apos;importe quel provider (GCP, AWS, Azure…), sans nécessiter de support spécifique côté Kura.
           </Typography>
           <Typography component="h3">1. Configurer un token GitHub</Typography>
           <Typography>
-            Depuis l&apos;onglet <strong>Configuration</strong> du module Terraform, renseignez un <strong>token d&apos;accès personnel GitHub</strong> (scope <code>repo</code> pour un dépôt privé, ou <code>public_repo</code> pour un dépôt public). Un badge indique si un token est configuré (« Token configuré » / « Aucun token configuré »). Le token est partagé par toutes les sources du projet et peut être supprimé via le bouton <strong>Supprimer</strong>.
+            Depuis l&apos;onglet <strong>Configuration</strong> du module OpenTofu, renseignez un <strong>token d&apos;accès personnel GitHub</strong> (scope <code>repo</code> pour un dépôt privé, ou <code>public_repo</code> pour un dépôt public). Un badge indique si un token est configuré (« Token configuré » / « Aucun token configuré »). Le token est partagé par toutes les sources du projet et peut être supprimé via le bouton <strong>Supprimer</strong>.
           </Typography>
           <Typography component="h3">2. Configurer le dépôt sur la source</Typography>
           <Typography>
@@ -406,7 +406,7 @@ provider "google" {
           </Typography>
           <Typography component="h2">2. Configurer le token GitHub</Typography>
           <Typography>
-            Le module Repository réutilise le <strong>token GitHub</strong> déjà configuré pour la détection de drift Terraform (Terraform → Configuration). Aucune configuration supplémentaire n&apos;est nécessaire si ce token est déjà renseigné et dispose d&apos;un accès en lecture sur les dépôts liés.
+            Le module Repository réutilise le <strong>token GitHub</strong> déjà configuré pour la détection de drift OpenTofu (OpenTofu → Configuration). Aucune configuration supplémentaire n&apos;est nécessaire si ce token est déjà renseigné et dispose d&apos;un accès en lecture sur les dépôts liés.
           </Typography>
           <Typography component="h2">3. Naviguer dans les fichiers</Typography>
           <Typography>
@@ -492,7 +492,7 @@ provider "google" {
           <Typography component="h2">Onglet Métriques</Typography>
           <Box component="ul">
             <li><strong>KPI globaux</strong> : nombre de services actifs / hors ligne, goroutines totales, mémoire totale</li>
-            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, Terraform, Ansible, Pipeline, Vault, Code, Metrics) — vérifié par health check direct</li>
+            <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, OpenTofu, Ansible, Pipeline, Vault, Code, Metrics) — vérifié par health check direct</li>
             <li><strong>Tableau de métriques</strong> : goroutines, CPU rate, mémoire RSS par service (données Prometheus)</li>
             <li><strong>Dashboard Grafana</strong> : vue temporelle des métriques (goroutines, mémoire, état des services dans le temps)</li>
           </Box>
@@ -521,7 +521,7 @@ provider "google" {
         <Box sx={contentSx}>
           <Typography component="h1">Module Pipelines</Typography>
           <Typography>
-            Le module Pipelines permet de suivre les pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) et de gérer les webhooks. Les exécutions et statuts sont agrégés dans la plateforme pour une vue transversale avec les autres modules (Kubernetes, Terraform, Ansible).
+            Le module Pipelines permet de suivre les pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) et de gérer les webhooks. Les exécutions et statuts sont agrégés dans la plateforme pour une vue transversale avec les autres modules (Kubernetes, OpenTofu, Ansible).
           </Typography>
 
           <Typography component="h2">Option recommandée : Webhooks (temps réel)</Typography>
@@ -596,9 +596,9 @@ provider "google" {
             Vérifiez que le fichier <code>kura-overview.json</code> est bien dans le dossier de provisioning Grafana. Redémarrez Grafana : <code>docker compose restart grafana</code>. En production, le dashboard est accessible à <code>/grafana/d/kura-overview/...</code>.
           </Typography>
 
-          <Typography component="h2">Terraform — « No configuration found » dans Kura</Typography>
+          <Typography component="h2">OpenTofu — « No configuration found » dans Kura</Typography>
           <Typography>
-            Le tfstate existe dans GCS mais est vide (terraform apply n&apos;a pas encore été exécuté) ou la source cloud n&apos;est pas correctement configurée. Vérifiez que le <em>Bucket GCP</em> correspond au nom réel du bucket GCS (ex. <code>kura-ynov</code>) et que le <em>chemin de l&apos;objet</em> est le chemin dans le bucket (ex. <code>demo-kura/state/default.tfstate</code>).
+            Le tfstate existe dans GCS mais est vide (<code>tofu apply</code> n&apos;a pas encore été exécuté) ou la source cloud n&apos;est pas correctement configurée. Vérifiez que le <em>Bucket GCP</em> correspond au nom réel du bucket GCS (ex. <code>kura-ynov</code>) et que le <em>chemin de l&apos;objet</em> est le chemin dans le bucket (ex. <code>demo-kura/state/default.tfstate</code>).
           </Typography>
 
           <Typography component="h2">Pipeline — les runs ne s&apos;affichent pas</Typography>
