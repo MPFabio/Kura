@@ -43,6 +43,7 @@ import {
   type TraceDetail,
   type TraceSpan,
 } from '../services/metricsService'
+import { discoveryService } from '../services/discoveryService'
 import { kuraColors } from '../theme'
 
 // Service utilisé pour interroger les données d'observabilité, sélectionné
@@ -98,6 +99,80 @@ function KPICard({ label, value, unit }: { label: string; value: string | number
   )
 }
 
+// DiscoveryCard affiche ce que Kura a détecté automatiquement dans le
+// cluster du client : Applications ArgoCD déployées et composants
+// d'observabilité reconnus par labels (Prometheus/VictoriaMetrics, Grafana,
+// Loki, Tempo). Aucune configuration n'est requise côté client.
+function DiscoveryCard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['k8s-discovery'],
+    queryFn: () => discoveryService.getReport(),
+    refetchInterval: 30_000,
+    retry: false,
+  })
+
+  if (isLoading) return null
+  if (!data) return null
+
+  const { applications, observability } = data
+
+  return (
+    <ModuleCard sx={{ mb: 3 }}>
+      <Box sx={{ px: 2.5, py: 2, borderBottom: `1px solid ${kuraColors.border0}` }}>
+        <ModuleSubtitle>Découverte automatique du cluster</ModuleSubtitle>
+      </Box>
+      <Box sx={{ p: 2.5 }}>
+        <Typography sx={{ fontSize: '0.8rem', color: kuraColors.text2, mb: 1.5 }}>
+          Composants d'observabilité détectés
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: applications.length > 0 ? 2.5 : 0 }}>
+          {observability.map((c) => (
+            <Chip
+              key={c.name}
+              size="small"
+              label={c.found ? `${c.name} · ${c.namespace}` : c.name}
+              sx={{
+                fontWeight: 500,
+                fontSize: '0.75rem',
+                backgroundColor: c.found ? `${kuraColors.success}22` : `${kuraColors.text2}22`,
+                border: `1px solid ${c.found ? kuraColors.success : kuraColors.border0}`,
+                color: c.found ? kuraColors.success : kuraColors.text2,
+              }}
+            />
+          ))}
+        </Box>
+
+        {applications.length > 0 && (
+          <>
+            <Typography sx={{ fontSize: '0.8rem', color: kuraColors.text2, mb: 1.5 }}>
+              Applications ArgoCD déployées
+            </Typography>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  {['Application', 'Namespace', 'Sync', 'État'].map((h) => (
+                    <TableCell key={h}>{h}</TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {applications.map((app) => (
+                  <TableRow key={app.name}>
+                    <TableCell sx={{ fontWeight: 500, color: kuraColors.text0 }}>{app.name}</TableCell>
+                    <TableCell sx={{ color: kuraColors.text1, fontFamily: '"JetBrains Mono", monospace' }}>{app.dest_namespace}</TableCell>
+                    <TableCell sx={{ color: kuraColors.text1 }}>{app.sync_status}</TableCell>
+                    <TableCell sx={{ color: kuraColors.text1 }}>{app.health_status}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        )}
+      </Box>
+    </ModuleCard>
+  )
+}
+
 function MetricsTab({ scope }: { scope: ObservabilityScope }) {
   const [health, setHealth] = useState<ServiceHealth[]>([])
   const [services, setServices] = useState<ServiceMetric[]>([])
@@ -120,7 +195,7 @@ function MetricsTab({ scope }: { scope: ObservabilityScope }) {
         setError(null)
       } catch {
         setError(scope === 'project'
-          ? 'Impossible de joindre la stack de monitoring du projet (Prometheus non déployé dans le cluster ?).'
+          ? 'Impossible de joindre la stack de monitoring du projet (voir la découverte automatique ci-dessus pour les composants détectés).'
           : 'Impossible de joindre le metrics-service.')
       } finally {
         setLoading(false)
@@ -142,6 +217,8 @@ function MetricsTab({ scope }: { scope: ObservabilityScope }) {
 
   return (
     <Box>
+      {scope === 'project' && <DiscoveryCard />}
+
       {error && <Alert severity="warning" sx={{ mb: 3 }}>{error}</Alert>}
 
       {/* KPI */}
