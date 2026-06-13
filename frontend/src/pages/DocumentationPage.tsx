@@ -487,17 +487,17 @@ provider "google" {
         <Box sx={contentSx}>
           <Typography component="h1">Module Observabilité</Typography>
           <Typography>
-            Le module Observabilité réunit les trois piliers — <strong>métriques</strong> (Prometheus), <strong>logs</strong> (Loki) et <strong>traces</strong> (Tempo) — pour l&apos;ensemble des services Kura, avec un dashboard <strong>Grafana</strong> intégré directement dans l&apos;interface. La page est organisée en trois onglets : Métriques, Logs et Traces.
+            Le module Observabilité réunit les trois piliers — <strong>métriques</strong> (VictoriaMetrics), <strong>logs</strong> (Loki) et <strong>traces</strong> (Tempo) — pour l&apos;ensemble des services Kura, avec un dashboard <strong>Grafana</strong> intégré directement dans l&apos;interface. La page est organisée en trois onglets : Métriques, Logs et Traces.
           </Typography>
           <Typography component="h2">Onglet Métriques</Typography>
           <Box component="ul">
             <li><strong>KPI globaux</strong> : nombre de services actifs / hors ligne, goroutines totales, mémoire totale</li>
             <li><strong>Health cards</strong> : état UP/DOWN de chaque service (Auth, Kubernetes, OpenTofu, Ansible, Pipeline, OpenBao, Code, Metrics) — vérifié par health check direct</li>
-            <li><strong>Tableau de métriques</strong> : goroutines, CPU rate, mémoire RSS par service (données Prometheus)</li>
+            <li><strong>Tableau de métriques</strong> : goroutines, CPU rate, mémoire RSS par service (données VictoriaMetrics)</li>
             <li><strong>Dashboard Grafana</strong> : vue temporelle des métriques (goroutines, mémoire, état des services dans le temps)</li>
           </Box>
           <Typography>
-            Le <strong>metrics-service</strong> interroge l&apos;API HTTP de Prometheus (<code>/api/v1/query</code>) et effectue des health checks directs sur chaque service. Les données sont mises en cache 30 secondes dans Redis pour éviter de surcharger Prometheus. La page se rafraîchit automatiquement toutes les 30 secondes.
+            Le <strong>metrics-service</strong> interroge l&apos;API HTTP de VictoriaMetrics (<code>/api/v1/query</code>, compatible PromQL) et effectue des health checks directs sur chaque service. Les données sont mises en cache 30 secondes dans Redis pour éviter de surcharger VictoriaMetrics. La page se rafraîchit automatiquement toutes les 30 secondes.
           </Typography>
           <Typography component="h2">Onglet Logs</Typography>
           <Typography>
@@ -508,11 +508,11 @@ provider "google" {
             Affiche les traces distribuées collectées via <strong>OpenTelemetry</strong> et stockées dans <strong>Tempo</strong>. Chaque service est instrumenté (middleware HTTP automatique) et exporte ses spans vers Tempo. Vous pouvez filtrer par service et par durée minimale, et déplier une trace pour voir le détail de ses spans (chronologie, durée de chaque étape).
           </Typography>
           <Typography>
-            Les endpoints <code>/health</code> et <code>/metrics</code> (healthchecks Docker et scraping Prometheus) sont exclus du tracing pour éviter de saturer Tempo avec du bruit à très haute fréquence.
+            Les endpoints <code>/health</code> et <code>/metrics</code> (healthchecks Docker et scraping VictoriaMetrics) sont exclus du tracing pour éviter de saturer Tempo avec du bruit à très haute fréquence.
           </Typography>
           <Typography component="h2">Dashboard Grafana</Typography>
           <Typography>
-            Le dashboard <strong>Kura Platform Overview</strong> est accessible à <code>/grafana</code> (en production) ou <code>http://localhost:3000</code> (en local). Grafana est préconfiguré avec les sources de données Prometheus, Loki, Tempo et Alertmanager. L&apos;accès anonyme est activé (lecture seule) pour permettre l&apos;affichage dans l&apos;iframe Kura.
+            Le dashboard <strong>Kura Platform Overview</strong> est accessible à <code>/grafana</code> (en production) ou <code>http://localhost:3000</code> (en local). Grafana est préconfiguré avec les sources de données VictoriaMetrics, Loki, Tempo et Alertmanager. L&apos;accès anonyme est activé (lecture seule) pour permettre l&apos;affichage dans l&apos;iframe Kura.
           </Typography>
         </Box>
       )

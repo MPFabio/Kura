@@ -105,28 +105,70 @@ services:
     networks:
       - kura-network
 
-  prometheus:
-    image: prom/prometheus:v2.48.0
-    container_name: kura-prometheus
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.102.1
+    container_name: kura-victoriametrics
     deploy:
       resources:
         limits:
           memory: 256m
     ports:
-      - "9090:9090"
+      - "9090:8428"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
+      - '--storageDataPath=/victoria-metrics-data'
+      - '--retentionPeriod=15d'
+      - '--httpListenAddr=:8428'
     volumes:
-      - ./infrastructure/docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./infrastructure/docker/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
-      - prometheus-data:/prometheus
+      - prometheus-data:/victoria-metrics-data
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8428/health"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - kura-network
+
+  vmagent:
+    image: victoriametrics/vmagent:v1.102.1
+    container_name: kura-vmagent
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    command:
+      - '--promscrape.config=/etc/vmagent/scrape.yml'
+      - '--remoteWrite.url=http://victoriametrics:8428/api/v1/write'
+    volumes:
+      - ./infrastructure/docker/vmagent-scrape.yml:/etc/vmagent/scrape.yml:ro
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+    networks:
+      - kura-network
+
+  vmalert:
+    image: victoriametrics/vmalert:v1.102.1
+    container_name: kura-vmalert
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+    ports:
+      - "8880:8880"
+    command:
+      - '--datasource.url=http://victoriametrics:8428'
+      - '--remoteWrite.url=http://victoriametrics:8428/api/v1/write'
+      - '--remoteRead.url=http://victoriametrics:8428'
+      - '--notifier.url=http://alertmanager:9093'
+      - '--rule=/etc/vmalert/alert_rules.yml'
+      - '--evaluationInterval=15s'
+    volumes:
+      - ./infrastructure/docker/alert_rules.yml:/etc/vmalert/alert_rules.yml:ro
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+      alertmanager:
+        condition: service_healthy
     networks:
       - kura-network
 
@@ -152,7 +194,8 @@ services:
       - grafana-data:/var/lib/grafana
       - ./infrastructure/docker/grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
-      - prometheus
+      victoriametrics:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 10s
@@ -559,7 +602,7 @@ services:
       ENV: development
       AUTH_SERVICE_URL: http://auth-service:8080
       LOG_LEVEL: info
-      PROMETHEUS_URL: http://prometheus:9090
+      PROMETHEUS_URL: http://victoriametrics:8428
       GRAFANA_URL: http://grafana:3000
       LOKI_URL: http://loki:3100
       TEMPO_URL: http://tempo:3200
@@ -576,7 +619,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      prometheus:
+      victoriametrics:
         condition: service_healthy
       auth-service:
         condition: service_healthy

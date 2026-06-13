@@ -1,5 +1,5 @@
 import { Box, SxProps, Theme } from '@mui/material'
-import prometheusLogo from '../../assets/prometheus_logo.png'
+import prometheusLogo from '../../assets/victoria_metrics_logo.png'
 
 interface PrometheusIconProps {
   sx?: SxProps<Theme>
