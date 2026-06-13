@@ -61,7 +61,7 @@ graph TB
     Gateway --> Terraform[Terraform Service Go]
     Gateway --> Ansible[Ansible Service Python]
     Gateway --> Pipeline[Pipeline Service Go]
-    Gateway --> Vault[Vault Service Go]
+    Gateway --> Vault[Vault Service Go - OpenBao]
     
     K8s --> Kafka[Kafka Event Bus]
     Terraform --> Kafka
@@ -86,7 +86,7 @@ graph TB
     
     Terraform --> GCPAPI[GCP Compute API]
     
-    Vault --> ExtVault[(Vault du client)]
+    Vault --> ExtVault[(OpenBao/Vault du client)]
     
     Metrics --> Prometheus[(Prometheus)]
     Metrics --> Grafana[Grafana]

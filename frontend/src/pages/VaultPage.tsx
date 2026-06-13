@@ -206,9 +206,9 @@ export default function VaultPage() {
 
   return (
     <Box>
-      <ModuleTitle>Vault</ModuleTitle>
+      <ModuleTitle>OpenBao</ModuleTitle>
 
-      {/* Panneau de configuration Vault */}
+      {/* Panneau de configuration OpenBao */}
       <ModuleCard sx={{ mb: 2 }}>
         <Box
           sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
@@ -216,7 +216,7 @@ export default function VaultPage() {
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <LinkIcon sx={{ color: 'primary.main' }} />
-            <Typography sx={{ fontWeight: 600 }}>Connexion Vault</Typography>
+            <Typography sx={{ fontWeight: 600 }}>Connexion OpenBao</Typography>
             {configured ? (
               <Chip label="Connecté" size="small" sx={{ color: '#00FF88', borderColor: '#00FF88' }} variant="outlined" />
             ) : (
@@ -246,7 +246,7 @@ export default function VaultPage() {
               </Alert>
             )}
             <TextField
-              label="Adresse Vault"
+              label="Adresse OpenBao"
               placeholder="http://vault:8200"
               value={vaultAddr}
               onChange={(e) => setVaultAddr(e.target.value)}
@@ -254,7 +254,7 @@ export default function VaultPage() {
               fullWidth
             />
             <TextField
-              label="Token Vault"
+              label="Token OpenBao"
               placeholder="Laisser vide pour conserver l'actuel"
               value={vaultToken}
               onChange={(e) => setVaultToken(e.target.value)}
