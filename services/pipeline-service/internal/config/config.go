@@ -23,10 +23,6 @@ type Config struct {
 	RedisDB       int
 	CacheTTL      time.Duration
 
-	// Kafka (pour futur usage)
-	KafkaBrokers string
-	KafkaGroupID string
-
 	// CI/CD - GitHub
 	GitHubToken         string
 	GitHubRepos         []string // ex: ["owner/repo1", "owner/repo2"]
@@ -75,10 +71,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("PIPELINE_CACHE_TTL invalide: %v", err)
 	}
 	cfg.CacheTTL = cacheTTL
-
-	// Kafka
-	cfg.KafkaBrokers = getEnv("KAFKA_BROKERS", "localhost:9092")
-	cfg.KafkaGroupID = getEnv("KAFKA_GROUP_ID", "pipeline-service")
 
 	// GitHub
 	cfg.GitHubToken = getEnv("GITHUB_TOKEN", "")

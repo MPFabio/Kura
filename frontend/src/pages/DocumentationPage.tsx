@@ -104,7 +104,6 @@ function DocContent({ docId }: { docId: string }) {
             <li><strong>Point d&apos;entrée unique</strong> pour les équipes Ops / DevOps : un seul portail, une seule API Gateway.</li>
             <li><strong>Agrégation</strong> des infos clés (clusters, états Terraform, jobs Ansible, pipelines, métriques) au même endroit.</li>
             <li><strong>Authentification centralisée</strong> (auth-service) et rôles homogènes sur tous les modules.</li>
-            <li><strong>Événements corrélés</strong> via Kafka (déploiement Terraform, métriques, alertes).</li>
             <li>Focus sur l&apos;<strong>opérationnel actif</strong> (gestion K8s, exécution Terraform, jobs Ansible) plutôt que sur le catalogue seul.</li>
           </Box>
           <Typography component="h2">Ce que vous pouvez faire</Typography>
@@ -544,7 +543,7 @@ provider "google" {
 
           <Typography component="h2">Intégration</Typography>
           <Typography>
-            Le pipeline-service peut recevoir des webhooks des plateformes CI/CD, enregistrer les exécutions et les afficher dans l&apos;interface. La corrélation avec les déploiements (K8s, Terraform) et les alertes est assurée via le bus d&apos;événements (Kafka) lorsque les services publient les événements correspondants.
+            Le pipeline-service peut recevoir des webhooks des plateformes CI/CD, enregistrer les exécutions et les afficher dans l&apos;interface.
           </Typography>
         </Box>
       )

@@ -20,10 +20,6 @@ type Config struct {
 	RedisDB       int
 	CacheTTL      time.Duration
 
-	// Kafka (pour futur usage)
-	KafkaBrokers string
-	KafkaGroupID string
-
 	// Drift worker : intervalle entre chaque vérification (ex. 1h)
 	DriftWorkerInterval time.Duration
 
@@ -76,10 +72,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("TERRAFORM_CACHE_TTL invalide: %v", err)
 	}
 	cfg.CacheTTL = cacheTTL
-
-	// Kafka
-	cfg.KafkaBrokers = getEnv("KAFKA_BROKERS", "localhost:9092")
-	cfg.KafkaGroupID = getEnv("KAFKA_GROUP_ID", "terraform-service")
 
 	// Drift worker
 	driftIntervalStr := getEnv("TERRAFORM_DRIFT_WORKER_INTERVAL", "1h")
