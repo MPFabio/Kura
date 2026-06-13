@@ -52,12 +52,14 @@ const providerLabels: Record<string, string> = {
   github: 'GitHub Actions',
   gitlab: 'GitLab CI',
   jenkins: 'Jenkins',
+  forgejo: 'Forgejo Actions',
 }
 
 const providerColors: Record<string, string> = {
   github: jellyfishColors.cyanSoft,
   gitlab: jellyfishColors.violetMedium,
   jenkins: jellyfishColors.magenta,
+  forgejo: jellyfishColors.successSoft,
 }
 
 function StatusChip({ status }: { status: PipelineRunStatus }) {
@@ -139,6 +141,10 @@ export default function PipelinePage() {
   const [configExpanded, setConfigExpanded] = useState(false)
   const [tokenInput, setTokenInput] = useState('')
   const [reposInput, setReposInput] = useState('')
+  const [forgejoExpanded, setForgejoExpanded] = useState(false)
+  const [forgejoUrlInput, setForgejoUrlInput] = useState('')
+  const [forgejoTokenInput, setForgejoTokenInput] = useState('')
+  const [forgejoReposInput, setForgejoReposInput] = useState('')
   const [rerunTarget, setRerunTarget] = useState<PipelineRun | null>(null)
   const [rerunLoading, setRerunLoading] = useState(false)
   const [rerunFeedback, setRerunFeedback] = useState<{ msg: string; ok: boolean } | null>(null)
@@ -175,12 +181,18 @@ export default function PipelinePage() {
   })
 
   const saveConfigMutation = useMutation({
-    mutationFn: (data: { github_token?: string; github_repos?: string[] }) =>
-      pipelineService.setConfig(data),
+    mutationFn: (data: {
+      github_token?: string
+      github_repos?: string[]
+      forgejo_url?: string
+      forgejo_token?: string
+      forgejo_repos?: string[]
+    }) => pipelineService.setConfig(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-config'] })
       refetchConfig()
       setTokenInput('')
+      setForgejoTokenInput('')
     },
   })
 
@@ -195,8 +207,30 @@ export default function PipelinePage() {
     })
   }
 
+  const handleSaveForgejoConfig = () => {
+    const repos = forgejoReposInput
+      .split(/[,;\n]/)
+      .map((r) => r.trim())
+      .filter(Boolean)
+    saveConfigMutation.mutate({
+      ...(forgejoUrlInput && { forgejo_url: forgejoUrlInput }),
+      ...(forgejoTokenInput && { forgejo_token: forgejoTokenInput }),
+      forgejo_repos: repos,
+    })
+  }
+
   const syncMutation = useMutation({
     mutationFn: () => pipelineService.sync(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline-runs'] })
+      if (data.runs > 0) {
+        refetchRuns()
+      }
+    },
+  })
+
+  const syncForgejoMutation = useMutation({
+    mutationFn: () => pipelineService.syncForgejo(),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-runs'] })
       if (data.runs > 0) {
@@ -253,6 +287,20 @@ export default function PipelinePage() {
                 sx={{
                   color: jellyfishColors.cyanSoft,
                   '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
+                }}
+              >
+                <SyncIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Synchroniser Forgejo">
+            <span>
+              <IconButton
+                onClick={() => syncForgejoMutation.mutate()}
+                disabled={syncForgejoMutation.isPending}
+                sx={{
+                  color: jellyfishColors.successSoft,
+                  '&:hover': { backgroundColor: 'rgba(0, 255, 159, 0.1)' },
                 }}
               >
                 <SyncIcon />
@@ -378,6 +426,111 @@ export default function PipelinePage() {
         </ModuleCard>
       </Box>
 
+      <Box sx={{ mb: 4 }}>
+        <ModuleCard>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              py: 0.5,
+            }}
+            onClick={() => setForgejoExpanded(!forgejoExpanded)}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <LinkIcon sx={{ color: jellyfishColors.successSoft }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Connecter Forgejo (self-hosted ou Codeberg)
+              </Typography>
+              {config?.forgejo_linked && (
+                <Chip
+                  size="small"
+                  label="Connecté"
+                  sx={{
+                    border: `1px solid ${jellyfishColors.successSoft}`,
+                    color: jellyfishColors.successSoft,
+                    backgroundColor: 'transparent',
+                    fontWeight: 600,
+                  }}
+                />
+              )}
+            </Box>
+            {forgejoExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </Box>
+          <Collapse in={forgejoExpanded}>
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(79,142,247,0.15)' }}>
+              <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 2 }}>
+                Liez votre instance Forgejo auto-hébergée ou{' '}
+                <Link
+                  href="https://codeberg.org"
+                  target="_blank"
+                  rel="noopener"
+                  sx={{ color: jellyfishColors.successSoft }}
+                >
+                  Codeberg
+                </Link>{' '}
+                pour afficher les exécutions Forgejo Actions. Créez un token d&apos;accès personnel
+                (droits <code style={{ background: '#2c2f3f', padding: '1px 4px' }}>read:repository</code> et{' '}
+                <code style={{ background: '#2c2f3f', padding: '1px 4px' }}>write:repository</code>).
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                label="URL de l'instance Forgejo"
+                placeholder={config?.forgejo_url || 'https://codeberg.org'}
+                value={forgejoUrlInput}
+                onChange={(e) => setForgejoUrlInput(e.target.value)}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { backgroundColor: '#1a1d24' } }}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Token Forgejo"
+                type="password"
+                placeholder={config?.forgejo_linked ? '•••••••• (laisser vide pour conserver)' : 'forgejo_pat_xxx...'}
+                value={forgejoTokenInput}
+                onChange={(e) => setForgejoTokenInput(e.target.value)}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { backgroundColor: '#1a1d24' } }}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Dépôts (owner/repo)"
+                placeholder={
+                  config?.forgejo_repos?.length
+                    ? config.forgejo_repos.join(', ')
+                    : 'owner/repo ou owner/repo1, owner/repo2'
+                }
+                value={forgejoReposInput}
+                onChange={(e) => setForgejoReposInput(e.target.value)}
+                helperText="Format: owner/repo. Plusieurs dépôts séparés par des virgules."
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { backgroundColor: '#1a1d24' } }}
+              />
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  onClick={handleSaveForgejoConfig}
+                  disabled={saveConfigMutation.isPending}
+                  sx={{
+                    backgroundColor: jellyfishColors.successSoft,
+                    color: '#0a0d12',
+                    '&:hover': { backgroundColor: 'rgba(0, 255, 159, 0.9)' },
+                  }}
+                >
+                  {saveConfigMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                </Button>
+                {saveConfigMutation.isSuccess && (
+                  <Typography sx={{ color: jellyfishColors.successSoft, alignSelf: 'center' }}>
+                    ✓ Configuration enregistrée
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </Collapse>
+        </ModuleCard>
+      </Box>
+
       {providers.length > 0 && (
         <Box sx={{ mb: 4 }}>
           <Typography
@@ -488,7 +641,7 @@ export default function PipelinePage() {
                       {formatDate(run.finished_at ?? run.started_at ?? run.created_at)}
                     </TableCell>
                     <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                      {run.provider === 'github' && (
+                      {(run.provider === 'github' || run.provider === 'forgejo') && (
                         <Tooltip title="Relancer ce pipeline">
                           <IconButton
                             size="small"

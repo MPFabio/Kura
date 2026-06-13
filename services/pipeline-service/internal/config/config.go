@@ -37,6 +37,12 @@ type Config struct {
 	JenkinsUsername string
 	JenkinsToken    string
 
+	// CI/CD - Forgejo
+	ForgejoURL           string
+	ForgejoToken         string
+	ForgejoRepos         []string // ex: ["owner/repo1", "owner/repo2"]
+	ForgejoWebhookSecret string
+
 	// Tracing (OpenTelemetry)
 	OTLPEndpoint string
 }
@@ -93,6 +99,18 @@ func Load() (*Config, error) {
 	cfg.JenkinsURL = getEnv("JENKINS_URL", "")
 	cfg.JenkinsUsername = getEnv("JENKINS_USERNAME", "")
 	cfg.JenkinsToken = getEnv("JENKINS_TOKEN", "")
+
+	// Forgejo
+	cfg.ForgejoURL = getEnv("FORGEJO_URL", "")
+	cfg.ForgejoToken = getEnv("FORGEJO_TOKEN", "")
+	cfg.ForgejoWebhookSecret = getEnv("FORGEJO_WEBHOOK_SECRET", webhookSecret)
+	if reposStr := getEnv("FORGEJO_REPOS", ""); reposStr != "" {
+		for _, r := range splitAndTrim(reposStr, ",") {
+			if r != "" {
+				cfg.ForgejoRepos = append(cfg.ForgejoRepos, r)
+			}
+		}
+	}
 
 	return cfg, nil
 }

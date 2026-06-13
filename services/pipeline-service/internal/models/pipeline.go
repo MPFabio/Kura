@@ -9,6 +9,7 @@ const (
 	ProviderGitHub  Provider = "github"
 	ProviderGitLab  Provider = "gitlab"
 	ProviderJenkins Provider = "jenkins"
+	ProviderForgejo Provider = "forgejo"
 )
 
 // RunStatus représente le statut d'une exécution

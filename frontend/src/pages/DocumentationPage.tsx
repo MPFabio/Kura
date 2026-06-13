@@ -545,6 +545,41 @@ provider "google" {
           <Typography>
             Le pipeline-service peut recevoir des webhooks des plateformes CI/CD, enregistrer les exécutions et les afficher dans l&apos;interface.
           </Typography>
+
+          <Typography component="h2">Forgejo Actions (self-hosted ou Codeberg)</Typography>
+          <Typography>
+            Kura prend également en charge <strong>Forgejo Actions</strong>, que ce soit une instance Forgejo auto-hébergée ou <strong>Codeberg.org</strong> (plateforme SaaS basée sur Forgejo, 100% open source). Les deux utilisent la même API et le même format de webhook — seule l&apos;URL de base change.
+          </Typography>
+          <Typography component="h3">Configurer la connexion</Typography>
+          <Box component="ol" sx={{ pl: 2.5, mb: 2, '& li': { mb: 1 } }}>
+            <li>Créez un <strong>token d&apos;accès personnel</strong> (Settings → Applications → Generate New Token) avec les droits <code>read:repository</code> et <code>write:repository</code> (nécessaire pour relancer un workflow)</li>
+            <li>Dans la page Pipelines, section « Connecter Forgejo », renseignez l&apos;<strong>URL de l&apos;instance</strong> (ex : <code>https://codeberg.org</code> pour Codeberg, ou l&apos;URL de votre instance auto-hébergée), le <strong>token</strong>, et les dépôts au format <code>owner/repo</code></li>
+            <li>Cliquez sur <strong>Synchroniser</strong> pour récupérer immédiatement l&apos;historique des runs</li>
+          </Box>
+          <Typography component="h3">Webhook temps réel (recommandé)</Typography>
+          <Box component="ol" sx={{ pl: 2.5, mb: 2, '& li': { mb: 1 } }}>
+            <li>Dans votre dépôt Forgejo/Codeberg : <strong>Settings</strong> → <strong>Webhooks</strong> → <strong>Add Webhook</strong> → <strong>Forgejo</strong></li>
+            <li><strong>Target URL</strong> : <code>https://votre-domaine/api/v1/pipeline/webhooks/forgejo</code></li>
+            <li><strong>Trigger On</strong> : sélectionnez uniquement l&apos;événement <code>Workflow Run</code></li>
+            <li><strong>Secret</strong> : utilisez le même secret que celui configuré côté Kura (<code>WEBHOOK_SECRET</code>)</li>
+          </Box>
+
+          <Typography component="h2">Déployer Forgejo self-hosted via ArgoCD</Typography>
+          <Typography>
+            Si vous ne disposez pas encore d&apos;une instance Forgejo, vous pouvez en déployer une directement dans votre cluster grâce au chart Helm officiel, publié sur le registre OCI <code>code.forgejo.org</code>. Depuis la page <strong>ArgoCD</strong> → <strong>Nouvelle Application</strong> → <strong>Depuis le catalogue Helm</strong> → onglet <strong>Registre OCI</strong>, ou en remplissant manuellement le formulaire « Chart Helm » :
+          </Typography>
+          <Box component="ul" sx={{ pl: 2.5, mb: 2, '& li': { mb: 1 } }}>
+            <li><strong>Dépôt</strong> (repoURL) : <code>oci://code.forgejo.org/forgejo-helm</code> — il s&apos;agit de la <em>racine du registre</em>, sans le nom du chart</li>
+            <li><strong>Chart</strong> : <code>forgejo</code></li>
+            <li><strong>Révision</strong> (targetRevision) : numéro de version du chart, ex : <code>10.x.x</code> (consultez les tags disponibles sur <code>code.forgejo.org/forgejo/forgejo-helm</code>)</li>
+            <li><strong>Namespace de destination</strong> : ex : <code>forgejo</code></li>
+          </Box>
+          <Typography>
+            <strong>Erreur fréquente</strong> : si le champ « Dépôt » contient le nom du chart (ex : <code>oci://code.forgejo.org/forgejo-helm/forgejo</code>), ArgoCD tente de lire un <code>index.yaml</code> de dépôt Helm classique et échoue avec <code>unsupported protocol scheme &quot;oci&quot;</code>. Le nom du chart doit être saisi <strong>uniquement</strong> dans le champ « Chart », séparément du dépôt.
+          </Typography>
+          <Typography>
+            Une fois Forgejo déployé, créez un token d&apos;accès personnel depuis son interface puis suivez les étapes de connexion ci-dessus en utilisant l&apos;URL interne ou externe de votre instance comme <strong>URL de l&apos;instance</strong>.
+          </Typography>
         </Box>
       )
     case 'users':

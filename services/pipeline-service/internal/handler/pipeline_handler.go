@@ -103,6 +103,7 @@ func (h *PipelineHandler) ListProviders(c *gin.Context) {
 			{"id": string(models.ProviderGitHub), "name": "GitHub Actions"},
 			{"id": string(models.ProviderGitLab), "name": "GitLab CI"},
 			{"id": string(models.ProviderJenkins), "name": "Jenkins"},
+			{"id": string(models.ProviderForgejo), "name": "Forgejo Actions"},
 		},
 	})
 }
@@ -122,8 +123,11 @@ func (h *PipelineHandler) GetConfig(c *gin.Context) {
 // POST /api/v1/pipeline/config
 func (h *PipelineHandler) SetConfig(c *gin.Context) {
 	var body struct {
-		GitHubToken *string  `json:"github_token"`
-		GitHubRepos []string `json:"github_repos"`
+		GitHubToken  *string  `json:"github_token"`
+		GitHubRepos  []string `json:"github_repos"`
+		ForgejoURL   *string  `json:"forgejo_url"`
+		ForgejoToken *string  `json:"forgejo_token"`
+		ForgejoRepos []string `json:"forgejo_repos"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "format invalide"})
@@ -137,6 +141,19 @@ func (h *PipelineHandler) SetConfig(c *gin.Context) {
 	repos := body.GitHubRepos
 
 	if err := h.svc.SetConfig(c.Request.Context(), token, repos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	forgejoURL := ""
+	if body.ForgejoURL != nil {
+		forgejoURL = *body.ForgejoURL
+	}
+	forgejoToken := ""
+	if body.ForgejoToken != nil {
+		forgejoToken = *body.ForgejoToken
+	}
+	if err := h.svc.SetForgejoConfig(c.Request.Context(), forgejoURL, forgejoToken, body.ForgejoRepos); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -172,6 +189,21 @@ func (h *PipelineHandler) RerunRun(c *gin.Context) {
 // POST /api/v1/pipeline/sync
 func (h *PipelineHandler) SyncGitHub(c *gin.Context) {
 	count, err := h.svc.SyncFromGitHub(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "synchronisation terminée",
+		"runs":    count,
+	})
+}
+
+// SyncForgejo déclenche une synchronisation manuelle depuis l'API Forgejo Actions
+// POST /api/v1/pipeline/sync/forgejo
+func (h *PipelineHandler) SyncForgejo(c *gin.Context) {
+	count, err := h.svc.SyncFromForgejo(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
