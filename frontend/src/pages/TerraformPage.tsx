@@ -197,7 +197,7 @@ export default function TerraformPage() {
       setUploadDialogOpen(false)
       setStateName('')
       setSelectedFile(null)
-      setSnackbar({ open: true, message: 'État Terraform uploadé avec succès', severity: 'success' })
+      setSnackbar({ open: true, message: 'État OpenTofu uploadé avec succès', severity: 'success' })
       if (currentProject && data?.id) {
         try {
           await projectService.createProjectMapping(currentProject.id, { terraform_state_id: data.id })
@@ -209,7 +209,7 @@ export default function TerraformPage() {
     onError: (error: any) => {
       setSnackbar({
         open: true,
-        message: error.response?.data?.error || 'Erreur lors de l\'upload de l\'état Terraform',
+        message: error.response?.data?.error || 'Erreur lors de l\'upload de l\'état OpenTofu',
         severity: 'error',
       })
     },
@@ -219,7 +219,7 @@ export default function TerraformPage() {
     mutationFn: (id: string) => terraformService.deleteState(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['terraform-states'] })
-      setSnackbar({ open: true, message: 'État Terraform supprimé avec succès', severity: 'success' })
+      setSnackbar({ open: true, message: 'État OpenTofu supprimé avec succès', severity: 'success' })
     },
     onError: () => {
       setSnackbar({ open: true, message: 'Erreur lors de la suppression de l\'état', severity: 'error' })
@@ -240,7 +240,7 @@ export default function TerraformPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet état Terraform ?')) {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet état OpenTofu ?')) {
       deleteMutation.mutate(id)
     }
   }
@@ -369,7 +369,7 @@ export default function TerraformPage() {
         stateFileID = `temp-${newStateName}-${Date.now()}`
       } else {
         if (!selectedStateForSource) {
-          throw new Error('Veuillez sélectionner un état Terraform ou créer un nouvel état')
+          throw new Error('Veuillez sélectionner un état OpenTofu ou créer un nouvel état')
         }
       }
       let sourceConfig: any = {}
@@ -480,7 +480,7 @@ export default function TerraformPage() {
   return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" sx={{ mb: 2 }}>
-          Erreur lors du chargement des états Terraform : {error instanceof Error ? error.message : 'Erreur inconnue'}
+          Erreur lors du chargement des états OpenTofu : {error instanceof Error ? error.message : 'Erreur inconnue'}
         </Alert>
         <Button onClick={() => refetch()} startIcon={<RefreshIcon />}>
           Réessayer
@@ -492,7 +492,7 @@ export default function TerraformPage() {
   return (
     <Box sx={{ p: 0 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
-        <ModuleTitle sx={{ mb: 0 }}>Terraform</ModuleTitle>
+        <ModuleTitle sx={{ mb: 0 }}>OpenTofu</ModuleTitle>
         <Box>
           <ModuleButton
             startIcon={<CloudUploadIcon />}
@@ -541,13 +541,13 @@ export default function TerraformPage() {
       ) : !states || states.items.length === 0 ? (
         <ModuleCard sx={{ textAlign: 'center', py: 6 }}>
             <ModuleSubtitle sx={{ mb: 2 }}>
-              Aucun état Terraform
+              Aucun état OpenTofu
             </ModuleSubtitle>
             <ModuleSecondaryText sx={{ mb: 3 }}>
-              Commencez par uploader un fichier tfstate pour voir vos ressources Terraform.
+              Commencez par uploader un fichier tfstate pour voir vos ressources OpenTofu.
             </ModuleSecondaryText>
                 <ModuleButton startIcon={<CloudUploadIcon />} onClick={() => setUploadDialogOpen(true)}>
-                  Uploader un état Terraform
+                  Uploader un état OpenTofu
                 </ModuleButton>
         </ModuleCard>
       ) : (
@@ -622,7 +622,7 @@ export default function TerraformPage() {
 
       {/* Dialog d'upload */}
       <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Uploader un état Terraform</DialogTitle>
+        <DialogTitle>Uploader un état OpenTofu</DialogTitle>
         <DialogContent>
           <TextField
             fullWidth
@@ -675,7 +675,7 @@ export default function TerraformPage() {
               {/* Infos générales — grid de stats */}
               <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 3, mt: 1 }}>
                 {[
-                  { label: 'Version Terraform', value: selectedState.state?.terraform_version || 'N/A' },
+                  { label: 'Version OpenTofu', value: selectedState.state?.terraform_version || 'N/A' },
                   { label: 'Révision', value: selectedState.state?.serial },
                   { label: 'Ressources', value: selectedState.state?.resources?.length || 0 },
                   { label: 'Sorties', value: Object.keys(selectedState.state?.outputs || {}).length },
@@ -873,7 +873,7 @@ export default function TerraformPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de détails d'une ressource Terraform */}
+      {/* Dialog de détails d'une ressource OpenTofu */}
       <Dialog 
         open={resourceDialogOpen} 
         onClose={() => { setResourceDialogOpen(false); setSelectedResource(null) }} 
@@ -1026,7 +1026,7 @@ export default function TerraformPage() {
 ${moduleLine}${instanceBlocks}
 }`
                   return (
-                    <CodeBlock language="hcl" label="Bloc Terraform" showLineNumbers>
+                    <CodeBlock language="hcl" label="Bloc OpenTofu" showLineNumbers>
                       {hclBlock}
                     </CodeBlock>
                   )
@@ -1093,7 +1093,7 @@ ${moduleLine}${instanceBlocks}
             <TextField
               fullWidth
               select
-              label="État Terraform existant"
+              label="État OpenTofu existant"
               value={selectedStateForSource}
               onChange={(e) => setSelectedStateForSource(e.target.value)}
               margin="normal"
@@ -1408,7 +1408,7 @@ ${moduleLine}${instanceBlocks}
             Drift fine (optionnel)
           </ModuleSubtitle>
           <ModuleSecondaryText sx={{ mb: 1 }}>
-            Pour une détection de drift précise sur n'importe quel type de ressource, indiquez le dépôt GitHub contenant les fichiers .tf source. Le token GitHub se configure dans la configuration globale Terraform.
+            Pour une détection de drift précise sur n'importe quel type de ressource, indiquez le dépôt GitHub contenant les fichiers .tf source. Le token GitHub se configure dans la configuration globale OpenTofu.
           </ModuleSecondaryText>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
@@ -1477,7 +1477,7 @@ ${moduleLine}${instanceBlocks}
                   Aucune source de synchronisation
                 </ModuleSubtitle>
                 <ModuleSecondaryText sx={{ mb: 3 }}>
-                  Liez une source cloud pour synchroniser automatiquement vos états Terraform.
+                  Liez une source cloud pour synchroniser automatiquement vos états OpenTofu.
                 </ModuleSecondaryText>
                 <Button variant="contained" startIcon={<CloudQueueIcon />} onClick={() => setSourceDialogOpen(true)}>
                   Lier une source cloud
