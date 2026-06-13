@@ -363,7 +363,7 @@ export default function ModulesPage() {
       active: true,
       inactive: false,
       status: 'active',
-      subtitle: 'Prometheus · Loki · Tempo · Grafana',
+      subtitle: 'VictoriaMetrics · Loki · Tempo · Grafana',
       description: 'Observabilité complète de votre infrastructure : métriques temps réel, logs centralisés, traces distribuées et dashboards Grafana.',
       stats: [
         { label: 'Services', value: '6' },
@@ -371,7 +371,7 @@ export default function ModulesPage() {
         { label: 'Dashboard', value: 'Grafana' },
       ],
       features: [
-        'Métriques Prometheus en temps réel',
+        'Métriques VictoriaMetrics en temps réel',
         'Logs centralisés (Loki)',
         'Traces distribuées (Tempo)',
         'Dashboard Grafana intégré',
