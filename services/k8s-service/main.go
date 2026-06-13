@@ -175,9 +175,11 @@ func main() {
 	registryHandler := handler.NewRegistryHandler(registryService)
 	observabilityService := service.NewObservabilityService(clusterService)
 	observabilityHandler := handler.NewObservabilityHandler(observabilityService)
+	discoveryService := service.NewDiscoveryService(clusterService, argocdService)
+	discoveryHandler := handler.NewDiscoveryHandler(discoveryService)
 
 	// Configurer le routeur HTTP
-	router := setupRouter(k8sHandler, clusterHandler, argocdHandler, registryHandler, observabilityHandler, k8sService, clusterService, redisClient, cfg)
+	router := setupRouter(k8sHandler, clusterHandler, argocdHandler, registryHandler, observabilityHandler, discoveryHandler, k8sService, clusterService, redisClient, cfg)
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
@@ -229,7 +231,7 @@ func main() {
 	log.Println("Service Kubernetes arrêté")
 }
 
-func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.ClusterHandler, argocdHandler *handler.ArgoCDHandler, registryHandler *handler.RegistryHandler, observabilityHandler *handler.ObservabilityHandler, k8sService *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *gin.Engine {
+func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.ClusterHandler, argocdHandler *handler.ArgoCDHandler, registryHandler *handler.RegistryHandler, observabilityHandler *handler.ObservabilityHandler, discoveryHandler *handler.DiscoveryHandler, k8sService *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -352,6 +354,10 @@ func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.Cluster
 				observabilityGroup.GET("/traces/:traceID", observabilityHandler.GetTrace)
 				observabilityGroup.Any("/grafana/*path", observabilityHandler.ProxyGrafana)
 			}
+
+			// Auto-découverte des applications ArgoCD et composants
+			// d'observabilité du cluster client
+			k8sGroup.GET("/discovery", discoveryHandler.GetReport)
 		}
 	}
 

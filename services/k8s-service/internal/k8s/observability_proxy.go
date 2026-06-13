@@ -16,44 +16,56 @@ import (
 )
 
 // ObservabilityTarget décrit un composant de la stack d'observabilité du
-// cluster client (Prometheus, Loki ou Tempo) déployé via le catalogue Helm
-// ArgoCD (ex: kube-prometheus-stack, grafana/loki, grafana/tempo). Le
-// namespace n'étant pas figé (choisi par l'utilisateur à la création de
-// l'Application ArgoCD), la recherche du pod se fait par label sur tous les
-// namespaces.
+// cluster client (Prometheus/VictoriaMetrics, Loki ou Tempo) déployé via le
+// catalogue Helm ArgoCD (ex: kube-prometheus-stack, victoria-metrics-single,
+// grafana/loki, grafana/tempo). Le namespace n'étant pas figé (choisi par
+// l'utilisateur à la création de l'Application ArgoCD), la recherche du pod
+// se fait par label sur tous les namespaces. Plusieurs charts Helm pouvant
+// fournir le même rôle avec des labels différents (ex: Prometheus vs
+// VictoriaMetrics), plusieurs sélecteurs candidats sont essayés dans l'ordre.
 type ObservabilityTarget struct {
 	// Name identifie la cible (pour les messages d'erreur).
 	Name string
-	// LabelSelector sélectionne le pod du composant.
-	LabelSelector string
+	// LabelSelectors sélectionnent le pod du composant, essayés dans l'ordre
+	// jusqu'à trouver un pod en cours d'exécution.
+	LabelSelectors []string
 	// Port est le port HTTP exposé par le pod.
 	Port int
 }
 
 var (
-	// PrometheusTarget cible le pod prometheus déployé par kube-prometheus-stack.
+	// PrometheusTarget cible le pod du moteur de métriques PromQL déployé dans
+	// le cluster client : kube-prometheus-stack (Prometheus) ou un chart
+	// VictoriaMetrics (vmsingle/victoria-metrics-single), tous deux exposant
+	// une API compatible PromQL sur /api/v1/query.
 	PrometheusTarget = ObservabilityTarget{
-		Name:          "Prometheus",
-		LabelSelector: "app.kubernetes.io/name=prometheus",
-		Port:          9090,
+		Name: "Prometheus",
+		LabelSelectors: []string{
+			"app.kubernetes.io/name=prometheus",
+			"app.kubernetes.io/name=vmsingle",
+			"app.kubernetes.io/name=victoria-metrics-single",
+			"app=vmsingle",
+		},
+		Port: 9090,
 	}
 	// LokiTarget cible le pod loki déployé par le chart grafana/loki.
 	LokiTarget = ObservabilityTarget{
-		Name:          "Loki",
-		LabelSelector: "app.kubernetes.io/name=loki",
-		Port:          3100,
+		Name:           "Loki",
+		LabelSelectors: []string{"app.kubernetes.io/name=loki"},
+		Port:           3100,
 	}
 	// TempoTarget cible le pod tempo déployé par le chart grafana/tempo.
 	TempoTarget = ObservabilityTarget{
-		Name:          "Tempo",
-		LabelSelector: "app.kubernetes.io/name=tempo",
-		Port:          3200,
+		Name:           "Tempo",
+		LabelSelectors: []string{"app.kubernetes.io/name=tempo"},
+		Port:           3200,
 	}
-	// GrafanaTarget cible le pod grafana déployé par kube-prometheus-stack.
+	// GrafanaTarget cible le pod grafana déployé par kube-prometheus-stack ou
+	// le chart grafana/grafana autonome.
 	GrafanaTarget = ObservabilityTarget{
-		Name:          "Grafana",
-		LabelSelector: "app.kubernetes.io/name=grafana",
-		Port:          3000,
+		Name:           "Grafana",
+		LabelSelectors: []string{"app.kubernetes.io/name=grafana"},
+		Port:           3000,
 	}
 )
 
@@ -66,26 +78,34 @@ type ObservabilityProxy struct {
 	errCh     chan error
 }
 
+// FindPod recherche, dans tous les namespaces, le premier pod en cours
+// d'exécution correspondant à l'un des sélecteurs candidats de la cible
+// donnée (essayés dans l'ordre).
+func FindPod(ctx context.Context, clientset *kubernetes.Clientset, target ObservabilityTarget) (*corev1.Pod, error) {
+	for _, selector := range target.LabelSelectors {
+		pods, err := clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+			LabelSelector: selector,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("recherche du pod %s: %w", target.Name, err)
+		}
+
+		for i := range pods.Items {
+			if pods.Items[i].Status.Phase == corev1.PodRunning {
+				return &pods.Items[i], nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("aucun pod %s en cours d'exécution dans le cluster (stack d'observabilité du projet non déployée ?)", target.Name)
+}
+
 // NewObservabilityPortForwarder recherche, dans tous les namespaces, le
 // premier pod en cours d'exécution correspondant à la cible donnée, et ouvre
 // un port-forward vers son port.
 func NewObservabilityPortForwarder(restConfig *rest.Config, clientset *kubernetes.Clientset, target ObservabilityTarget) (*ObservabilityProxy, error) {
-	pods, err := clientset.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
-		LabelSelector: target.LabelSelector,
-	})
+	pod, err := FindPod(context.Background(), clientset, target)
 	if err != nil {
-		return nil, fmt.Errorf("recherche du pod %s: %w", target.Name, err)
-	}
-
-	var pod *corev1.Pod
-	for i := range pods.Items {
-		if pods.Items[i].Status.Phase == corev1.PodRunning {
-			pod = &pods.Items[i]
-			break
-		}
-	}
-	if pod == nil {
-		return nil, fmt.Errorf("aucun pod %s en cours d'exécution dans le cluster (stack d'observabilité du projet non déployée ?)", target.Name)
+		return nil, err
 	}
 
 	transport, upgrader, err := spdy.RoundTripperFor(restConfig)
