@@ -49,7 +49,7 @@ import {
 import { jellyfishColors } from '../theme'
 
 const providerLabels: Record<string, string> = {
-  github: 'GitHub Actions',
+  // github: 'GitHub Actions', // conservé mais désactivé en prod
   forgejo: 'Forgejo Actions',
 }
 
@@ -134,9 +134,10 @@ function formatDate(s?: string) {
 
 export default function PipelinePage() {
   const queryClient = useQueryClient()
-  const [configExpanded, setConfigExpanded] = useState(false)
-  const [tokenInput, setTokenInput] = useState('')
-  const [reposInput, setReposInput] = useState('')
+  // Config GitHub : conservée mais désactivée en prod (remplacée par Forgejo/Codeberg)
+  // const [configExpanded, setConfigExpanded] = useState(false)
+  // const [tokenInput, setTokenInput] = useState('')
+  // const [reposInput, setReposInput] = useState('')
   const [forgejoExpanded, setForgejoExpanded] = useState(false)
   const [forgejoUrlInput, setForgejoUrlInput] = useState('')
   const [forgejoTokenInput, setForgejoTokenInput] = useState('')
@@ -187,21 +188,21 @@ export default function PipelinePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-config'] })
       refetchConfig()
-      setTokenInput('')
+      // setTokenInput('') // conservé mais désactivé en prod (GitHub)
       setForgejoTokenInput('')
     },
   })
 
-  const handleSaveConfig = () => {
-    const repos = reposInput
-      .split(/[,;\n]/)
-      .map((r) => r.trim())
-      .filter(Boolean)
-    saveConfigMutation.mutate({
-      ...(tokenInput && { github_token: tokenInput }),
-      github_repos: repos,
-    })
-  }
+  // const handleSaveConfig = () => {
+  //   const repos = reposInput
+  //     .split(/[,;\n]/)
+  //     .map((r) => r.trim())
+  //     .filter(Boolean)
+  //   saveConfigMutation.mutate({
+  //     ...(tokenInput && { github_token: tokenInput }),
+  //     github_repos: repos,
+  //   })
+  // }
 
   const handleSaveForgejoConfig = () => {
     const repos = forgejoReposInput
@@ -215,15 +216,15 @@ export default function PipelinePage() {
     })
   }
 
-  const syncMutation = useMutation({
-    mutationFn: () => pipelineService.sync(),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['pipeline-runs'] })
-      if (data.runs > 0) {
-        refetchRuns()
-      }
-    },
-  })
+  // const syncMutation = useMutation({
+  //   mutationFn: () => pipelineService.sync(),
+  //   onSuccess: (data) => {
+  //     queryClient.invalidateQueries({ queryKey: ['pipeline-runs'] })
+  //     if (data.runs > 0) {
+  //       refetchRuns()
+  //     }
+  //   },
+  // })
 
   const syncForgejoMutation = useMutation({
     mutationFn: () => pipelineService.syncForgejo(),
@@ -258,7 +259,7 @@ export default function PipelinePage() {
   const lastRun = runs[0]
 
   const config = configData as PipelineConfig | undefined
-  const isLinked = config?.linked ?? false
+  // const isLinked = config?.linked ?? false // conservé mais désactivé en prod (GitHub)
 
   return (
     <>
@@ -275,6 +276,7 @@ export default function PipelinePage() {
       >
         <ModuleTitle>Pipelines CI/CD</ModuleTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Synchronisation GitHub : conservée mais désactivée en prod
           <Tooltip title="Synchroniser GitHub">
             <span>
               <IconButton
@@ -289,6 +291,7 @@ export default function PipelinePage() {
               </IconButton>
             </span>
           </Tooltip>
+          */}
           <Tooltip title="Synchroniser Forgejo">
             <span>
               <IconButton
@@ -328,6 +331,7 @@ export default function PipelinePage() {
         </Box>
       </Box>
 
+      {/* Connexion GitHub : conservée mais désactivée en prod (remplacée par Forgejo/Codeberg)
       <Box sx={{ mb: 4 }}>
         <ModuleCard>
           <Box
@@ -421,6 +425,7 @@ export default function PipelinePage() {
           </Collapse>
         </ModuleCard>
       </Box>
+      */}
 
       <Box sx={{ mb: 4 }}>
         <ModuleCard>
@@ -542,18 +547,35 @@ export default function PipelinePage() {
             Providers supportés
           </Typography>
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-            {providers.map((p) => (
-              <Chip
-                key={p.id}
-                label={p.name}
-                sx={{
-                  border: `1px solid ${providerColors[p.id] ?? jellyfishColors.cyanSoft}`,
-                  color: providerColors[p.id] ?? jellyfishColors.cyanSoft,
-                  backgroundColor: 'transparent',
-                  fontWeight: 600,
-                }}
-              />
-            ))}
+            {providers.map((p) =>
+              p.id === 'forgejo' ? (
+                <Chip
+                  key={p.id}
+                  label={
+                    <span>
+                      <span style={{ color: '#F4A03C' }}>Forgejo</span>{' '}
+                      <span style={{ color: jellyfishColors.errorSoft }}>Actions</span>
+                    </span>
+                  }
+                  sx={{
+                    border: `1px solid ${jellyfishColors.successSoft}`,
+                    backgroundColor: 'transparent',
+                    fontWeight: 600,
+                  }}
+                />
+              ) : (
+                <Chip
+                  key={p.id}
+                  label={p.name}
+                  sx={{
+                    border: `1px solid ${providerColors[p.id] ?? jellyfishColors.cyanSoft}`,
+                    color: providerColors[p.id] ?? jellyfishColors.cyanSoft,
+                    backgroundColor: 'transparent',
+                    fontWeight: 600,
+                  }}
+                />
+              )
+            )}
           </Box>
         </Box>
       )}
@@ -649,7 +671,7 @@ export default function PipelinePage() {
                         </Tooltip>
                       )}
                       {run.external_url && (
-                        <Tooltip title="Voir sur GitHub">
+                        <Tooltip title="Voir le détail du run">
                           <IconButton
                             component={Link}
                             href={run.external_url}
@@ -676,7 +698,7 @@ export default function PipelinePage() {
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <ScheduleIcon sx={{ fontSize: 48, color: jellyfishColors.cyanSoft, opacity: 0.6 }} />
             <Typography sx={{ mt: 2, color: '#a0a0a0' }}>
-              Aucune exécution enregistrée. Connectez un dépôt GitHub ci-dessus, puis cliquez sur
+              Aucune exécution enregistrée. Connectez un dépôt Forgejo ci-dessus, puis cliquez sur
               Sync pour afficher les runs.
             </Typography>
           </Box>
@@ -693,7 +715,7 @@ export default function PipelinePage() {
             <strong>{rerunTarget?.workflow_name || rerunTarget?.id}</strong>
             {rerunTarget?.repository ? ` sur ${rerunTarget.repository}` : ''} ?
             <br /><br />
-            Cette action déclenchera un nouveau run GitHub Actions.
+            Cette action déclenchera un nouveau run.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>

@@ -204,9 +204,19 @@ function DocContent({ docId }: { docId: string }) {
           <Typography>
             Le module ArgoCD apporte le <strong>GitOps</strong> à Kura : ArgoCD surveille en continu un dépôt Git (ou un chart Helm) et synchronise automatiquement le cluster Kubernetes actif avec l&apos;état déclaré. Depuis la page ArgoCD, vous pouvez installer ArgoCD sur le cluster actif, créer des <strong>Applications</strong>, suivre leur statut de synchronisation/santé, déclencher une synchronisation manuelle, consulter l&apos;historique des déploiements et effectuer un rollback.
           </Typography>
-          <Typography component="h2">Installation</Typography>
+          <Typography component="h2">Installation et dépôt GitOps</Typography>
           <Typography>
-            Le bouton <strong>Installer ArgoCD</strong> déploie ArgoCD dans le namespace <code>argocd</code> du cluster actif. Une fois le serveur prêt, la section « Applications » devient disponible.
+            Avant d&apos;installer ArgoCD, choisissez une <strong>branche du dépôt GitOps</strong> du projet (sélecteur « Branche du dépôt GitOps »). Ce dépôt — nommé automatiquement <code>&lt;projet&gt;-gitops</code> et créé sur votre Forgejo/Codeberg s&apos;il n&apos;existe pas encore — est le seul endroit où Kura écrit des manifests : c&apos;est <strong>Git qui fait foi</strong>, ArgoCD se contente ensuite de lire (pull) ce dépôt. Vous pouvez choisir une branche existante ou créer une nouvelle branche à partir d&apos;une branche de référence.
+          </Typography>
+          <Typography>
+            Le bouton <strong>Installer ArgoCD</strong> déploie ArgoCD dans le namespace <code>argocd</code> du cluster actif (manifests officiels), puis committe sur la branche choisie le manifest d&apos;<strong>auto-gestion</strong> d&apos;ArgoCD (chemin <code>clusters/&lt;cluster&gt;/argocd/</code>) et crée l&apos;Application <code>argocd</code> correspondante. Une fois le serveur prêt <em>et</em> cette Application <code>argocd</code> synchronisée (<code>Synced</code>/<code>Healthy</code>), la section « Applications » devient disponible.
+          </Typography>
+          <Typography component="h3">Auto-gestion ArgoCD (« app of apps »)</Typography>
+          <Typography>
+            ArgoCD se gère <strong>lui-même</strong> via une Application nommée <code>argocd</code> : son code source est le chart Helm officiel <code>argo-cd</code>, et ses <em>values</em> (résilience du repo-server, etc.) sont versionnées dans votre dépôt GitOps. Concrètement, toute future mise à jour de la configuration d&apos;ArgoCD se fait en modifiant ce fichier de values dans Git — ArgoCD applique le changement à lui-même comme pour n&apos;importe quelle autre Application. C&apos;est le pattern <strong>« app of apps »</strong>, une pratique standard de l&apos;écosystème ArgoCD.
+          </Typography>
+          <Typography>
+            Si après l&apos;installation l&apos;Application <code>argocd</code> n&apos;a pas pu être finalisée (avertissement « auto-gestion GitOps... n&apos;a pas pu être finalisée »), choisissez une branche et cliquez sur <strong>Relancer le bootstrap GitOps</strong> : Kura recommitte le manifest d&apos;auto-gestion et recrée l&apos;Application <code>argocd</code> sans réinstaller ArgoCD.
           </Typography>
           <Typography component="h2">Créer une Application — deux sources possibles</Typography>
           <Typography>
@@ -216,6 +226,9 @@ function DocContent({ docId }: { docId: string }) {
             <li><strong>Nouvelle Application (source Git)</strong> : mode classique/avancé. Vous renseignez l&apos;URL d&apos;un dépôt Git contenant des manifests Kubernetes ou un chart Helm (<code>spec.source.repoURL</code> + <code>spec.source.path</code>), ainsi que la révision cible (branche, tag ou commit).</li>
             <li><strong>Depuis le catalogue Helm (source Helm/ArtifactHub)</strong> : mode guidé pour déployer un outil connu (Prometheus, cert-manager, ingress-nginx, Loki, etc.) sans avoir à gérer un dépôt Git. Le formulaire est pré-rempli automatiquement à partir du chart choisi dans le catalogue.</li>
           </Box>
+          <Typography>
+            Comme pour l&apos;installation, la création d&apos;une Application demande de choisir une <strong>branche du dépôt GitOps</strong> du projet : Kura y committe le manifest de l&apos;Application (et son fichier de <em>values</em> pour une source Helm) avant qu&apos;ArgoCD ne la prenne en compte.
+          </Typography>
           <Typography component="h2">Catalogue Helm (ArtifactHub)</Typography>
           <Typography>
             Le bouton <strong>Depuis le catalogue Helm</strong> ouvre une recherche en direct dans <a href="https://artifacthub.io" target="_blank" rel="noreferrer">ArtifactHub</a>, l&apos;annuaire public officiel des charts Helm (charts <strong>CNCF</strong> et <strong>officiels</strong> mis en avant par défaut). Pour chaque chart, Kura affiche le logo, la description, le dépôt source, la version la plus récente et les badges « CNCF » / « Officiel ».
@@ -672,7 +685,7 @@ export default function DocumentationPage() {
 
   useEffect(() => {
     if (sectionParam) {
-      const validIds = ['intro', 'getting-started', 'k8s', 'argocd', 'registry', 'terraform', 'ansible', 'pipelines', 'monitoring', 'users', 'projects', 'faq']
+      const validIds = ['intro', 'getting-started', 'k8s', 'argocd', 'registry', 'terraform', 'code', 'ansible', 'vault', 'pipelines', 'monitoring', 'users', 'projects', 'faq']
       if (validIds.includes(sectionParam)) {
         setSelectedId(sectionParam)
       }

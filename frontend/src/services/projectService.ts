@@ -76,7 +76,10 @@ export interface UpdateProjectMemberRequest {
 export interface ProjectMapping {
   id: string
   project_id: string
+  // github_repository : conservé mais désactivé en prod (remplacé par forgejo_repository).
   github_repository?: string
+  forgejo_repository?: string
+  forgejo_gitops_repository?: string
   terraform_state_id?: string
   terraform_source_id?: string
   cluster_id?: string
@@ -86,7 +89,9 @@ export interface ProjectMapping {
 }
 
 export interface CreateProjectMappingRequest {
+  // github_repository : conservé mais désactivé en prod (remplacé par forgejo_repository).
   github_repository?: string
+  forgejo_repository?: string
   terraform_state_id?: string
   terraform_source_id?: string
   cluster_id?: string
@@ -203,6 +208,19 @@ export const projectService = {
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la création du mapping pour le projet ${projectId}:`, error)
+      throw error
+    }
+  },
+
+  setMappingGitOpsRepository: async (projectId: string, mappingId: string, forgejoGitOpsRepository: string): Promise<ProjectMapping> => {
+    try {
+      const response = await getProjectClient().patch<ProjectMapping>(
+        `/v1/projects/${projectId}/mappings/${mappingId}/gitops-repository`,
+        { forgejo_gitops_repository: forgejoGitOpsRepository }
+      )
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour du dépôt GitOps du mapping ${mappingId} du projet ${projectId}:`, error)
       throw error
     }
   },
