@@ -310,14 +310,28 @@ func (r *Repository) UserHasAccessToProject(userID, projectID string) (bool, err
 
 // CreateProjectMapping crée un mapping projet <-> ressource externe
 func (r *Repository) CreateProjectMapping(m *models.ProjectMapping) error {
-	query := `INSERT INTO project_mappings (id, project_id, github_repository, terraform_state_id, terraform_source_id, cluster_id, cluster_namespace, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	query := `INSERT INTO project_mappings (id, project_id, github_repository, forgejo_repository, forgejo_gitops_repository, terraform_state_id, terraform_source_id, cluster_id, cluster_namespace, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 	_, err := r.db.Exec(query,
-		m.ID, m.ProjectID, nullIfEmpty(m.GitHubRepository), nullIfEmpty(m.TerraformStateID),
+		m.ID, m.ProjectID, nullIfEmpty(m.GitHubRepository), nullIfEmpty(m.ForgejoRepository), nullIfEmpty(m.ForgejoGitOpsRepository), nullIfEmpty(m.TerraformStateID),
 		nullIfEmpty(m.TerraformSourceID), nullIfEmpty(m.ClusterID), nullIfEmpty(m.ClusterNamespace),
 		m.CreatedAt, m.UpdatedAt,
 	)
 	return err
+}
+
+// SetProjectMappingGitOpsRepository met à jour le dépôt GitOps Forgejo associé à un mapping
+func (r *Repository) SetProjectMappingGitOpsRepository(projectID, mappingID, gitopsRepo string) error {
+	query := `UPDATE project_mappings SET forgejo_gitops_repository = $1, updated_at = NOW() WHERE project_id = $2 AND id = $3`
+	result, err := r.db.Exec(query, gitopsRepo, projectID, mappingID)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("mapping non trouvé")
+	}
+	return nil
 }
 
 func nullIfEmpty(s string) interface{} {
@@ -329,7 +343,7 @@ func nullIfEmpty(s string) interface{} {
 
 // ListProjectMappings récupère tous les mappings d'un projet
 func (r *Repository) ListProjectMappings(projectID string) ([]*models.ProjectMapping, error) {
-	query := `SELECT id, project_id, COALESCE(github_repository,''), COALESCE(terraform_state_id,''), COALESCE(terraform_source_id,''), COALESCE(cluster_id,''), COALESCE(cluster_namespace,''), created_at, updated_at
+	query := `SELECT id, project_id, COALESCE(github_repository,''), COALESCE(forgejo_repository,''), COALESCE(forgejo_gitops_repository,''), COALESCE(terraform_state_id,''), COALESCE(terraform_source_id,''), COALESCE(cluster_id,''), COALESCE(cluster_namespace,''), created_at, updated_at
 		FROM project_mappings WHERE project_id = $1 ORDER BY created_at DESC`
 	rows, err := r.db.Query(query, projectID)
 	if err != nil {
@@ -340,7 +354,7 @@ func (r *Repository) ListProjectMappings(projectID string) ([]*models.ProjectMap
 	var mappings []*models.ProjectMapping
 	for rows.Next() {
 		m := &models.ProjectMapping{}
-		err := rows.Scan(&m.ID, &m.ProjectID, &m.GitHubRepository, &m.TerraformStateID, &m.TerraformSourceID, &m.ClusterID, &m.ClusterNamespace, &m.CreatedAt, &m.UpdatedAt)
+		err := rows.Scan(&m.ID, &m.ProjectID, &m.GitHubRepository, &m.ForgejoRepository, &m.ForgejoGitOpsRepository, &m.TerraformStateID, &m.TerraformSourceID, &m.ClusterID, &m.ClusterNamespace, &m.CreatedAt, &m.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -365,10 +379,10 @@ func (r *Repository) DeleteProjectMapping(projectID, mappingID string) error {
 
 // GetProjectMappingByID récupère un mapping par ID
 func (r *Repository) GetProjectMappingByID(projectID, mappingID string) (*models.ProjectMapping, error) {
-	query := `SELECT id, project_id, COALESCE(github_repository,''), COALESCE(terraform_state_id,''), COALESCE(terraform_source_id,''), COALESCE(cluster_id,''), COALESCE(cluster_namespace,''), created_at, updated_at
+	query := `SELECT id, project_id, COALESCE(github_repository,''), COALESCE(forgejo_repository,''), COALESCE(forgejo_gitops_repository,''), COALESCE(terraform_state_id,''), COALESCE(terraform_source_id,''), COALESCE(cluster_id,''), COALESCE(cluster_namespace,''), created_at, updated_at
 		FROM project_mappings WHERE project_id = $1 AND id = $2`
 	m := &models.ProjectMapping{}
-	err := r.db.QueryRow(query, projectID, mappingID).Scan(&m.ID, &m.ProjectID, &m.GitHubRepository, &m.TerraformStateID, &m.TerraformSourceID, &m.ClusterID, &m.ClusterNamespace, &m.CreatedAt, &m.UpdatedAt)
+	err := r.db.QueryRow(query, projectID, mappingID).Scan(&m.ID, &m.ProjectID, &m.GitHubRepository, &m.ForgejoRepository, &m.ForgejoGitOpsRepository, &m.TerraformStateID, &m.TerraformSourceID, &m.ClusterID, &m.ClusterNamespace, &m.CreatedAt, &m.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("mapping non trouvé")
 	}

@@ -90,6 +90,8 @@ func setupRouter(h *handler.CodeHandler, cfg *config.Config) *gin.Engine {
 		code.GET("/file", h.GetFile)
 		code.GET("/commits", h.GetCommits)
 		code.GET("/commits/:sha", h.GetCommitDiff)
+		code.GET("/projects/:projectID/gitops/branches", h.GetGitOpsBranches)
+		code.POST("/projects/:projectID/gitops/commit", h.CommitGitOpsFiles)
 	}
 
 	return router

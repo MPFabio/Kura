@@ -335,6 +335,7 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 				argocdGroup.PUT("/applications/:name/values", argocdHandler.UpdateApplicationValues)
 				argocdGroup.DELETE("/applications/:name", argocdHandler.DeleteApplication)
 				argocdGroup.GET("/helm-catalog", argocdHandler.SearchHelmCharts)
+				argocdGroup.GET("/gitops/branches", argocdHandler.GetGitOpsBranches)
 			}
 
 			// Registre OCI interne (Zot)
