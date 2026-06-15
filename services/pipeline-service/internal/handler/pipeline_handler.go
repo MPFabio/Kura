@@ -100,7 +100,7 @@ func (h *PipelineHandler) GetAggregatedStatus(c *gin.Context) {
 func (h *PipelineHandler) ListProviders(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"providers": []gin.H{
-			{"id": string(models.ProviderGitHub), "name": "GitHub Actions"},
+			// {"id": string(models.ProviderGitHub), "name": "GitHub Actions"}, // conservé mais désactivé en prod
 			{"id": string(models.ProviderForgejo), "name": "Forgejo Actions"},
 		},
 	})

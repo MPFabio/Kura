@@ -47,6 +47,19 @@ type CreateApplicationRequest struct {
 	SyncPolicyAutomated bool   `json:"sync_policy_automated"`
 	Prune               bool   `json:"prune"`
 	SelfHeal            bool   `json:"self_heal"`
+
+	// Branch est la branche du dépôt GitOps sur laquelle commiter le manifest de
+	// cette Application avant qu'ArgoCD ne la crée (flux GitOps "push avant pull").
+	Branch string `json:"branch" binding:"required"`
+	// CreateBranchFrom : si non vide, Branch est créée à partir de cette branche source.
+	CreateBranchFrom string `json:"create_branch_from,omitempty"`
+}
+
+// InstallArgoCDRequest représente une demande d'installation d'ArgoCD, avec le choix
+// de branche du dépôt GitOps pour le bootstrap de self-management.
+type InstallArgoCDRequest struct {
+	Branch           string `json:"branch" binding:"required"`
+	CreateBranchFrom string `json:"create_branch_from,omitempty"`
 }
 
 // HelmChartSummary représente un chart Helm du catalogue (issu d'ArtifactHub).
@@ -79,5 +92,6 @@ type UpdateValuesRequest struct {
 type ArgoCDStatus struct {
 	Installed   bool   `json:"installed"`
 	ServerReady bool   `json:"server_ready"`
+	SelfManaged bool   `json:"self_managed"`
 	Version     string `json:"version,omitempty"`
 }

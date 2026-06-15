@@ -10,12 +10,13 @@ import (
 
 // CodeHandler expose les endpoints HTTP du module Code.
 type CodeHandler struct {
-	svc *service.CodeService
+	svc       *service.CodeService
+	gitopsSvc *service.GitOpsService
 }
 
 // New crée un CodeHandler.
 func New(svc *service.CodeService) *CodeHandler {
-	return &CodeHandler{svc: svc}
+	return &CodeHandler{svc: svc, gitopsSvc: service.NewGitOpsService(svc)}
 }
 
 // ListRepositories renvoie les dépôts GitHub liés à un projet.
@@ -105,6 +106,49 @@ func (h *CodeHandler) GetCommitDiff(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, detail)
+}
+
+// GetGitOpsBranches renvoie les informations (URL de clone, nom complet, branches) du
+// dépôt GitOps d'un projet, le créant si nécessaire.
+func (h *CodeHandler) GetGitOpsBranches(c *gin.Context) {
+	projectID := c.Param("projectID")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet requis"})
+		return
+	}
+
+	info, err := h.gitopsSvc.GetGitOpsInfo(c.Request.Context(), c.GetHeader("Authorization"), projectID)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, info)
+}
+
+// CommitGitOpsFiles committe des fichiers dans le dépôt GitOps d'un projet.
+func (h *CodeHandler) CommitGitOpsFiles(c *gin.Context) {
+	projectID := c.Param("projectID")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet requis"})
+		return
+	}
+
+	var body struct {
+		Branch           string            `json:"branch" binding:"required"`
+		CreateBranchFrom string            `json:"create_branch_from"`
+		Files            map[string]string `json:"files" binding:"required"`
+		Message          string            `json:"message" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.gitopsSvc.CommitFiles(c.Request.Context(), c.GetHeader("Authorization"), projectID, body.Branch, body.CreateBranchFrom, body.Files, body.Message); err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "fichiers commités avec succès"})
 }
 
 func parsePositiveInt(s string) (int, error) {

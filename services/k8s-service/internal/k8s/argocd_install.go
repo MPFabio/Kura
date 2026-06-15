@@ -97,6 +97,51 @@ func InstallArgoCD(ctx context.Context, restConfig *rest.Config, clientset *kube
 		return fmt.Errorf("ajustement de argocd-repo-server: %w", err)
 	}
 
+	// Le manifest officiel ne pose pas le label app.kubernetes.io/instance=argocd
+	// sur les pods (seulement name/component/part-of). Quand ArgoCD s'auto-gère
+	// ensuite via le chart Helm argo-cd (qui ajoute ce label aux Services pour
+	// cibler ses propres pods), les Deployments/StatefulSet du manifest officiel
+	// ne sont alors plus sélectionnés par ces Services (endpoints vides,
+	// repo-server inatteignable). On pose ce label dès l'installation pour que
+	// la bascule vers l'auto-gestion Helm soit transparente.
+	if err := labelOfficialManifestForSelfManagement(ctx, clientset); err != nil {
+		return fmt.Errorf("préparation à l'auto-gestion ArgoCD: %w", err)
+	}
+
+	return nil
+}
+
+// labelOfficialManifestForSelfManagement ajoute app.kubernetes.io/instance=argocd
+// au pod template des Deployments/StatefulSet installés par le manifest officiel,
+// label requis par les Services générés par le chart Helm argo-cd lors de
+// l'auto-gestion ("app of apps").
+func labelOfficialManifestForSelfManagement(ctx context.Context, clientset *kubernetes.Clientset) error {
+	patch := []byte(`{"spec":{"template":{"metadata":{"labels":{"app.kubernetes.io/instance":"argocd"}}}}}`)
+
+	deployments := []string{
+		"argocd-repo-server",
+		"argocd-server",
+		"argocd-redis",
+		"argocd-dex-server",
+		"argocd-applicationset-controller",
+		"argocd-notifications-controller",
+	}
+	for _, name := range deployments {
+		_, err := clientset.AppsV1().Deployments(ArgoCDNamespace).Patch(
+			ctx, name, types.StrategicMergePatchType, patch, metav1.PatchOptions{FieldManager: "modulops"},
+		)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("étiquetage du déploiement %s: %w", name, err)
+		}
+	}
+
+	_, err := clientset.AppsV1().StatefulSets(ArgoCDNamespace).Patch(
+		ctx, "argocd-application-controller", types.StrategicMergePatchType, patch, metav1.PatchOptions{FieldManager: "modulops"},
+	)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("étiquetage du statefulset argocd-application-controller: %w", err)
+	}
+
 	return nil
 }
 

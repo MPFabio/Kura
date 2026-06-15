@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/modulops/k8s-service/internal/client"
 	"github.com/modulops/k8s-service/internal/config"
 	"github.com/modulops/k8s-service/internal/k8s"
 	"github.com/modulops/k8s-service/internal/models"
@@ -39,6 +40,7 @@ type ArgoCDService struct {
 	clusterService *ClusterService
 	cfg            *config.Config
 	httpClient     *http.Client
+	codeClient     *client.CodeServiceClient
 }
 
 // NewArgoCDService crée un nouveau service ArgoCD.
@@ -56,6 +58,7 @@ func NewArgoCDService(cache ArgoCache, clusterService *ClusterService, cfg *conf
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			},
 		},
+		codeClient: client.NewCodeServiceClient(cfg.CodeServiceURL),
 	}
 }
 
@@ -63,9 +66,9 @@ func NewArgoCDService(cache ArgoCache, clusterService *ClusterService, cfg *conf
 // Pour les clusters GKE, on utilise un kubeconfig "portable" (token OAuth2 statique)
 // car le plugin gke-gcloud-auth-plugin n'est pas disponible dans le conteneur k8s-service.
 func (s *ArgoCDService) restConfigForActiveCluster(ctx context.Context) (*rest.Config, *kubernetes.Clientset, string, error) {
-	cluster, err := s.clusterService.GetActiveCluster(ctx)
+	cluster, _, _, err := s.activeClusterContext(ctx)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("aucun cluster actif: %w", err)
+		return nil, nil, "", err
 	}
 
 	kubeconfigContent, err := s.clusterService.GetPortableKubeconfig(ctx, cluster)
@@ -86,14 +89,136 @@ func (s *ArgoCDService) restConfigForActiveCluster(ctx context.Context) (*rest.C
 	return restConfig, clientset, cluster.ID, nil
 }
 
-// Install installe ArgoCD sur le cluster actif.
-func (s *ArgoCDService) Install(ctx context.Context) error {
-	restConfig, clientset, _, err := s.restConfigForActiveCluster(ctx)
+// activeClusterContext retourne le cluster actif ainsi que son ID et l'ID du projet
+// auquel il appartient (utilisé pour le flux GitOps : dépôt GitOps = celui du projet).
+func (s *ArgoCDService) activeClusterContext(ctx context.Context) (*models.Cluster, string, string, error) {
+	cluster, err := s.clusterService.GetActiveCluster(ctx)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("aucun cluster actif: %w", err)
+	}
+	return cluster, cluster.ID, cluster.ProjectID, nil
+}
+
+// Install installe ArgoCD sur le cluster actif, puis amorce son auto-gestion GitOps
+// ("app of apps") : un commit décrivant l'installation d'ArgoCD lui-même (chart Helm
+// officiel argo-cd + values) est poussé sur le dépôt GitOps du projet, puis ArgoCD
+// crée l'Application correspondante afin de se gérer lui-même via Git.
+func (s *ArgoCDService) Install(ctx context.Context, authToken, branch, createBranchFrom string) error {
+	restConfig, clientset, clusterID, err := s.restConfigForActiveCluster(ctx)
 	if err != nil {
 		return err
 	}
 
-	return k8s.InstallArgoCD(ctx, restConfig, clientset)
+	if err := k8s.InstallArgoCD(ctx, restConfig, clientset); err != nil {
+		return err
+	}
+
+	return s.bootstrapSelfManagement(ctx, authToken, clusterID, branch, createBranchFrom)
+}
+
+// bootstrapSelfManagement committe les manifests d'auto-gestion d'ArgoCD (chart Helm
+// officiel argo-cd + values reprenant les patches de résilience de argocd-repo-server)
+// dans le dépôt GitOps du projet, puis crée l'Application "argocd" correspondante.
+func (s *ArgoCDService) bootstrapSelfManagement(ctx context.Context, authToken, clusterID, branch, createBranchFrom string) error {
+	_, _, projectID, err := s.activeClusterContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	basePath := fmt.Sprintf("clusters/%s/argocd", clusterID)
+	values := `# Values du chart Helm officiel argo-cd (https://argoproj.github.io/argo-helm),
+# géré par ArgoCD lui-même (auto-gestion / "app of apps").
+# Reprend les patches de résilience appliqués au bootstrap (cf. patchRepoServerResilience).
+redis:
+  # Sans ce ServiceAccount dédié, le conteneur d'initialisation du secret Redis
+  # (secret-init) tourne avec le ServiceAccount "default" et échoue
+  # (secrets is forbidden). Avec serviceAccount.create=true, le chart bascule
+  # vers un Job dédié (RBAC correct) et retire cet init-container du Deployment.
+  serviceAccount:
+    create: true
+repoServer:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  livenessProbe:
+    initialDelaySeconds: 90
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 5
+`
+	application := `apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: "*"
+      helm:
+        valueFiles:
+          - $values/clusters/` + clusterID + `/argocd/values.yaml
+    - repoURL: <dépôt GitOps du projet>
+      targetRevision: ` + branch + `
+      path: "."
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+`
+
+	files := map[string]string{
+		basePath + "/application.yaml": application,
+		basePath + "/values.yaml":      values,
+	}
+
+	if err := s.codeClient.CommitGitOpsFiles(ctx, authToken, projectID, branch, createBranchFrom, files, "argocd: bootstrap auto-gestion (app of apps)"); err != nil {
+		return fmt.Errorf("commit GitOps du bootstrap ArgoCD: %w", err)
+	}
+
+	gitopsRepo, err := s.gitopsRepoURL(ctx, authToken, projectID)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.createApplicationDirect(ctx, &models.CreateApplicationRequest{
+		Name:                "argocd",
+		Project:             "default",
+		SourceType:          "helm",
+		RepoURL:             "https://argoproj.github.io/argo-helm",
+		Chart:               "argo-cd",
+		TargetRevision:      "*",
+		DestNamespace:       k8s.ArgoCDNamespace,
+		SyncPolicyAutomated: true,
+		Prune:               true,
+		SelfHeal:            true,
+	}, &gitopsSource{
+		RepoURL:        gitopsRepo,
+		TargetRevision: branch,
+		ValuesPath:     basePath + "/values.yaml",
+	})
+	if err != nil {
+		return fmt.Errorf("création de l'Application argocd (auto-gestion): %w", err)
+	}
+
+	return nil
 }
 
 // GetStatus retourne l'état d'installation et de disponibilité d'ArgoCD sur le cluster actif.
@@ -111,8 +236,12 @@ func (s *ArgoCDService) GetStatus(ctx context.Context) (*models.ArgoCDStatus, er
 		}
 		return nil, fmt.Errorf("vérification du namespace argocd: %w", err)
 	}
-	status.Installed = true
 
+	// La présence du namespace seule ne suffit pas : une installation interrompue
+	// (ex. context canceled en plein apply du manifest) peut laisser le namespace
+	// créé sans que argocd-server ou le StatefulSet du controller existent. On ne
+	// considère ArgoCD "installé" que si ces deux ressources sont présentes, afin
+	// que le bouton d'installation reste disponible pour relancer une install partielle.
 	deployment, err := clientset.AppsV1().Deployments(k8s.ArgoCDNamespace).Get(ctx, "argocd-server", metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -121,10 +250,28 @@ func (s *ArgoCDService) GetStatus(ctx context.Context) (*models.ArgoCDStatus, er
 		return nil, fmt.Errorf("vérification du déploiement argocd-server: %w", err)
 	}
 
+	if _, err := clientset.AppsV1().StatefulSets(k8s.ArgoCDNamespace).Get(ctx, "argocd-application-controller", metav1.GetOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			return status, nil
+		}
+		return nil, fmt.Errorf("vérification du statefulset argocd-application-controller: %w", err)
+	}
+
+	status.Installed = true
 	status.ServerReady = deployment.Status.ReadyReplicas > 0
 	for _, c := range deployment.Spec.Template.Spec.Containers {
 		if c.Name == "argocd-server" {
 			status.Version = c.Image
+		}
+	}
+
+	// L'auto-gestion (commit GitOps du bootstrap + Application "argocd") peut avoir
+	// échoué après une installation par ailleurs réussie (ex. droits insuffisants sur
+	// le dépôt GitOps) : on vérifie ici la présence de l'Application "argocd" pour que
+	// l'UI puisse proposer de relancer ce seul bootstrap sans tout réinstaller.
+	if status.ServerReady {
+		if _, err := s.GetApplication(ctx, "argocd"); err == nil {
+			status.SelfManaged = true
 		}
 	}
 
@@ -423,8 +570,30 @@ func (s *ArgoCDService) GetApplication(ctx context.Context, name string) (*model
 	return &detail, nil
 }
 
-// CreateApplication crée une nouvelle Application ArgoCD.
-func (s *ArgoCDService) CreateApplication(ctx context.Context, req *models.CreateApplicationRequest) (*models.ArgoApplication, error) {
+// gitopsSource décrit la référence vers le dépôt GitOps à inclure dans une Application
+// ArgoCD, soit comme source unique (manifests Git purs), soit comme second "source"
+// (multi-source, ≥ ArgoCD 2.6) fournissant le fichier de values Helm d'un chart catalogué.
+type gitopsSource struct {
+	RepoURL        string
+	TargetRevision string
+	// ValuesPath est le chemin du fichier values.yaml dans le dépôt GitOps, utilisé en
+	// multi-source via la référence "$values" (source Helm uniquement).
+	ValuesPath string
+}
+
+// createApplicationDirect crée une Application ArgoCD via l'API REST d'ArgoCD.
+//
+// Si gitops est nil, l'Application est créée telle que décrite par req (comportement
+// historique, source = req.RepoURL/req.Path ou req.RepoURL/req.Chart).
+//
+// Si gitops est non-nil :
+//   - pour une source "git", repoURL/path pointent directement sur le dépôt GitOps
+//     (pull pur depuis le repo poussé par Kura) ;
+//   - pour une source "helm", une Application multi-source est créée : le chart
+//     catalogué (req.RepoURL/req.Chart) reste la première source, et le dépôt GitOps
+//     est ajouté comme seconde source référencée "$values", dont le fichier
+//     gitops.ValuesPath fournit les values Helm.
+func (s *ArgoCDService) createApplicationDirect(ctx context.Context, req *models.CreateApplicationRequest, gitops *gitopsSource) (*models.ArgoApplication, error) {
 	project := req.Project
 	if project == "" {
 		project = "default"
@@ -459,32 +628,66 @@ func (s *ArgoCDService) CreateApplication(ctx context.Context, req *models.Creat
 		syncPolicy["automated"] = automated
 	}
 
-	source := map[string]interface{}{
-		"repoURL":        req.RepoURL,
-		"targetRevision": targetRevision,
+	spec := map[string]interface{}{
+		"project": project,
+		"destination": map[string]interface{}{
+			"server":    destServer,
+			"namespace": req.DestNamespace,
+		},
+		"syncPolicy": syncPolicy,
 	}
+
 	if req.SourceType == "helm" {
-		source["chart"] = req.Chart
+		helm := map[string]interface{}{}
 		if req.HelmValues != "" {
-			source["helm"] = map[string]interface{}{"values": req.HelmValues}
+			helm["values"] = req.HelmValues
+		}
+
+		chartSource := map[string]interface{}{
+			"repoURL":        req.RepoURL,
+			"chart":          req.Chart,
+			"targetRevision": targetRevision,
+		}
+
+		if gitops == nil {
+			if len(helm) > 0 {
+				chartSource["helm"] = helm
+			}
+			spec["source"] = chartSource
+		} else {
+			helm["valueFiles"] = []string{"$values/" + gitops.ValuesPath}
+			chartSource["helm"] = helm
+			spec["sources"] = []map[string]interface{}{
+				chartSource,
+				{
+					"repoURL":        gitops.RepoURL,
+					"targetRevision": gitops.TargetRevision,
+					"path":           ".",
+					"ref":            "values",
+				},
+			}
 		}
 	} else {
-		source["path"] = req.Path
+		if gitops == nil {
+			spec["source"] = map[string]interface{}{
+				"repoURL":        req.RepoURL,
+				"path":           req.Path,
+				"targetRevision": targetRevision,
+			}
+		} else {
+			spec["source"] = map[string]interface{}{
+				"repoURL":        gitops.RepoURL,
+				"path":           req.Path,
+				"targetRevision": gitops.TargetRevision,
+			}
+		}
 	}
 
 	body := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"name": req.Name,
 		},
-		"spec": map[string]interface{}{
-			"project": project,
-			"source":  source,
-			"destination": map[string]interface{}{
-				"server":    destServer,
-				"namespace": req.DestNamespace,
-			},
-			"syncPolicy": syncPolicy,
-		},
+		"spec": spec,
 	}
 
 	respBody, err := s.doRequest(ctx, http.MethodPost, "/api/v1/applications", body)
@@ -499,6 +702,124 @@ func (s *ArgoCDService) CreateApplication(ctx context.Context, req *models.Creat
 
 	app := item.toArgoApplication()
 	return &app, nil
+}
+
+// CreateApplicationViaGitOps committe le manifest et les values (le cas échéant) de
+// l'Application demandée dans le dépôt GitOps du projet (sur la branche choisie), puis
+// crée l'Application ArgoCD correspondante en référençant ce dépôt :
+//   - source "git" : repoURL/path pointent directement sur apps/<name> du dépôt GitOps
+//     (pull pur) ;
+//   - source "helm" : Application multi-source, le chart catalogué reste la source
+//     applicative, et apps/<name>/values.yaml du dépôt GitOps fournit les values Helm.
+func (s *ArgoCDService) CreateApplicationViaGitOps(ctx context.Context, authToken string, req *models.CreateApplicationRequest) (*models.ArgoApplication, error) {
+	_, _, projectID, err := s.activeClusterContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	basePath := fmt.Sprintf("apps/%s", req.Name)
+	files := map[string]string{
+		basePath + "/application.yaml": renderApplicationManifest(req),
+	}
+	if req.SourceType == "helm" {
+		values := req.HelmValues
+		if values == "" {
+			values = "# values Helm (vide)\n"
+		}
+		files[basePath+"/values.yaml"] = values
+	}
+
+	message := fmt.Sprintf("argocd: ajout de l'Application %s", req.Name)
+	if err := s.codeClient.CommitGitOpsFiles(ctx, authToken, projectID, req.Branch, req.CreateBranchFrom, files, message); err != nil {
+		return nil, fmt.Errorf("commit GitOps de l'Application %s: %w", req.Name, err)
+	}
+
+	gitopsRepoURL, err := s.gitopsRepoURL(ctx, authToken, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	gitops := &gitopsSource{
+		RepoURL:        gitopsRepoURL,
+		TargetRevision: req.Branch,
+		ValuesPath:     basePath + "/values.yaml",
+	}
+	if req.SourceType != "helm" {
+		gitops = &gitopsSource{RepoURL: gitopsRepoURL, TargetRevision: req.Branch}
+		req = &models.CreateApplicationRequest{
+			Name: req.Name, Project: req.Project, SourceType: req.SourceType,
+			Path: basePath, DestNamespace: req.DestNamespace, DestServer: req.DestServer,
+			SyncPolicyAutomated: req.SyncPolicyAutomated, Prune: req.Prune, SelfHeal: req.SelfHeal,
+		}
+	}
+
+	return s.createApplicationDirect(ctx, req, gitops)
+}
+
+// renderApplicationManifest produit le manifest YAML "argoproj.io/v1alpha1/Application"
+// correspondant à req, committé dans le dépôt GitOps comme trace/audit de la demande.
+func renderApplicationManifest(req *models.CreateApplicationRequest) string {
+	targetRevision := req.TargetRevision
+	if targetRevision == "" {
+		targetRevision = "HEAD"
+	}
+	destServer := req.DestServer
+	if destServer == "" {
+		destServer = "https://kubernetes.default.svc"
+	}
+	project := req.Project
+	if project == "" {
+		project = "default"
+	}
+
+	var source string
+	if req.SourceType == "helm" {
+		source = fmt.Sprintf(`    repoURL: %s
+    chart: %s
+    targetRevision: %q
+    helm:
+      valueFiles:
+        - values.yaml`, req.RepoURL, req.Chart, targetRevision)
+	} else {
+		source = fmt.Sprintf(`    repoURL: %s
+    path: %s
+    targetRevision: %q`, req.RepoURL, req.Path, targetRevision)
+	}
+
+	return fmt.Sprintf(`apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: %s
+  namespace: argocd
+spec:
+  project: %s
+  source:
+%s
+  destination:
+    server: %s
+    namespace: %s
+`, req.Name, project, source, destServer, req.DestNamespace)
+}
+
+// GetGitOpsInfo retourne les informations (URL de clone, nom complet, branches) du dépôt
+// GitOps du projet associé au cluster actif, pour peupler le sélecteur de branche du
+// frontend.
+func (s *ArgoCDService) GetGitOpsInfo(ctx context.Context, authToken string) (*client.GitOpsInfo, error) {
+	_, _, projectID, err := s.activeClusterContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.codeClient.GetGitOpsInfo(ctx, authToken, projectID)
+}
+
+// gitopsRepoURL retourne l'URL HTTPS de clone du dépôt GitOps du projet, en s'assurant
+// qu'il existe (création éventuelle déléguée à code-service via EnsureGitOpsRepo).
+func (s *ArgoCDService) gitopsRepoURL(ctx context.Context, authToken, projectID string) (string, error) {
+	info, err := s.codeClient.GetGitOpsInfo(ctx, authToken, projectID)
+	if err != nil {
+		return "", fmt.Errorf("préparation du dépôt GitOps: %w", err)
+	}
+	return info.CloneURL, nil
 }
 
 // SyncApplication déclenche une synchronisation d'une Application ArgoCD.

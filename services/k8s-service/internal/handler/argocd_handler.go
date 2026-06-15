@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -22,14 +24,40 @@ func NewArgoCDHandler(svc *service.ArgoCDService, helmCatalog *service.HelmCatal
 	return &ArgoCDHandler{svc: svc, helmCatalog: helmCatalog}
 }
 
-// InstallArgoCD installe ArgoCD sur le cluster actif.
+// InstallArgoCD installe ArgoCD sur le cluster actif, puis amorce son auto-gestion GitOps
+// (commit du manifest argo-cd dans le dépôt GitOps du projet, sur la branche choisie).
 func (h *ArgoCDHandler) InstallArgoCD(c *gin.Context) {
-	if err := h.svc.Install(c.Request.Context()); err != nil {
+	var req models.InstallArgoCDRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// L'installation d'ArgoCD (application du manifest officiel + commit GitOps) peut
+	// prendre plus de temps que le délai d'attente HTTP du client : on la détache du
+	// contexte de la requête pour qu'une annulation côté client n'interrompe pas
+	// l'opération en plein milieu, ce qui laisserait le cluster dans un état partiel.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	if err := h.svc.Install(ctx, c.GetHeader("Authorization"), req.Branch, req.CreateBranchFrom); err != nil {
 		log.Printf("Erreur InstallArgoCD: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// GetGitOpsBranches renvoie les informations (URL de clone, nom complet, branches) du
+// dépôt GitOps du projet, pour peupler le sélecteur de branche côté frontend.
+func (h *ArgoCDHandler) GetGitOpsBranches(c *gin.Context) {
+	info, err := h.svc.GetGitOpsInfo(c.Request.Context(), c.GetHeader("Authorization"))
+	if err != nil {
+		log.Printf("Erreur GetGitOpsBranches: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, info)
 }
 
 // GetStatus retourne l'état d'installation et de disponibilité d'ArgoCD.
@@ -84,7 +112,7 @@ func (h *ArgoCDHandler) CreateApplication(c *gin.Context) {
 		return
 	}
 
-	app, err := h.svc.CreateApplication(c.Request.Context(), &req)
+	app, err := h.svc.CreateApplicationViaGitOps(c.Request.Context(), c.GetHeader("Authorization"), &req)
 	if err != nil {
 		log.Printf("Erreur CreateApplication: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

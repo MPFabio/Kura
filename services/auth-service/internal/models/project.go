@@ -64,22 +64,28 @@ type UpdateProjectMemberRequest struct {
 	Role string `json:"role" binding:"required,oneof=admin member"`
 }
 
-// ProjectMapping lie un projet à des ressources externes (repo GitHub, state Terraform, cluster K8s)
+// ProjectMapping lie un projet à des ressources externes (repo Forgejo/Codeberg, state Terraform, cluster K8s)
 type ProjectMapping struct {
-	ID                 string    `json:"id" db:"id"`
-	ProjectID          string    `json:"project_id" db:"project_id"`
-	GitHubRepository   string    `json:"github_repository,omitempty" db:"github_repository"`
-	TerraformStateID   string    `json:"terraform_state_id,omitempty" db:"terraform_state_id"`
-	TerraformSourceID  string    `json:"terraform_source_id,omitempty" db:"terraform_source_id"`
-	ClusterID          string    `json:"cluster_id,omitempty" db:"cluster_id"`
-	ClusterNamespace   string    `json:"cluster_namespace,omitempty" db:"cluster_namespace"`
-	CreatedAt          time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at" db:"updated_at"`
+	ID                string `json:"id" db:"id"`
+	ProjectID         string `json:"project_id" db:"project_id"`
+	// GitHubRepository : conservé mais désactivé en prod (remplacé par ForgejoRepository).
+	GitHubRepository  string    `json:"github_repository,omitempty" db:"github_repository"`
+	ForgejoRepository string    `json:"forgejo_repository,omitempty" db:"forgejo_repository"`
+	ForgejoGitOpsRepository string `json:"forgejo_gitops_repository,omitempty" db:"forgejo_gitops_repository"`
+	TerraformStateID  string    `json:"terraform_state_id,omitempty" db:"terraform_state_id"`
+	TerraformSourceID string    `json:"terraform_source_id,omitempty" db:"terraform_source_id"`
+	ClusterID         string    `json:"cluster_id,omitempty" db:"cluster_id"`
+	ClusterNamespace  string    `json:"cluster_namespace,omitempty" db:"cluster_namespace"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // CreateProjectMappingRequest représente une requête de création de mapping
 type CreateProjectMappingRequest struct {
+	// GitHubRepository : conservé mais désactivé en prod (remplacé par ForgejoRepository).
 	GitHubRepository  *string `json:"github_repository,omitempty"`
+	ForgejoRepository *string `json:"forgejo_repository,omitempty"`
+	ForgejoGitOpsRepository *string `json:"forgejo_gitops_repository,omitempty"`
 	TerraformStateID  *string `json:"terraform_state_id,omitempty"`
 	TerraformSourceID *string `json:"terraform_source_id,omitempty"`
 	ClusterID         *string `json:"cluster_id,omitempty"`
