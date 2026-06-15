@@ -39,11 +39,20 @@ export interface CodeRepository {
   full_name: string
 }
 
+export interface RepoBranch {
+  name: string
+}
+
 export const codeService = {
   listRepositories: async (projectId: string): Promise<CodeRepository[]> => {
     const response = await apiClient.get<{ items: CodeRepository[] }>('/v1/code/repos', {
       params: { project_id: projectId },
     })
+    return response.data?.items ?? []
+  },
+
+  getBranches: async (repo: string): Promise<RepoBranch[]> => {
+    const response = await apiClient.get<{ items: RepoBranch[] }>('/v1/code/branches', { params: { repo } })
     return response.data?.items ?? []
   },
 
