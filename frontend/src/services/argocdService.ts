@@ -38,11 +38,20 @@ export interface CreateApplicationRequest {
   sync_policy_automated: boolean
   prune: boolean
   self_heal: boolean
+  branch: string
+  create_branch_from?: string
+}
+
+export interface GitOpsInfo {
+  clone_url: string
+  repository: string
+  branches: string[]
 }
 
 export interface ArgoCDStatus {
   installed: boolean
   server_ready: boolean
+  self_managed: boolean
   version?: string
 }
 
@@ -62,11 +71,24 @@ export interface HelmChartSummary {
 }
 
 export const argocdService = {
-  installArgoCD: async (): Promise<void> => {
+  installArgoCD: async (branch: string, createBranchFrom?: string): Promise<void> => {
     try {
-      await apiClient.post('/v1/k8s/argocd/install')
+      await apiClient.post('/v1/k8s/argocd/install', {
+        branch,
+        create_branch_from: createBranchFrom || undefined,
+      })
     } catch (error) {
       console.error("Erreur lors de l'installation d'ArgoCD:", error)
+      throw error
+    }
+  },
+
+  getGitOpsInfo: async (): Promise<GitOpsInfo> => {
+    try {
+      const response = await apiClient.get<GitOpsInfo>('/v1/k8s/argocd/gitops/branches')
+      return response.data
+    } catch (error) {
+      console.error('Erreur lors de la récupération des branches GitOps:', error)
       throw error
     }
   },

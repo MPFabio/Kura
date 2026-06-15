@@ -31,9 +31,10 @@ import {
   Delete as DeleteIcon,
   Logout,
   CheckCircle as CheckCircleIcon,
-  GitHub as GitHubIcon,
+  // GitHub as GitHubIcon, // conservé mais désactivé en prod (remplacé par ForgejoIcon)
   People as PeopleIcon,
 } from '@mui/icons-material'
+import ForgejoIcon from '../components/icons/ForgejoIcon'
 import { useProject } from '../contexts/ProjectContext'
 import { useAuth } from '../contexts/AuthContext'
 import { projectService, CreateProjectRequest, ProjectMapping, ProjectMember } from '../services/projectService'
@@ -58,6 +59,7 @@ export default function ProjectsPage() {
   const [mappingsProject, setMappingsProject] = useState<{ id: string; name: string } | null>(null)
   const [newRepo, setNewRepo] = useState('')
   const [mappingError, setMappingError] = useState<string | null>(null)
+  const [gitopsRepoInputs, setGitopsRepoInputs] = useState<Record<string, string>>({})
   const [membersProject, setMembersProject] = useState<{ id: string; name: string } | null>(null)
   const [newMemberEmail, setNewMemberEmail] = useState('')
   const [newMemberRole, setNewMemberRole] = useState<'admin' | 'member'>('member')
@@ -127,7 +129,8 @@ export default function ProjectsPage() {
   })
 
   const createMappingMutation = useMutation({
-    mutationFn: (repo: string) => projectService.createMapping(mappingsProject!.id, { github_repository: repo }),
+    // mutationFn: (repo: string) => projectService.createMapping(mappingsProject!.id, { github_repository: repo }), // conservé mais désactivé en prod
+    mutationFn: (repo: string) => projectService.createMapping(mappingsProject!.id, { forgejo_repository: repo }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-mappings', mappingsProject?.id] })
       setNewRepo('')
@@ -140,6 +143,14 @@ export default function ProjectsPage() {
 
   const deleteMappingMutation = useMutation({
     mutationFn: (mappingId: string) => projectService.deleteMapping(mappingsProject!.id, mappingId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-mappings', mappingsProject?.id] })
+    },
+  })
+
+  const setGitOpsRepositoryMutation = useMutation({
+    mutationFn: ({ mappingId, repo }: { mappingId: string; repo: string }) =>
+      projectService.setMappingGitOpsRepository(mappingsProject!.id, mappingId, repo),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-mappings', mappingsProject?.id] })
     },
@@ -424,7 +435,8 @@ export default function ProjectsPage() {
                           },
                         }}
                       >
-                        <GitHubIcon fontSize="small" />
+                        {/* <GitHubIcon fontSize="small" /> conservé mais désactivé en prod */}
+                        <ForgejoIcon active />
                       </IconButton>
                       <IconButton
                         size="small"
@@ -494,11 +506,11 @@ export default function ProjectsPage() {
 
       <Dialog open={!!mappingsProject} onClose={() => setMappingsProject(null)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ color: '#f0f0f0', fontWeight: 700 }}>
-          Dépôts GitHub liés — {mappingsProject?.name}
+          Dépôts Forgejo/Codeberg liés — {mappingsProject?.name}
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ color: '#a0a0a0', fontSize: '0.875rem', mb: 2 }}>
-            Liez un ou plusieurs dépôts GitHub (format <code>owner/repo</code>) pour les rendre disponibles dans le module Repository.
+            Liez un ou plusieurs dépôts Forgejo/Codeberg (format <code>owner/repo</code>) pour les rendre disponibles dans le module Repository.
           </Typography>
 
           {mappingError && (
@@ -530,10 +542,12 @@ export default function ProjectsPage() {
           ) : (
             <List dense>
               {(mappingsData?.items ?? [])
-                .filter((m) => !!m.github_repository)
+                // .filter((m) => !!m.github_repository) // conservé mais désactivé en prod
+                .filter((m) => !!m.forgejo_repository)
                 .map((m: ProjectMapping) => (
                   <ListItem
                     key={m.id}
+                    alignItems="flex-start"
                     secondaryAction={
                       <IconButton
                         size="small"
@@ -545,13 +559,37 @@ export default function ProjectsPage() {
                       </IconButton>
                     }
                   >
-                    <ListItemText
-                      primary={m.github_repository}
-                      primaryTypographyProps={{ sx: { fontFamily: '"JetBrains Mono", monospace', fontSize: '0.875rem', color: '#f0f0f0' } }}
-                    />
+                    <Box sx={{ width: '100%', pr: 4 }}>
+                      <ListItemText
+                        primary={m.forgejo_repository}
+                        primaryTypographyProps={{ sx: { fontFamily: '"JetBrains Mono", monospace', fontSize: '0.875rem', color: '#f0f0f0' } }}
+                      />
+                      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                        <TextField
+                          size="small"
+                          fullWidth
+                          label="Dépôt GitOps (ArgoCD)"
+                          placeholder={`${m.forgejo_repository}-gitops (par défaut)`}
+                          helperText="owner/repo — laisser vide pour créer automatiquement un dépôt dédié"
+                          value={gitopsRepoInputs[m.id] ?? m.forgejo_gitops_repository ?? ''}
+                          onChange={(e) => setGitopsRepoInputs({ ...gitopsRepoInputs, [m.id]: e.target.value })}
+                        />
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          disabled={
+                            setGitOpsRepositoryMutation.isPending ||
+                            (gitopsRepoInputs[m.id] ?? m.forgejo_gitops_repository ?? '') === (m.forgejo_gitops_repository ?? '')
+                          }
+                          onClick={() => setGitOpsRepositoryMutation.mutate({ mappingId: m.id, repo: gitopsRepoInputs[m.id] ?? '' })}
+                        >
+                          {setGitOpsRepositoryMutation.isPending ? <CircularProgress size={16} /> : 'Enregistrer'}
+                        </Button>
+                      </Box>
+                    </Box>
                   </ListItem>
                 ))}
-              {(mappingsData?.items ?? []).filter((m) => !!m.github_repository).length === 0 && (
+              {(mappingsData?.items ?? []).filter((m) => !!m.forgejo_repository).length === 0 && (
                 <Typography sx={{ color: '#707070', fontSize: '0.875rem' }}>
                   Aucun dépôt lié pour le moment.
                 </Typography>
