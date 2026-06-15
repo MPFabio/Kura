@@ -77,6 +77,7 @@ func InstallArgoCD(ctx context.Context, restConfig *rest.Config, clientset *kube
 		if obj == nil || len(obj.Object) == 0 {
 			continue
 		}
+		prepareForSelfManagement(obj)
 		if err := applyObject(ctx, dynamicClient, mapper, obj); err != nil {
 			errs = append(errs, fmt.Sprintf("%s/%s (%s): %v", obj.GetNamespace(), obj.GetName(), obj.GetKind(), err))
 		}
@@ -97,52 +98,69 @@ func InstallArgoCD(ctx context.Context, restConfig *rest.Config, clientset *kube
 		return fmt.Errorf("ajustement de argocd-repo-server: %w", err)
 	}
 
-	// Le manifest officiel ne pose pas le label app.kubernetes.io/instance=argocd
-	// sur les pods (seulement name/component/part-of). Quand ArgoCD s'auto-gère
-	// ensuite via le chart Helm argo-cd (qui ajoute ce label aux Services pour
-	// cibler ses propres pods), les Deployments/StatefulSet du manifest officiel
-	// ne sont alors plus sélectionnés par ces Services (endpoints vides,
-	// repo-server inatteignable). On pose ce label dès l'installation pour que
-	// la bascule vers l'auto-gestion Helm soit transparente.
-	if err := labelOfficialManifestForSelfManagement(ctx, clientset); err != nil {
-		return fmt.Errorf("préparation à l'auto-gestion ArgoCD: %w", err)
-	}
-
 	return nil
 }
 
-// labelOfficialManifestForSelfManagement ajoute app.kubernetes.io/instance=argocd
-// au pod template des Deployments/StatefulSet installés par le manifest officiel,
-// label requis par les Services générés par le chart Helm argo-cd lors de
-// l'auto-gestion ("app of apps").
-func labelOfficialManifestForSelfManagement(ctx context.Context, clientset *kubernetes.Clientset) error {
-	patch := []byte(`{"spec":{"template":{"metadata":{"labels":{"app.kubernetes.io/instance":"argocd"}}}}}`)
+// selfManagedWorkloads liste les Deployments/StatefulSet du manifest officiel
+// qui seront ensuite ré-appliqués par le chart Helm argo-cd lors de
+// l'auto-gestion ("app of apps", cf. bootstrapSelfManagement).
+var selfManagedWorkloads = map[string]bool{
+	"argocd-repo-server":               true,
+	"argocd-server":                    true,
+	"argocd-redis":                     true,
+	"argocd-dex-server":                true,
+	"argocd-applicationset-controller": true,
+	"argocd-notifications-controller":  true,
+	"argocd-application-controller":    true,
+}
 
-	deployments := []string{
-		"argocd-repo-server",
-		"argocd-server",
-		"argocd-redis",
-		"argocd-dex-server",
-		"argocd-applicationset-controller",
-		"argocd-notifications-controller",
+// prepareForSelfManagement ajoute app.kubernetes.io/instance=argocd au selector
+// et/ou au pod template des Deployments/StatefulSet listés dans
+// selfManagedWorkloads, AVANT leur création.
+//
+// Le manifest officiel ne pose ce label que sur les Services, pas sur les
+// selectors/pods des Deployments/StatefulSet (seulement app.kubernetes.io/name).
+// Le chart Helm argo-cd, lui, génère des Services dont le selector inclut
+// app.kubernetes.io/instance=argocd. Si on ne corrige rien, ces Services ne
+// trouvent aucun pod une fois l'auto-gestion Helm active (endpoints vides,
+// repo-server inatteignable).
+//
+// spec.selector.matchLabels est immuable après création : il est impossible de
+// corriger ça par un patch une fois les objets créés (cf. SyncFailed "field is
+// immutable" rencontré en pratique). On corrige donc les objets unstructured
+// ici, avant le premier apply, pour que le selector soit déjà celui attendu par
+// le chart Helm — la première synchronisation de l'Application "argocd" adopte
+// alors ces ressources existantes au lieu d'entrer en conflit avec elles.
+//
+// Cas particulier "argocd-redis" : le Deployment généré par le chart garde un
+// selector {app.kubernetes.io/name: argocd-redis} (sans "instance"), même si
+// son Service et son pod template ont bien "instance: argocd" (la sélection
+// par le Service reste valide car un selector est un sous-ensemble des labels
+// du pod). On ne touche donc PAS au selector de argocd-redis — seulement à son
+// pod template — pour que le selector créé corresponde exactement à celui du
+// chart.
+func prepareForSelfManagement(obj *unstructured.Unstructured) {
+	kind := obj.GetKind()
+	if kind != "Deployment" && kind != "StatefulSet" {
+		return
 	}
-	for _, name := range deployments {
-		_, err := clientset.AppsV1().Deployments(ArgoCDNamespace).Patch(
-			ctx, name, types.StrategicMergePatchType, patch, metav1.PatchOptions{FieldManager: "modulops"},
-		)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return fmt.Errorf("étiquetage du déploiement %s: %w", name, err)
+	if !selfManagedWorkloads[obj.GetName()] {
+		return
+	}
+
+	addLabel := func(path ...string) {
+		labels, found, err := unstructured.NestedStringMap(obj.Object, path...)
+		if err != nil || !found || labels == nil {
+			labels = map[string]string{}
 		}
+		labels["app.kubernetes.io/instance"] = "argocd"
+		_ = unstructured.SetNestedStringMap(obj.Object, labels, path...)
 	}
 
-	_, err := clientset.AppsV1().StatefulSets(ArgoCDNamespace).Patch(
-		ctx, "argocd-application-controller", types.StrategicMergePatchType, patch, metav1.PatchOptions{FieldManager: "modulops"},
-	)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("étiquetage du statefulset argocd-application-controller: %w", err)
+	if obj.GetName() != "argocd-redis" {
+		addLabel("spec", "selector", "matchLabels")
 	}
-
-	return nil
+	addLabel("spec", "template", "metadata", "labels")
 }
 
 // patchRepoServerResilience donne à argocd-repo-server des requests CPU/mémoire
