@@ -1,5 +1,8 @@
 // Package client fournit un client pour l'API GitHub Contents/Commits
 // (lecture seule), utilisé pour naviguer dans le code source d'un dépôt.
+//
+// GitHubClient est conservé mais désactivé en prod : le module Repository
+// utilise désormais ForgejoClient (forgejo.go), prod = Codeberg/Forgejo uniquement.
 package client
 
 import (

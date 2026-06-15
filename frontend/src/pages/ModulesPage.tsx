@@ -154,7 +154,8 @@ export default function ModulesPage() {
     enabled: !!currentProject?.id,
   })
 
-  const linkedRepos = (mappingsData?.items ?? []).filter((m) => !!m.github_repository)
+  // const linkedRepos = (mappingsData?.items ?? []).filter((m) => !!m.github_repository) // conservé mais désactivé en prod
+  const linkedRepos = (mappingsData?.items ?? []).filter((m) => !!m.forgejo_repository)
   const repoCount = hasProject ? linkedRepos.length : null
   
   const { data: pipelineData } = useQuery({
@@ -218,10 +219,10 @@ export default function ModulesPage() {
       active: true,
       status: 'active',
       statusText: 'Module actif',
-      description: 'Navigateur de code source pour les dépôts GitHub liés à votre projet : arborescence, fichiers et historique des commits.',
+      description: 'Navigateur de code source pour les dépôts Forgejo/Codeberg liés à votre projet : arborescence, fichiers et historique des commits.',
       stats: [
         { label: 'Dépôts liés', value: formatStat(repoCount) },
-        { label: 'Type', value: 'GitHub' },
+        { label: 'Type', value: 'Forgejo' },
         { label: 'Accès', value: 'Lecture seule' },
       ],
       features: [

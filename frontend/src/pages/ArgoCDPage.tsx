@@ -29,6 +29,7 @@ import {
   InputAdornment,
   Tabs,
   Tab,
+  Autocomplete,
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
@@ -45,7 +46,7 @@ import ModuleCard from '../components/ModuleCard'
 import HelmIcon from '../components/icons/HelmIcon'
 import ZotIcon from '../components/icons/ZotIcon'
 import { ModuleSubtitle, ModuleSecondaryText } from '../components/ModuleText'
-import { argocdService, ArgoApplication, CreateApplicationRequest, HelmChartSummary } from '../services/argocdService'
+import { argocdService, ArgoApplication, CreateApplicationRequest, GitOpsInfo, HelmChartSummary } from '../services/argocdService'
 import { registryService } from '../services/registryService'
 import { kuraColors } from '../theme'
 
@@ -63,7 +64,11 @@ const emptyForm: CreateApplicationRequest = {
   sync_policy_automated: false,
   prune: false,
   self_heal: false,
+  branch: '',
+  create_branch_from: '',
 }
+
+const NEW_BRANCH_VALUE = '__new_branch__'
 
 function syncStatusColor(status: string): string {
   switch (status) {
@@ -89,6 +94,73 @@ function healthStatusColor(status: string): string {
   }
 }
 
+interface BranchSelectorProps {
+  gitopsInfo?: GitOpsInfo
+  loading: boolean
+  branch: string
+  newBranchName: string
+  createBranchFrom: string
+  onChangeBranch: (branch: string) => void
+  onChangeNewBranchName: (name: string) => void
+  onChangeCreateBranchFrom: (branch: string) => void
+}
+
+function BranchSelector({
+  gitopsInfo,
+  loading,
+  branch,
+  newBranchName,
+  createBranchFrom,
+  onChangeBranch,
+  onChangeNewBranchName,
+  onChangeCreateBranchFrom,
+}: BranchSelectorProps) {
+  const branches = gitopsInfo?.branches ?? []
+  const isNewBranch = branch === NEW_BRANCH_VALUE
+  const options = [...branches, NEW_BRANCH_VALUE]
+
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Autocomplete
+        options={options}
+        value={branch || null}
+        loading={loading}
+        getOptionLabel={(option) => (option === NEW_BRANCH_VALUE ? 'Nouvelle branche...' : option)}
+        onChange={(_, value) => onChangeBranch(value ?? '')}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Branche du dépôt GitOps"
+            size="small"
+            helperText={gitopsInfo?.repository ? `Dépôt : ${gitopsInfo.repository}` : undefined}
+          />
+        )}
+      />
+      {isNewBranch && (
+        <>
+          <TextField
+            label="Nom de la nouvelle branche"
+            value={newBranchName}
+            onChange={(e) => onChangeNewBranchName(e.target.value)}
+            size="small"
+            fullWidth
+            sx={{ mt: 2 }}
+          />
+          <Autocomplete
+            options={branches}
+            value={createBranchFrom || null}
+            onChange={(_, value) => onChangeCreateBranchFrom(value ?? '')}
+            sx={{ mt: 2 }}
+            renderInput={(params) => (
+              <TextField {...params} label="...à partir de la branche" size="small" />
+            )}
+          />
+        </>
+      )}
+    </Box>
+  )
+}
+
 function StatusChip({ label, color }: { label: string; color: string }) {
   return (
     <Chip
@@ -111,6 +183,10 @@ export default function ArgoCDPage() {
   const [helmCatalogQuery, setHelmCatalogQuery] = useState('')
   const [helmCatalogTab, setHelmCatalogTab] = useState<'artifacthub' | 'registry'>('artifacthub')
   const [form, setForm] = useState<CreateApplicationRequest>(emptyForm)
+  const [installBranch, setInstallBranch] = useState('')
+  const [installNewBranchName, setInstallNewBranchName] = useState('')
+  const [installCreateBranchFrom, setInstallCreateBranchFrom] = useState('')
+  const [formNewBranchName, setFormNewBranchName] = useState('')
   const [detailApp, setDetailApp] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -128,6 +204,7 @@ export default function ArgoCDPage() {
 
   const installed = status?.installed ?? false
   const serverReady = status?.server_ready ?? false
+  const selfManaged = status?.self_managed ?? false
 
   const {
     data: applications,
@@ -155,6 +232,12 @@ export default function ArgoCDPage() {
     retry: false,
   })
 
+  const { data: gitopsInfo, isLoading: gitopsInfoLoading } = useQuery({
+    queryKey: ['argocd-gitops-info'],
+    queryFn: () => argocdService.getGitOpsInfo(),
+    retry: false,
+  })
+
   const { data: registryCharts, isLoading: registryCatalogLoading } = useQuery({
     queryKey: ['argocd-registry-catalog'],
     queryFn: async () => {
@@ -174,10 +257,15 @@ export default function ArgoCDPage() {
   })
 
   const installMutation = useMutation({
-    mutationFn: () => argocdService.installArgoCD(),
+    mutationFn: () =>
+      argocdService.installArgoCD(
+        installBranch === NEW_BRANCH_VALUE ? installNewBranchName : installBranch,
+        installBranch === NEW_BRANCH_VALUE ? installCreateBranchFrom : undefined
+      ),
     onSuccess: () => {
       setSnackbar({ open: true, message: "Installation d'ArgoCD lancée", severity: 'success' })
       queryClient.invalidateQueries({ queryKey: ['argocd-status'] })
+      queryClient.invalidateQueries({ queryKey: ['argocd-gitops-info'] })
     },
     onError: () => {
       setSnackbar({ open: true, message: "Erreur lors de l'installation d'ArgoCD", severity: 'error' })
@@ -188,8 +276,10 @@ export default function ArgoCDPage() {
     mutationFn: (req: CreateApplicationRequest) => argocdService.createApplication(req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['argocd-applications'] })
+      queryClient.invalidateQueries({ queryKey: ['argocd-gitops-info'] })
       setCreateDialogOpen(false)
       setForm(emptyForm)
+      setFormNewBranchName('')
       setSnackbar({ open: true, message: 'Application créée avec succès', severity: 'success' })
     },
     onError: (error: any) => {
@@ -263,7 +353,13 @@ export default function ArgoCDPage() {
       setSnackbar({ open: true, message: 'Nom, dépôt, chemin et namespace de destination sont requis', severity: 'error' })
       return
     }
-    createMutation.mutate(form)
+    if (!form.branch || (form.branch === NEW_BRANCH_VALUE && !formNewBranchName.trim())) {
+      setSnackbar({ open: true, message: 'Une branche du dépôt GitOps doit être sélectionnée', severity: 'error' })
+      return
+    }
+    const branch = form.branch === NEW_BRANCH_VALUE ? formNewBranchName.trim() : form.branch
+    const createBranchFrom = form.branch === NEW_BRANCH_VALUE ? form.create_branch_from : undefined
+    createMutation.mutate({ ...form, branch, create_branch_from: createBranchFrom })
   }
 
   const handleSelectHelmChart = (chart: HelmChartSummary) => {
@@ -277,6 +373,7 @@ export default function ArgoCDPage() {
       dest_namespace: chart.name,
       helm_values: '',
     })
+    setFormNewBranchName('')
     setHelmCatalogOpen(false)
     setCreateDialogOpen(true)
   }
@@ -292,6 +389,7 @@ export default function ArgoCDPage() {
       dest_namespace: entry.name,
       helm_values: '',
     })
+    setFormNewBranchName('')
     setHelmCatalogOpen(false)
     setCreateDialogOpen(true)
   }
@@ -334,21 +432,79 @@ export default function ArgoCDPage() {
               </>
             )}
           </Box>
-          {!installed && (
-            <Button
-              variant="contained"
-              onClick={() => installMutation.mutate()}
-              disabled={installMutation.isPending}
-            >
-              {installMutation.isPending ? 'Installation en cours...' : 'Installer ArgoCD'}
-            </Button>
-          )}
         </Box>
+        {!installed && (
+          <Box sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Alert severity="info">
+              L'installation d'ArgoCD est suivie via le dépôt GitOps du projet : le manifest
+              d'auto-gestion d'ArgoCD sera committé sur la branche choisie avant l'installation.
+            </Alert>
+            <Box sx={{ maxWidth: 480 }}>
+              <BranchSelector
+                gitopsInfo={gitopsInfo}
+                loading={gitopsInfoLoading}
+                branch={installBranch}
+                newBranchName={installNewBranchName}
+                createBranchFrom={installCreateBranchFrom}
+                onChangeBranch={setInstallBranch}
+                onChangeNewBranchName={setInstallNewBranchName}
+                onChangeCreateBranchFrom={setInstallCreateBranchFrom}
+              />
+            </Box>
+            <Box>
+              <Button
+                variant="contained"
+                onClick={() => installMutation.mutate()}
+                disabled={
+                  installMutation.isPending ||
+                  !installBranch ||
+                  (installBranch === NEW_BRANCH_VALUE && !installNewBranchName.trim())
+                }
+              >
+                {installMutation.isPending ? 'Installation en cours...' : 'Installer ArgoCD'}
+              </Button>
+            </Box>
+          </Box>
+        )}
         {installed && !serverReady && (
           <Box sx={{ px: 2, pb: 2 }}>
             <Alert severity="info">
               ArgoCD est installé, en attente du démarrage du serveur (argocd-server)...
             </Alert>
+          </Box>
+        )}
+        {installed && serverReady && !selfManaged && (
+          <Box sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Alert severity="warning">
+              ArgoCD est installé mais son auto-gestion GitOps (commit du bootstrap et
+              Application "argocd") n'a pas pu être finalisée. Choisissez une branche et
+              relancez le bootstrap.
+            </Alert>
+            <Box sx={{ maxWidth: 480 }}>
+              <BranchSelector
+                gitopsInfo={gitopsInfo}
+                loading={gitopsInfoLoading}
+                branch={installBranch}
+                newBranchName={installNewBranchName}
+                createBranchFrom={installCreateBranchFrom}
+                onChangeBranch={setInstallBranch}
+                onChangeNewBranchName={setInstallNewBranchName}
+                onChangeCreateBranchFrom={setInstallCreateBranchFrom}
+              />
+            </Box>
+            <Box>
+              <Button
+                variant="contained"
+                onClick={() => installMutation.mutate()}
+                disabled={
+                  installMutation.isPending ||
+                  !installBranch ||
+                  (installBranch === NEW_BRANCH_VALUE && !installNewBranchName.trim())
+                }
+              >
+                {installMutation.isPending ? 'Bootstrap en cours...' : 'Relancer le bootstrap GitOps'}
+              </Button>
+            </Box>
           </Box>
         )}
       </ModuleCard>
@@ -371,7 +527,7 @@ export default function ArgoCDPage() {
                   variant="contained"
                   size="small"
                   startIcon={<AddIcon />}
-                  onClick={() => { setForm(emptyForm); setCreateDialogOpen(true) }}
+                  onClick={() => { setForm(emptyForm); setFormNewBranchName(''); setCreateDialogOpen(true) }}
                 >
                   Nouvelle Application
                 </Button>
@@ -613,6 +769,17 @@ export default function ArgoCDPage() {
             sx={{ mb: 2 }}
           />
           <Divider sx={{ my: 1 }} />
+          <BranchSelector
+            gitopsInfo={gitopsInfo}
+            loading={gitopsInfoLoading}
+            branch={form.branch}
+            newBranchName={formNewBranchName}
+            createBranchFrom={form.create_branch_from ?? ''}
+            onChangeBranch={(branch) => setForm({ ...form, branch })}
+            onChangeNewBranchName={setFormNewBranchName}
+            onChangeCreateBranchFrom={(createBranchFrom) => setForm({ ...form, create_branch_from: createBranchFrom })}
+          />
+          <Divider sx={{ my: 1 }} />
           <FormControlLabel
             control={
               <Switch
@@ -645,7 +812,15 @@ export default function ArgoCDPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setCreateDialogOpen(false); createMutation.reset() }}>Annuler</Button>
-          <Button variant="contained" onClick={handleCreate} disabled={createMutation.isPending}>
+          <Button
+            variant="contained"
+            onClick={handleCreate}
+            disabled={
+              createMutation.isPending ||
+              !form.branch ||
+              (form.branch === NEW_BRANCH_VALUE && !formNewBranchName.trim())
+            }
+          >
             {createMutation.isPending ? 'Création...' : 'Créer'}
           </Button>
         </DialogActions>

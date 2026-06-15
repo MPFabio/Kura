@@ -392,6 +392,7 @@ services:
       K8S_SERVICE_PORT: "8081"
       ENV: development
       AUTH_SERVICE_URL: http://auth-service:8080
+      CODE_SERVICE_URL: http://code-service:8088
       K8S_INCLUSTER: "false"
       KUBECONFIG_PATH: ""
       REDIS_HOST: redis
@@ -409,6 +410,8 @@ services:
       redis:
         condition: service_healthy
       auth-service:
+        condition: service_healthy
+      code-service:
         condition: service_healthy
       tempo:
         condition: service_healthy

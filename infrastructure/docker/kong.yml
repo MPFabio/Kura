@@ -184,7 +184,9 @@ services:
     - GET
     - POST
     - PUT
+    - PATCH
     - DELETE
+    - OPTIONS
 
 - name: k8s-service
   url: http://k8s-service-upstream

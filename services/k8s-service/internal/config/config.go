@@ -13,6 +13,7 @@ type Config struct {
 	Environment    string
 	LogLevel       string
 	AuthServiceURL string
+	CodeServiceURL string
 
 	// Authentification interne (appels service-à-service, ex: Semaphore)
 	InternalAPISecret string
@@ -39,6 +40,7 @@ func Load() (*Config, error) {
 		Environment:    getEnv("ENV", "development"),
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
+		CodeServiceURL: getEnv("CODE_SERVICE_URL", "http://code-service:8088"),
 		KubeconfigPath: getEnv("KUBECONFIG_PATH", ""),
 
 		InternalAPISecret: getEnv("INTERNAL_API_SECRET", ""),
