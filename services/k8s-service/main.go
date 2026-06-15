@@ -167,7 +167,9 @@ func main() {
 
 	// Initialiser les handlers HTTP
 	k8sHandler := handler.NewK8sHandler(k8sService, clusterService, redisClient, cfg)
+	terminalHandler := handler.NewTerminalHandler(k8sService, clusterService, redisClient, cfg)
 	clusterHandler := handler.NewClusterHandler(clusterService, cfg)
+	clusterHandler.SetInvalidators(k8sHandler, terminalHandler)
 	argocdService := service.NewArgoCDService(redisClient, clusterService, cfg)
 	helmCatalogService := service.NewHelmCatalogService(redisClient)
 	argocdHandler := handler.NewArgoCDHandler(argocdService, helmCatalogService)
@@ -179,7 +181,7 @@ func main() {
 	discoveryHandler := handler.NewDiscoveryHandler(discoveryService)
 
 	// Configurer le routeur HTTP
-	router := setupRouter(k8sHandler, clusterHandler, argocdHandler, registryHandler, observabilityHandler, discoveryHandler, k8sService, clusterService, redisClient, cfg)
+	router := setupRouter(k8sHandler, terminalHandler, clusterHandler, argocdHandler, registryHandler, observabilityHandler, discoveryHandler, k8sService, clusterService, redisClient, cfg)
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
@@ -231,7 +233,7 @@ func main() {
 	log.Println("Service Kubernetes arrêté")
 }
 
-func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.ClusterHandler, argocdHandler *handler.ArgoCDHandler, registryHandler *handler.RegistryHandler, observabilityHandler *handler.ObservabilityHandler, discoveryHandler *handler.DiscoveryHandler, k8sService *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *gin.Engine {
+func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.TerminalHandler, clusterHandler *handler.ClusterHandler, argocdHandler *handler.ArgoCDHandler, registryHandler *handler.RegistryHandler, observabilityHandler *handler.ObservabilityHandler, discoveryHandler *handler.DiscoveryHandler, k8sService *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -310,7 +312,6 @@ func setupRouter(k8sHandler *handler.K8sHandler, clusterHandler *handler.Cluster
 			k8sGroup.GET("/namespaces/:namespace/events", k8sHandler.GetEvents)
 
 			// Terminal (WebSocket) - toujours disponible, créé dynamiquement si nécessaire
-			terminalHandler := handler.NewTerminalHandler(k8sService, clusterService, redisClient, cfg)
 			k8sGroup.GET("/namespaces/:namespace/pods/:name/terminal", terminalHandler.HandleTerminal)
 
 			// Nodes (cluster-wide)
