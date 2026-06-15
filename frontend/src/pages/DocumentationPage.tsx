@@ -93,18 +93,13 @@ function DocContent({ docId }: { docId: string }) {
         <Box sx={contentSx}>
           <Typography component="h1">Bienvenue dans Kura</Typography>
           <Typography>
-            Kura est une plateforme DevOps unifiée qui vise à donner une vue centrale sur plusieurs briques déjà très utilisées en entreprise : Kubernetes, OpenTofu, Semaphore, pipelines CI/CD, métriques et alertes.
+            Kura est une plateforme DevOps unifiée qui donne une vue centrale sur plusieurs briques d&apos;infrastructure : Kubernetes, OpenTofu, Semaphore, pipelines CI/CD, métriques et alertes.
           </Typography>
-          <Typography component="h2">Ce qui existe déjà sur le marché</Typography>
-          <Typography>
-            Les outils spécialisés (portails Kubernetes, Terraform/OpenTofu Cloud, Ansible Tower, GitHub Actions, Prometheus/Grafana) sont souvent isolés : les équipes jonglent entre plusieurs interfaces, et il est difficile d&apos;avoir une vision transversale (par exemple : « ce pipeline déploie quels clusters ou quelles ressources OpenTofu ? »). L&apos;authentification et les rôles sont souvent dupliqués dans chaque outil.
-          </Typography>
-          <Typography component="h2">La valeur ajoutée de Kura</Typography>
+          <Typography component="h2">Architecture</Typography>
           <Box component="ul">
-            <li><strong>Point d&apos;entrée unique</strong> pour les équipes Ops / DevOps : un seul portail, une seule API Gateway.</li>
-            <li><strong>Agrégation</strong> des infos clés (clusters, états OpenTofu, jobs Ansible, pipelines, métriques) au même endroit.</li>
-            <li><strong>Authentification centralisée</strong> (auth-service) et rôles homogènes sur tous les modules.</li>
-            <li>Focus sur l&apos;<strong>opérationnel actif</strong> (gestion K8s, exécution OpenTofu, jobs Ansible) plutôt que sur le catalogue seul.</li>
+            <li><strong>Point d&apos;entrée unique</strong> : un portail web et une API Gateway pour l&apos;ensemble des modules.</li>
+            <li><strong>Vue agrégée</strong> des ressources par projet : clusters, états OpenTofu, jobs Ansible, pipelines, métriques.</li>
+            <li><strong>Authentification centralisée</strong> (auth-service) avec des rôles homogènes sur tous les modules.</li>
           </Box>
           <Typography component="h2">Ce que vous pouvez faire</Typography>
           <Box component="ul">
@@ -236,9 +231,9 @@ function DocContent({ docId }: { docId: string }) {
           <Typography>
             En cliquant sur un chart, le formulaire de création d&apos;Application se pré-remplit avec : l&apos;URL du dépôt Helm, le nom du chart et sa version. Il ne reste plus qu&apos;à renseigner le <strong>nom de l&apos;Application</strong> et le <strong>namespace de destination</strong>, et éventuellement personnaliser les <strong>Values (YAML)</strong> pour surcharger les valeurs par défaut du chart.
           </Typography>
-          <Typography component="h3">Pourquoi pas un module Helm séparé ?</Typography>
+          <Typography component="h3">Déploiement des charts du catalogue</Typography>
           <Typography>
-            Pour éviter toute <strong>dérive GitOps</strong> (« drift »), Kura ne propose pas d&apos;installer un chart Helm directement (<code>helm install</code>) en dehors d&apos;ArgoCD : cela créerait deux sources de vérité différentes pour le même cluster. Les charts du catalogue sont donc déployés exclusivement via <code>spec.source.helm</code> d&apos;ArgoCD — ArgoCD reste la seule autorité sur l&apos;état du cluster, qu&apos;il s&apos;agisse de manifests Git ou de charts Helm.
+            Les charts du catalogue sont déployés exclusivement via <code>spec.source.helm</code> d&apos;une Application ArgoCD, au même titre que les sources Git. ArgoCD est ainsi la seule autorité sur l&apos;état du cluster, qu&apos;il s&apos;agisse de manifests Git ou de charts Helm — aucune installation directe (<code>helm install</code>) en dehors d&apos;ArgoCD n&apos;est proposée.
           </Typography>
           <Typography component="h2">Suivi et opérations</Typography>
           <Box component="ul">
@@ -259,7 +254,7 @@ function DocContent({ docId }: { docId: string }) {
             Le module Zot fournit un <strong>registre OCI privé</strong> pour héberger vos propres images de conteneurs et vos charts Helm, avec un suivi de signature <strong>Cosign</strong>. Il est propulsé par <a href="https://zotregistry.dev" target="_blank" rel="noreferrer">Zot</a>, un registre OCI léger (CNCF Sandbox).
           </Typography>
           <Typography>
-            Conformément au principe <strong>« Kura arrive nu »</strong>, Zot n&apos;est pas hébergé sur l&apos;infrastructure de Kura : il est déployé <strong>dans le cluster du client</strong>, au même titre qu&apos;ArgoCD ou cert-manager. Kura s&apos;y connecte à distance via le kubeconfig du cluster actif, en ouvrant un tunnel (port-forward) vers le pod Zot — aucune donnée du client n&apos;est stockée côté Kura.
+            Zot est déployé <strong>dans le cluster cible</strong>, au même titre qu&apos;ArgoCD ou cert-manager. Kura s&apos;y connecte à distance via le kubeconfig du cluster actif, en ouvrant un tunnel (port-forward) vers le pod Zot.
           </Typography>
           <Typography component="h2">Déployer Zot dans votre cluster</Typography>
           <Typography>
@@ -273,9 +268,9 @@ function DocContent({ docId }: { docId: string }) {
           <Typography>
             Une fois déployé et <strong>Synced/Healthy</strong> dans ArgoCD, la page Zot de Kura affiche automatiquement le contenu du registre. Si aucun pod Zot n&apos;est trouvé dans le cluster actif, la page affiche un message d&apos;erreur explicite.
           </Typography>
-          <Typography component="h2">Pourquoi Zot plutôt que Harbor ?</Typography>
+          <Typography component="h2">Caractéristiques</Typography>
           <Typography>
-            Zot est un binaire Go unique, sans base de données externe ni scanner de vulnérabilités imposé. Harbor impose une stack plus lourde (PostgreSQL, Redis, Trivy). Kura n&apos;intègre <strong>volontairement aucun scanner de vulnérabilités type Trivy</strong> — le module Registre se concentre sur l&apos;hébergement et la <strong>signature cryptographique</strong> des artefacts via Cosign, qui constitue une garantie d&apos;intégrité et de provenance indépendante d&apos;un scanner CVE.
+            Zot est un registre OCI distribué comme un binaire Go unique, sans base de données externe. Le module Registre couvre l&apos;hébergement d&apos;images et de charts Helm ainsi que la <strong>signature cryptographique</strong> des artefacts via Cosign, qui fournit une garantie d&apos;intégrité et de provenance des artefacts.
           </Typography>
           <Typography component="h2">Parcourir le registre</Typography>
           <Typography>
