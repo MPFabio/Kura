@@ -13,10 +13,17 @@ import (
 	"github.com/modulops/k8s-service/internal/service"
 )
 
+// invalidator est implémenté par les handlers qui mettent en cache un client
+// Kubernetes lié au cluster actif (K8sHandler, TerminalHandler).
+type invalidator interface {
+	Invalidate()
+}
+
 // ClusterHandler gère les requêtes HTTP liées aux clusters Kubernetes.
 type ClusterHandler struct {
 	clusterService *service.ClusterService
 	cfg            *config.Config
+	invalidators   []invalidator
 }
 
 // NewClusterHandler crée un nouveau handler pour les clusters.
@@ -24,6 +31,20 @@ func NewClusterHandler(clusterService *service.ClusterService, cfg *config.Confi
 	return &ClusterHandler{
 		clusterService: clusterService,
 		cfg:            cfg,
+	}
+}
+
+// SetInvalidators enregistre les handlers dont le client Kubernetes mis en
+// cache doit être invalidé lorsqu'un cluster est modifié, activé ou supprimé.
+func (h *ClusterHandler) SetInvalidators(invalidators ...invalidator) {
+	h.invalidators = invalidators
+}
+
+// invalidateClients force la recréation des clients Kubernetes mis en cache
+// par les autres handlers (K8sHandler, TerminalHandler).
+func (h *ClusterHandler) invalidateClients() {
+	for _, inv := range h.invalidators {
+		inv.Invalidate()
 	}
 }
 
@@ -238,6 +259,8 @@ func (h *ClusterHandler) UpdateCluster(c *gin.Context) {
 		return
 	}
 
+	h.invalidateClients()
+
 	c.JSON(http.StatusOK, updated)
 }
 
@@ -257,6 +280,8 @@ func (h *ClusterHandler) DeleteCluster(c *gin.Context) {
 		return
 	}
 
+	h.invalidateClients()
+
 	c.JSON(http.StatusOK, gin.H{"message": "cluster supprimé"})
 }
 
@@ -275,6 +300,8 @@ func (h *ClusterHandler) SetActiveCluster(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.invalidateClients()
 
 	c.JSON(http.StatusOK, gin.H{"message": "cluster activé"})
 }

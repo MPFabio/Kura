@@ -333,7 +333,6 @@ function LogsTab({ scope }: { scope: ObservabilityScope }) {
   useEffect(() => {
     setService('')
     serviceFor(scope).getLogServices().then(setLogServices).catch(() => setLogServices([]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope])
 
   const load = async () => {
@@ -355,7 +354,6 @@ function LogsTab({ scope }: { scope: ObservabilityScope }) {
     load()
     const interval = setInterval(load, 15_000)
     return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, service])
 
   return (
@@ -524,7 +522,6 @@ function TracesTab({ scope }: { scope: ObservabilityScope }) {
   useEffect(() => {
     setService('')
     serviceFor(scope).getLogServices().then(setTraceServices).catch(() => setTraceServices([]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope])
 
   const load = async () => {
@@ -550,7 +547,6 @@ function TracesTab({ scope }: { scope: ObservabilityScope }) {
     load()
     const interval = setInterval(load, 15_000)
     return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, service])
 
   return (

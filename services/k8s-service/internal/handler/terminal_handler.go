@@ -44,6 +44,14 @@ func NewTerminalHandler(svc *service.K8sService, clusterService *service.Cluster
 	}
 }
 
+// Invalidate force la recréation du client Kubernetes au prochain appel,
+// nécessaire après changement du cluster actif ou de son kubeconfig.
+func (h *TerminalHandler) Invalidate() {
+	h.mu.Lock()
+	h.svc = nil
+	h.mu.Unlock()
+}
+
 // TerminalMessage représente un message du terminal.
 type TerminalMessage struct {
 	Type      string `json:"type"`      // "resize", "input", "init"
