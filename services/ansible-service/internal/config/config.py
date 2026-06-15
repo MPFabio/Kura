@@ -25,6 +25,7 @@ class Config:
         semaphore_api_token: Optional[str] = None,
         semaphore_project_id: int = 1,
         k8s_service_url: str = "http://k8s-service:8081",
+        code_service_url: str = "http://code-service:8088",
         internal_api_secret: Optional[str] = None,
         otlp_endpoint: str = "tempo:4317",
     ):
@@ -46,6 +47,7 @@ class Config:
         self.semaphore_api_token = semaphore_api_token
         self.semaphore_project_id = semaphore_project_id
         self.k8s_service_url = k8s_service_url
+        self.code_service_url = code_service_url
         self.internal_api_secret = internal_api_secret
         self.otlp_endpoint = otlp_endpoint
 
@@ -70,6 +72,7 @@ def load_config() -> Config:
         semaphore_api_token=os.getenv("SEMAPHORE_API_TOKEN"),
         semaphore_project_id=int(os.getenv("SEMAPHORE_PROJECT_ID", "1")),
         k8s_service_url=os.getenv("K8S_SERVICE_URL", "http://k8s-service:8081"),
+        code_service_url=os.getenv("CODE_SERVICE_URL", "http://code-service:8088"),
         internal_api_secret=os.getenv("INTERNAL_API_SECRET"),
         otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
     )

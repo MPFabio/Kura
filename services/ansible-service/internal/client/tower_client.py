@@ -120,6 +120,10 @@ class AnsibleTowerClient:
         """Récupère la liste des projets."""
         return self._request("GET", f"/projects/?page={page}&page_size={page_size}")
 
+    def get_repository(self, repository_id: int) -> Optional[Dict[str, Any]]:
+        """Non supporté pour Ansible Tower/AWX."""
+        return None
+
     def get_playbooks(self, project_id: int) -> Optional[List[Dict[str, Any]]]:
         """Récupère la liste des playbooks d'un projet."""
         project = self.get_project(project_id)
