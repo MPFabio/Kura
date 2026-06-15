@@ -288,6 +288,34 @@ func (h *ProjectHandler) CreateProjectMapping(c *gin.Context) {
 	c.JSON(http.StatusCreated, mapping)
 }
 
+// SetMappingGitOpsRepository met à jour le dépôt GitOps Forgejo associé à un mapping
+func (h *ProjectHandler) SetMappingGitOpsRepository(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+	projectID := c.Param("id")
+	mappingID := c.Param("mapping_id")
+	if projectID == "" || mappingID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet et du mapping requis"})
+		return
+	}
+	var body struct {
+		ForgejoGitOpsRepository string `json:"forgejo_gitops_repository"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	mapping, err := h.projectService.SetMappingGitOpsRepository(userID.(string), projectID, mappingID, body.ForgejoGitOpsRepository)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, mapping)
+}
+
 // DeleteProjectMapping supprime un mapping
 func (h *ProjectHandler) DeleteProjectMapping(c *gin.Context) {
 	userID, exists := c.Get("user_id")

@@ -1,5 +1,6 @@
 import { Box, SxProps, Theme } from '@mui/material'
-import githubLogo from '../../assets/github_logo.png'
+// import githubLogo from '../../assets/github_logo.png' // conservé mais désactivé en prod (remplacé par forgejo_logo)
+import forgejoLogo from '../../assets/forgejo_logo.png'
 
 interface CodeIconProps {
   sx?: SxProps<Theme>
@@ -10,7 +11,7 @@ export default function CodeIcon({ sx, active = false }: CodeIconProps) {
   return (
     <Box
       component="img"
-      src={githubLogo}
+      src={forgejoLogo}
       alt=""
       aria-hidden
       sx={{

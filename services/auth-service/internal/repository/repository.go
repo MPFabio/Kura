@@ -194,6 +194,9 @@ func (r *Repository) migrate() error {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_mappings_github ON project_mappings(project_id, github_repository) WHERE github_repository IS NOT NULL`,
+		`ALTER TABLE project_mappings ADD COLUMN IF NOT EXISTS forgejo_repository VARCHAR(255)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_mappings_forgejo ON project_mappings(project_id, forgejo_repository) WHERE forgejo_repository IS NOT NULL`,
+		`ALTER TABLE project_mappings ADD COLUMN IF NOT EXISTS forgejo_gitops_repository VARCHAR(255)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_mappings_terraform ON project_mappings(project_id, terraform_state_id) WHERE terraform_state_id IS NOT NULL`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_mappings_cluster ON project_mappings(project_id, cluster_id, cluster_namespace) WHERE cluster_id IS NOT NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_project_mappings_project_id ON project_mappings(project_id)`,

@@ -300,6 +300,12 @@ func (s *ProjectService) CreateProjectMapping(userID, projectID string, req *mod
 	if req.GitHubRepository != nil {
 		m.GitHubRepository = *req.GitHubRepository
 	}
+	if req.ForgejoRepository != nil {
+		m.ForgejoRepository = *req.ForgejoRepository
+	}
+	if req.ForgejoGitOpsRepository != nil {
+		m.ForgejoGitOpsRepository = *req.ForgejoGitOpsRepository
+	}
 	if req.TerraformStateID != nil {
 		m.TerraformStateID = *req.TerraformStateID
 	}
@@ -313,14 +319,28 @@ func (s *ProjectService) CreateProjectMapping(userID, projectID string, req *mod
 		m.ClusterNamespace = *req.ClusterNamespace
 	}
 
-	if m.GitHubRepository == "" && m.TerraformStateID == "" && m.ClusterID == "" {
-		return nil, errors.New("au moins un champ requis : github_repository, terraform_state_id ou cluster_id")
+	if m.GitHubRepository == "" && m.ForgejoRepository == "" && m.TerraformStateID == "" && m.ClusterID == "" {
+		return nil, errors.New("au moins un champ requis : forgejo_repository, terraform_state_id ou cluster_id")
 	}
 
 	if err := s.repo.CreateProjectMapping(m); err != nil {
 		return nil, fmt.Errorf("erreur lors de la création du mapping: %w", err)
 	}
 	return m, nil
+}
+
+// SetMappingGitOpsRepository met à jour le dépôt GitOps Forgejo d'un mapping.
+// Nécessite le scope write sur le module k8s (création du dépôt gitops déclenchée
+// depuis le module ArgoCD).
+func (s *ProjectService) SetMappingGitOpsRepository(userID, projectID, mappingID, gitopsRepo string) (*models.ProjectMapping, error) {
+	hasPerm, err := s.UserHasPermission(userID, projectID, "k8s", "write")
+	if err != nil || !hasPerm {
+		return nil, errors.New("accès refusé à ce projet")
+	}
+	if err := s.repo.SetProjectMappingGitOpsRepository(projectID, mappingID, gitopsRepo); err != nil {
+		return nil, err
+	}
+	return s.repo.GetProjectMappingByID(projectID, mappingID)
 }
 
 // DeleteProjectMapping supprime un mapping

@@ -228,11 +228,12 @@ export default function CodePage() {
     enabled: !!currentProject,
   })
 
-  const repos = (mappingsData?.items ?? []).filter((m) => !!m.github_repository)
+  // const repos = (mappingsData?.items ?? []).filter((m) => !!m.github_repository) // conservé mais désactivé en prod
+  const repos = (mappingsData?.items ?? []).filter((m) => !!m.forgejo_repository)
 
   // Sélectionne automatiquement le premier dépôt disponible
   if (!selectedRepo && repos.length > 0) {
-    setSelectedRepo(repos[0].github_repository!)
+    setSelectedRepo(repos[0].forgejo_repository!)
   }
 
   const { data: treeEntries, isLoading: treeLoading, error: treeError } = useQuery({
@@ -277,7 +278,7 @@ export default function CodePage() {
         <CircularProgress size={24} />
       ) : repos.length === 0 ? (
         <Alert severity="info">
-          Aucun dépôt GitHub n'est lié à ce projet. Ajoutez un mapping de dépôt GitHub depuis la page Projets pour pouvoir parcourir son code ici.
+          Aucun dépôt Forgejo/Codeberg n'est lié à ce projet. Ajoutez un mapping de dépôt Forgejo/Codeberg depuis la page Projets pour pouvoir parcourir son code ici.
         </Alert>
       ) : (
         <>
@@ -291,8 +292,8 @@ export default function CodePage() {
                 onChange={(e) => handleRepoChange(e.target.value)}
               >
                 {repos.map((m) => (
-                  <MenuItem key={m.id} value={m.github_repository}>
-                    {m.github_repository}
+                  <MenuItem key={m.id} value={m.forgejo_repository}>
+                    {m.forgejo_repository}
                   </MenuItem>
                 ))}
               </Select>
