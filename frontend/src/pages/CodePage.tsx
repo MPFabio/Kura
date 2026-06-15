@@ -16,7 +16,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  TextField,
   Collapse,
   Dialog,
   DialogTitle,
@@ -260,6 +259,12 @@ export default function CodePage() {
     enabled: !!selectedRepo && !!selectedCommit,
   })
 
+  const { data: branches } = useQuery({
+    queryKey: ['code-branches', selectedRepo],
+    queryFn: () => codeService.getBranches(selectedRepo),
+    enabled: !!selectedRepo,
+  })
+
   const handleRepoChange = (repo: string) => {
     setSelectedRepo(repo)
     setSelectedFile(null)
@@ -298,13 +303,27 @@ export default function CodePage() {
                 ))}
               </Select>
             </FormControl>
-            <TextField
-              size="small"
-              label="Branche / ref"
-              value={ref}
-              onChange={(e) => setRef(e.target.value)}
-              sx={{ width: 180 }}
-            />
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel id="branch-select-label">Branche</InputLabel>
+              <Select
+                labelId="branch-select-label"
+                label="Branche"
+                value={branches?.some((b) => b.name === ref) ? ref : ''}
+                displayEmpty
+                onChange={(e) => setRef(e.target.value)}
+              >
+                {!branches?.some((b) => b.name === ref) && (
+                  <MenuItem value="">
+                    <em>{ref}</em>
+                  </MenuItem>
+                )}
+                {(branches ?? []).map((b) => (
+                  <MenuItem key={b.name} value={b.name}>
+                    {b.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
 
           <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>

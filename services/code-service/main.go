@@ -86,6 +86,7 @@ func setupRouter(h *handler.CodeHandler, cfg *config.Config) *gin.Engine {
 	code := v1.Group("/code")
 	{
 		code.GET("/repos", h.ListRepositories)
+		code.GET("/branches", h.GetBranches)
 		code.GET("/tree", h.GetTree)
 		code.GET("/file", h.GetFile)
 		code.GET("/commits", h.GetCommits)
