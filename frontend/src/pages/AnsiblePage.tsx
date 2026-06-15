@@ -38,6 +38,7 @@ import {
   Link as LinkIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleCard from '../components/ModuleCard'
@@ -49,6 +50,7 @@ import {
   AnsibleJobTemplateDetail,
   AnsibleInventoryDetail,
   AnsibleHost,
+  AnsiblePlaybookSource,
 } from '../services/ansibleService'
 import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText } from '../components/ModuleText'
 import CodeBlock from '../components/CodeBlock'
@@ -84,6 +86,10 @@ export default function AnsiblePage() {
   const [selectedTemplate, setSelectedTemplate] = useState<AnsibleJobTemplateSummary | null>(null)
   const [templateDetail, setTemplateDetail] = useState<AnsibleJobTemplateDetail | null>(null)
   const [templateDetailDialogOpen, setTemplateDetailDialogOpen] = useState(false)
+  const [playbookSource, setPlaybookSource] = useState<AnsiblePlaybookSource | null>(null)
+  const [playbookDialogOpen, setPlaybookDialogOpen] = useState(false)
+  const [loadingPlaybook, setLoadingPlaybook] = useState(false)
+  const [playbookError, setPlaybookError] = useState<string | null>(null)
   const [jobStdout, setJobStdout] = useState<string | null>(null)
   const [loadingStdout, setLoadingStdout] = useState(false)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -210,6 +216,20 @@ export default function AnsiblePage() {
       setTemplateDetail(detail)
     } catch (error) {
       setSnackbar({ open: true, message: 'Erreur lors de la récupération du template', severity: 'error' })
+    }
+  }
+
+  const handleViewPlaybook = async (templateId: number) => {
+    try {
+      setPlaybookDialogOpen(true)
+      setLoadingPlaybook(true)
+      setPlaybookError(null)
+      const source = await ansibleService.getJobTemplatePlaybook(templateId)
+      setPlaybookSource(source)
+    } catch (error: any) {
+      setPlaybookError(error.response?.data?.detail || 'Erreur lors de la récupération du playbook')
+    } finally {
+      setLoadingPlaybook(false)
     }
   }
 
@@ -771,7 +791,7 @@ export default function AnsiblePage() {
                   </Box>
                 )}
               </Box>
-              <Box sx={{ mt: 3 }}>
+              <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 <Button
                   variant="contained"
                   startIcon={<PlayIcon />}
@@ -783,12 +803,53 @@ export default function AnsiblePage() {
                 >
                   Lancer ce template
                 </Button>
+                {templateDetail.playbook && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<CodeIcon />}
+                    onClick={() => { if (selectedTemplate) handleViewPlaybook(selectedTemplate.id) }}
+                    fullWidth
+                  >
+                    Voir le YAML du playbook
+                  </Button>
+                )}
               </Box>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setTemplateDetailDialogOpen(false); setTemplateDetail(null) }}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog source du playbook */}
+      <Dialog
+        open={playbookDialogOpen}
+        onClose={() => { setPlaybookDialogOpen(false); setPlaybookSource(null); setPlaybookError(null) }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Playbook {playbookSource?.path || ''}
+        </DialogTitle>
+        <DialogContent>
+          {loadingPlaybook ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : playbookError ? (
+            <Alert severity="error" sx={{ mt: 1 }}>{playbookError}</Alert>
+          ) : playbookSource ? (
+            <Box sx={{ mt: 1 }}>
+              <ModuleSecondaryText sx={{ mb: 1 }}>
+                {playbookSource.repo}{playbookSource.ref ? ` @ ${playbookSource.ref}` : ''}
+              </ModuleSecondaryText>
+              <CodeBlock language="yaml">{playbookSource.content}</CodeBlock>
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setPlaybookDialogOpen(false); setPlaybookSource(null); setPlaybookError(null) }}>Fermer</Button>
         </DialogActions>
       </Dialog>
 

@@ -134,6 +134,13 @@ export interface AnsibleJobTemplateDetail {
   modified?: string
 }
 
+export interface AnsiblePlaybookSource {
+  path: string
+  repo: string
+  ref: string
+  content: string
+}
+
 export interface AnsibleJobTemplateResponse {
   items: AnsibleJobTemplateSummary[]
 }
@@ -442,6 +449,16 @@ export const ansibleService = {
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération du template ${templateId}:`, error)
+      throw error
+    }
+  },
+
+  getJobTemplatePlaybook: async (templateId: number): Promise<AnsiblePlaybookSource> => {
+    try {
+      const response = await apiClient.get<AnsiblePlaybookSource>(`/v1/ansible/job-templates/${templateId}/playbook`)
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors de la récupération du playbook du template ${templateId}:`, error)
       throw error
     }
   },

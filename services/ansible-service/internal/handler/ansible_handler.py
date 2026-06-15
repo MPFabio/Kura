@@ -175,6 +175,22 @@ class AnsibleHandler:
             logger.error(f"Erreur lors de la récupération du template {template_id}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    def get_job_template_playbook(
+        self,
+        template_id: int = Path(..., description="ID du template"),
+    ):
+        """Récupère le contenu YAML du playbook associé à un template."""
+        try:
+            source = self.service.get_template_playbook_source(template_id)
+            if source is None:
+                raise HTTPException(status_code=404, detail="Playbook introuvable pour ce template")
+            return source
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération du playbook du template {template_id}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     def launch_job_template(
         self,
         template_id: int = Path(..., description="ID du template"),
@@ -501,6 +517,13 @@ def create_router(handler: AnsibleHandler) -> APIRouter:
         methods=["POST"],
         summary="Lancer un template",
         description="Lance un job depuis un template",
+    )
+    router.add_api_route(
+        "/job-templates/{template_id}/playbook",
+        handler.get_job_template_playbook,
+        methods=["GET"],
+        summary="Source du playbook",
+        description="Récupère le contenu YAML du playbook associé à un template",
     )
 
     # Projets

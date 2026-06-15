@@ -554,3 +554,63 @@ class AnsibleService:
         """Analyse un playbook en profondeur."""
         from internal.parser.playbook_parser import PlaybookParser
         return PlaybookParser.analyze_playbook(playbook_content)
+
+    def get_template_playbook_source(self, template_id: int) -> Optional[Dict[str, Any]]:
+        """Récupère le contenu YAML du playbook associé à un template, via code-service."""
+        template_data = self.tower_client.get_job_template(template_id)
+        if not template_data:
+            return None
+
+        playbook_path = template_data.get("playbook")
+        repository_id = template_data.get("repository_id")
+        if not playbook_path or repository_id is None:
+            return None
+
+        repository = self.tower_client.get_repository(repository_id)
+        if not repository:
+            return None
+
+        repo_full_name = self._parse_git_repo(repository.get("git_url", ""))
+        if not repo_full_name:
+            return None
+        ref = repository.get("git_branch") or ""
+
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(
+                    f"{self.config.code_service_url}/api/v1/code/file",
+                    params={"repo": repo_full_name, "path": playbook_path, "ref": ref},
+                )
+                resp.raise_for_status()
+                file_data = resp.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Erreur récupération playbook {playbook_path} depuis {repo_full_name}: {e}")
+            return None
+
+        return {
+            "path": playbook_path,
+            "repo": repo_full_name,
+            "ref": ref,
+            "content": file_data.get("content", ""),
+        }
+
+    @staticmethod
+    def _parse_git_repo(git_url: str) -> Optional[str]:
+        """Extrait 'owner/repo' d'une URL git http(s) ou SSH."""
+        if not git_url:
+            return None
+        url = git_url.strip()
+        if url.endswith(".git"):
+            url = url[:-4]
+        if url.startswith("git@"):
+            # git@host:owner/repo
+            _, _, path = url.partition(":")
+        else:
+            # https://host/owner/repo
+            path = url.split("://", 1)[-1]
+            path = path.split("/", 1)[-1] if "/" in path else ""
+        path = path.strip("/")
+        parts = path.split("/")
+        if len(parts) < 2:
+            return None
+        return "/".join(parts[-2:])

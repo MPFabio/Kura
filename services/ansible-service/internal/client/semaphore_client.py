@@ -219,6 +219,7 @@ class SemaphoreClient:
             "name": t.get("alias") or t.get("name", ""),
             "description": t.get("description", ""),
             "playbook": t.get("playbook", ""),
+            "repository_id": t.get("repository_id"),
             "inventory": inventory_id,
             "inventory_name": inventory_name,
             "project": project_id,
@@ -228,6 +229,13 @@ class SemaphoreClient:
                 "project": {"name": project_name} if project_name else None,
             },
         }
+
+    # ── Dépôts ────────────────────────────────────────────────────────────────
+
+    def get_repository(self, repository_id: int) -> Optional[Dict[str, Any]]:
+        """Récupère un dépôt Git configuré pour le projet Semaphore."""
+        pid = self.project_id
+        return self._request("GET", f"/project/{pid}/repositories/{repository_id}")
 
     # ── Inventaires ───────────────────────────────────────────────────────────
 
