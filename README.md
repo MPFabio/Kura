@@ -4,13 +4,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/MPFabio/Kura?label=release)](https://github.com/MPFabio/Kura/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Console d'opération DevOps unifiée — Kubernetes, Terraform, Ansible, Pipelines CI/CD, Métriques et Alertes dans une seule interface.
-
-## Pourquoi Kura
-
-Les équipes Ops jonglent entre Lens, Terraform Cloud, Ansible Tower, GitHub Actions et Grafana. Kura regroupe ces surfaces dans un seul portail avec une authentification centralisée et des événements corrélés entre systèmes.
-
-Différence avec Backstage/Port : Kura est orienté **opération active** (exécuter, modifier, surveiller) plutôt que catalogue/documentation.
+Console d'opération DevOps unifiée — Kubernetes, ArgoCD, Terraform, Ansible, Pipelines CI/CD, Registre OCI, OpenBao et Métriques dans une seule interface.
 
 ## Architecture
 
@@ -21,14 +15,15 @@ Frontend React/TS → Kong API Gateway → auth-service
                                      → ansible-service
                                      → pipeline-service
                                      → metrics-service
+                                     → code-service
+                                     → vault-service
 
-Kafka ← événements des services → alert-service
 Redis  — cache distribué
 PostgreSQL — persistance
-Prometheus + Grafana — observabilité
+Prometheus/VictoriaMetrics + Grafana + Loki + Tempo — observabilité
 ```
 
-Voir [docs/architecture.md](docs/architecture.md) pour les diagrammes détaillés et les flux Kafka.
+Voir [docs/architecture.md](docs/architecture.md) pour les diagrammes détaillés.
 
 ## Prérequis
 
@@ -55,13 +50,15 @@ L'infrastructure et le déploiement sont gérés dans le repo [Kuro](https://cod
 | Frontend | 5173 | Interface React/TypeScript |
 | Kong Gateway | 8000 | API Gateway (point d'entrée unique) |
 | Auth Service | 8080 | Authentification JWT |
-| K8s Service | 8081 | Gestion clusters Kubernetes |
+| K8s Service | 8081 | Gestion clusters Kubernetes, ArgoCD, registre Zot |
 | Terraform Service | 8082 | États Terraform + détection de drift |
-| Ansible Service | 8083 | Intégration Semaphore/AWX |
-| Pipeline Service | 8084 | Pipelines CI/CD (GitHub Actions) |
+| Ansible Service | 8083 | Intégration Semaphore |
+| Pipeline Service | 8084 | Pipelines CI/CD (Forgejo Actions) |
 | Metrics Service | 8086 | Agrégation Prometheus/Grafana |
+| Vault Service | 8087 | Intégration OpenBao |
+| Code Service | 8088 | Intégration Forgejo/Codeberg, dépôts GitOps |
 | Grafana | 3000 | Dashboards métriques |
-| Prometheus | 9090 | Collecte métriques |
+| VictoriaMetrics | 9090 | Collecte métriques |
 | Semaphore | 3001 | UI Ansible |
 
 ## Fonctionnalités
@@ -80,13 +77,30 @@ L'infrastructure et le déploiement sont gérés dans le repo [Kuro](https://cod
 - Intégration Semaphore (UI incluse sur `/ansible`)
 - Exécution de playbooks, inventaires
 
+### ArgoCD & Catalogue Helm
+- Installation d'ArgoCD sur le cluster actif, auto-gestion via le pattern « app of apps »
+- Création d'Applications depuis un dépôt Git ou le catalogue Helm (ArtifactHub)
+- Suivi de synchronisation/santé, historique et rollback
+
+### Registre (Zot)
+- Registre OCI privé pour images de conteneurs et charts Helm
+- Vérification de signature Cosign
+
+### Code (Forgejo/Codeberg)
+- Gestion des dépôts et branches GitOps utilisés par ArgoCD
+- Commit des manifests depuis l'interface Kura
+
+### OpenBao
+- Connexion à une instance OpenBao existante
+- Consultation et gestion des secrets
+
 ### Pipelines
-- Synchronisation GitHub Actions
+- Synchronisation avec Forgejo Actions
 - Suivi des runs CI/CD
 
 ### Observabilité
 - Dashboards Grafana accessibles sur `/grafana`
-- Alertes via Kafka (`terraform.drift.detected`, `k8s.deployment.changed`)
+- Métriques VictoriaMetrics, logs Loki, traces Tempo
 
 ## Structure
 
@@ -94,12 +108,13 @@ L'infrastructure et le déploiement sont gérés dans le repo [Kuro](https://cod
 Kura/
 ├── services/
 │   ├── auth-service/       # Go — Authentification JWT
-│   ├── k8s-service/        # Go — Kubernetes
+│   ├── k8s-service/        # Go — Kubernetes, ArgoCD, registre Zot
 │   ├── terraform-service/  # Go — Terraform + drift
 │   ├── ansible-service/    # Python — Ansible/Semaphore
 │   ├── pipeline-service/   # Go — CI/CD
 │   ├── metrics-service/    # Go — Métriques
-│   └── alert-service/      # Go — Alertes
+│   ├── code-service/       # Go — Forgejo/Codeberg, GitOps
+│   └── vault-service/      # Go — OpenBao
 ├── frontend/               # React + TypeScript + Vite
 ├── infrastructure/
 │   ├── docker/             # Kong, Caddy, Prometheus config
