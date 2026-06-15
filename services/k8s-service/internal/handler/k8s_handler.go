@@ -39,6 +39,14 @@ func NewK8sHandler(svc *service.K8sService, clusterService *service.ClusterServi
 	}
 }
 
+// Invalidate force la recréation du client Kubernetes au prochain appel,
+// nécessaire après changement du cluster actif ou de son kubeconfig.
+func (h *K8sHandler) Invalidate() {
+	h.mu.Lock()
+	h.svc = nil
+	h.mu.Unlock()
+}
+
 // gkePluginErrorResponse détecte l'échec du plugin GKE (exit code 1) et retourne un message clair pour l'utilisateur.
 func gkePluginErrorResponse(err error) (msg string, httpCode int) {
 	if err == nil {
