@@ -25,10 +25,12 @@ var knownServices = []struct {
 }{
 	{"Auth", "auth-service", "http://auth-service:8080/health"},
 	{"Kubernetes", "k8s-service", "http://k8s-service:8081/health"},
-	{"Terraform", "terraform-service", "http://terraform-service:8082/health"},
-	{"Ansible", "ansible-service", "http://ansible-service:8083/health"},
+	{"OpenTofu", "terraform-service", "http://terraform-service:8082/health"},
+	{"Semaphore", "ansible-service", "http://ansible-service:8083/health"},
 	{"Pipeline", "pipeline-service", "http://pipeline-service:8084/health"},
 	{"Metrics", "metrics-service", "http://localhost:8086/health"},
+	{"OpenBao", "vault-service", "http://vault-service:8087/health"},
+	{"Code", "code-service", "http://code-service:8088/health"},
 }
 
 type MetricsService struct {
