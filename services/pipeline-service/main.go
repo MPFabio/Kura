@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"github.com/modulops/pipeline-service/internal/cache"
+	"github.com/modulops/pipeline-service/internal/authz"
 	"github.com/modulops/pipeline-service/internal/config"
 	"github.com/modulops/pipeline-service/internal/handler"
 	"github.com/modulops/pipeline-service/internal/service"
@@ -38,25 +39,26 @@ func main() {
 		}()
 	}
 
-	redisClient, err := cache.NewRedisClient(cfg)
+	valkeyClient, err := cache.NewValkeyClient(cfg)
 	if err != nil {
-		log.Fatalf("Erreur lors de l'initialisation de Redis: %v", err)
+		log.Fatalf("Erreur lors de l'initialisation de Valkey: %v", err)
 	}
-	defer redisClient.Close()
+	defer valkeyClient.Close()
 
 	// Contexte racine annulé à l'arrêt du service : propagé à toutes les goroutines.
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	defer rootCancel()
 
-	pipelineService := service.NewPipelineService(redisClient, cfg)
+	pipelineService := service.NewPipelineService(valkeyClient, cfg)
 	pipelineHandler := handler.NewPipelineHandler(pipelineService, cfg)
 	webhookHandler := handler.NewWebhookHandler(pipelineService, cfg)
 
 	router := setupRouter(pipelineHandler, webhookHandler, cfg)
 
 	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
-		Handler: router,
+		Addr:              ":" + cfg.ServerPort,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {
@@ -149,7 +151,16 @@ func setupRouter(pipelineHandler *handler.PipelineHandler, webhookHandler *handl
 
 	v1 := router.Group("/api/v1")
 	{
+		// Webhooks : appelés par GitHub/Forgejo, hors session utilisateur
+		webhooks := v1.Group("/pipeline/webhooks")
+		{
+			webhooks.POST("", webhookHandler.HandleGeneric)
+			webhooks.POST("/github", webhookHandler.HandleGitHub)
+			webhooks.POST("/forgejo", webhookHandler.HandleForgejo)
+		}
+
 		pipelineGroup := v1.Group("/pipeline")
+		pipelineGroup.Use(authz.Middleware(cfg.AuthServiceURL, "pipeline"))
 		{
 			// Config (lier repo depuis l'UI)
 			pipelineGroup.GET("/config", pipelineHandler.GetConfig)
@@ -169,11 +180,6 @@ func setupRouter(pipelineHandler *handler.PipelineHandler, webhookHandler *handl
 
 			// Relance d'un run (scope GitHub `workflow` ou token Forgejo Actions requis)
 			pipelineGroup.POST("/runs/:id/rerun", pipelineHandler.RerunRun)
-
-			// Webhooks
-			pipelineGroup.POST("/webhooks", webhookHandler.HandleGeneric)
-			pipelineGroup.POST("/webhooks/github", webhookHandler.HandleGitHub)
-			pipelineGroup.POST("/webhooks/forgejo", webhookHandler.HandleForgejo)
 		}
 	}
 
@@ -184,7 +190,7 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Project-ID")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 
 		if c.Request.Method == "OPTIONS" {

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
+	"github.com/modulops/terraform-service/internal/authz"
 	"github.com/modulops/terraform-service/internal/cache"
 	"github.com/modulops/terraform-service/internal/config"
 	"github.com/modulops/terraform-service/internal/handler"
@@ -41,12 +42,12 @@ func main() {
 		}()
 	}
 
-	// Initialiser le cache Redis
-	redisClient, err := cache.NewRedisClient(cfg)
+	// Initialiser le cache Valkey
+	valkeyClient, err := cache.NewValkeyClient(cfg)
 	if err != nil {
-		log.Fatalf("Erreur lors de l'initialisation de Redis: %v", err)
+		log.Fatalf("Erreur lors de l'initialisation de Valkey: %v", err)
 	}
-	defer redisClient.Close()
+	defer valkeyClient.Close()
 
 	// Backend tfstate S3 : si configuré, chaque état uploadé est persisté dans le bucket
 	var backendWriter storage.BackendWriter
@@ -63,10 +64,10 @@ func main() {
 	}
 
 	// Initialiser le service métier
-	terraformService := service.NewTerraformService(redisClient, cfg, backendWriter)
+	terraformService := service.NewTerraformService(valkeyClient, cfg, backendWriter)
 
 	// Initialiser le service de synchronisation
-	syncService := service.NewSyncService(terraformService, redisClient, cfg)
+	syncService := service.NewSyncService(terraformService, valkeyClient, cfg)
 	defer syncService.Stop()
 
 	// Démarrer le worker de drift automatisé (détection périodique pour les sources avec auto_sync)
@@ -85,8 +86,9 @@ func main() {
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
-		Handler: router,
+		Addr:              ":" + cfg.ServerPort,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	// Démarrer le serveur dans une goroutine
@@ -135,7 +137,15 @@ func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *hand
 
 	v1 := router.Group("/api/v1")
 	{
+		// Webhooks : appelés par des systèmes externes (S3, sync), hors session utilisateur
+		webhooks := v1.Group("/terraform/webhooks")
+		{
+			webhooks.POST("/state-updated", webhookHandler.HandleStateUpdated)
+			webhooks.POST("/s3-event", webhookHandler.HandleS3Event)
+		}
+
 		terraformGroup := v1.Group("/terraform")
+		terraformGroup.Use(authz.Middleware(cfg.AuthServiceURL, "terraform"))
 		{
 			// Configuration persistante
 			terraformGroup.GET("/config", configHandler.GetConfig)
@@ -168,10 +178,6 @@ func setupRouter(terraformHandler *handler.TerraformHandler, sourceHandler *hand
 			terraformGroup.DELETE("/sources/:id", sourceHandler.DeleteSource)
 			terraformGroup.POST("/sources/:id/sync", sourceHandler.SyncSource)
 			terraformGroup.POST("/sources/test-s3", sourceHandler.TestS3Connection)
-
-			// Webhooks pour les mises à jour en temps réel
-			terraformGroup.POST("/webhooks/state-updated", webhookHandler.HandleStateUpdated)
-			terraformGroup.POST("/webhooks/s3-event", webhookHandler.HandleS3Event)
 		}
 	}
 
@@ -182,7 +188,7 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Project-ID")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 
 		if c.Request.Method == "OPTIONS" {

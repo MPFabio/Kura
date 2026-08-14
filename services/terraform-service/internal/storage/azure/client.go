@@ -20,7 +20,7 @@ type Client struct {
 func NewClient(accountName, accountKey, connectionString string) (*Client, error) {
 	var blobClient *azblob.Client
 	var err error
-	
+
 	// Priorité : connection string > account key > default credentials
 	if connectionString != "" {
 		blobClient, err = azblob.NewClientFromConnectionString(connectionString, nil)
@@ -44,11 +44,11 @@ func NewClient(accountName, accountKey, connectionString string) (*Client, error
 		accountURL := fmt.Sprintf("https://%s.blob.core.windows.net", accountName)
 		blobClient, err = azblob.NewClient(accountURL, credential, nil)
 	}
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la création du client Azure Blob Storage: %w", err)
 	}
-	
+
 	return &Client{
 		blobClient: blobClient,
 	}, nil
@@ -61,12 +61,12 @@ func (c *Client) GetStateFile(ctx context.Context, container, blobName string) (
 		return nil, fmt.Errorf("erreur lors de la récupération du blob: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la lecture du contenu: %w", err)
 	}
-	
+
 	return data, nil
 }
 
@@ -77,14 +77,14 @@ func (c *Client) GetStateFileMetadata(ctx context.Context, container, blobName s
 	if err != nil {
 		return nil, fmt.Errorf("erreur lors de la récupération des métadonnées: %w", err)
 	}
-	
+
 	metadata := &storage.StateFileMetadata{
 		ETag:         string(*resp.ETag),
 		LastModified: *resp.LastModified,
 		Size:         *resp.ContentLength,
 		VersionID:    "", // Azure Blob Storage versioning est géré différemment
 	}
-	
+
 	return metadata, nil
 }
 
@@ -93,14 +93,14 @@ func (c *Client) ListStateFiles(ctx context.Context, container, prefix string) (
 	pager := c.blobClient.NewListBlobsFlatPager(container, &azblob.ListBlobsFlatOptions{
 		Prefix: &prefix,
 	})
-	
+
 	var keys []string
 	for pager.More() {
 		page, err := pager.NextPage(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("erreur lors de la liste des blobs: %w", err)
 		}
-		
+
 		for _, blob := range page.Segment.BlobItems {
 			name := *blob.Name
 			// Filtrer uniquement les fichiers .tfstate
@@ -109,7 +109,7 @@ func (c *Client) ListStateFiles(ctx context.Context, container, prefix string) (
 			}
 		}
 	}
-	
+
 	return keys, nil
 }
 
@@ -119,16 +119,16 @@ func (c *Client) TestConnection(ctx context.Context, container string) error {
 	pager := c.blobClient.NewListBlobsFlatPager(container, &azblob.ListBlobsFlatOptions{
 		MaxResults: func() *int32 { n := int32(1); return &n }(),
 	})
-	
+
 	if !pager.More() {
 		// Container vide, mais connexion OK
 		return nil
 	}
-	
+
 	_, err := pager.NextPage(ctx)
 	if err != nil {
 		return fmt.Errorf("impossible d'accéder au container %s: %w", container, err)
 	}
-	
+
 	return nil
 }

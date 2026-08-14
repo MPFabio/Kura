@@ -35,19 +35,21 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Build + tests + SAST dans le même job : une seule liste de services fait
+  # autorité, un service ajouté ici est automatiquement scanné par gosec.
   services-go:
-    name: Services Go
+    name: Services Go (build, test, gosec)
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth-service, k8s-service, pipeline-service, terraform-service]
+        service: [ansible-service, auth-service, code-service, k8s-service, metrics-service, pipeline-service, terraform-service, vault-service]
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.22'
           cache-dependency-path: services/${{ matrix.service }}/go.sum
 
       - name: Build ${{ matrix.service }}
@@ -58,27 +60,11 @@ jobs:
         run: go test ./... -v
         working-directory: services/${{ matrix.service }}
 
-  ansible-service:
-    name: Ansible Service (Python)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.22.0
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: services/ansible-service/requirements.txt
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-        working-directory: services/ansible-service
-
-      - name: Verify import
-        run: python -c "from main import app; print('OK')"
-        working-directory: services/ansible-service
-
-      - name: Run unit tests
-        run: python -m pytest
-        working-directory: services/ansible-service
+      # Bloque le pipeline à partir de la sévérité MEDIUM ; les findings LOW
+      # (G104 notamment) restent visibles dans les logs sans casser le build.
+      - name: SAST gosec on ${{ matrix.service }}
+        run: gosec -severity medium -exclude-generated ./...
+        working-directory: services/${{ matrix.service }}

@@ -103,6 +103,19 @@ func (s *CodeService) ListRepositories(ctx context.Context, authToken, projectID
 	return repos, nil
 }
 
+// GetBranches liste les branches d'un dépôt.
+func (s *CodeService) GetBranches(ctx context.Context, repo string) ([]client.Branch, error) {
+	owner, name, err := splitRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+	fj, err := s.forgejoClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return fj.GetBranches(owner, name)
+}
+
 // GetTree liste le contenu d'un répertoire d'un dépôt.
 func (s *CodeService) GetTree(ctx context.Context, repo, path, ref string) ([]client.TreeEntry, error) {
 	owner, name, err := splitRepo(repo)

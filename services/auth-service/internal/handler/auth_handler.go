@@ -286,7 +286,8 @@ func (h *AuthHandler) RequireAuth() gin.HandlerFunc {
 	}
 }
 
-// GetPermissions retourne les rôles et permissions de l'utilisateur authentifié
+// GetPermissions retourne les rôles de l'utilisateur authentifié et, si un
+// project_id est fourni, ses scopes par module dans ce projet.
 func (h *AuthHandler) GetPermissions(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -297,10 +298,54 @@ func (h *AuthHandler) GetPermissions(c *gin.Context) {
 	roles, _ := c.Get("user_roles")
 	rolesSlice, _ := roles.([]string)
 
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"user_id": userID,
 		"roles":   rolesSlice,
-	})
+	}
+
+	if projectID := c.Query("project_id"); projectID != "" {
+		modules, err := h.projectService.GetProjectPermissions(userID.(string), projectID)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		resp["project_id"] = projectID
+		resp["modules"] = modules
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// Authorize vérifie que l'utilisateur authentifié dispose d'un scope suffisant
+// sur un module d'un projet. Utilisé par les services métier comme point de
+// décision central (200 = autorisé, 403 = refusé).
+func (h *AuthHandler) Authorize(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+
+	projectID := c.Query("project_id")
+	module := c.Query("module")
+	scope := c.DefaultQuery("scope", "read")
+
+	// Sans contexte projet, le token valide suffit (routes non rattachées à un projet)
+	if projectID == "" || module == "" {
+		c.JSON(http.StatusOK, gin.H{"allowed": true})
+		return
+	}
+
+	allowed, err := h.projectService.UserHasPermission(userID.(string), projectID, module, scope)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"allowed": false, "error": "scope " + scope + " requis sur le module " + module})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"allowed": true})
 }
 
 // RequireRole est un middleware qui vérifie qu'un utilisateur a un rôle spécifique

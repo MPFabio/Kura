@@ -1,29 +1,26 @@
-FROM python:3.11-slim
+# Build stage
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Installer les dépendances système
-RUN apt-get update && apt-get install -y \
-    gcc \
-    wget \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache git
 
-# Copier les fichiers de dépendances
-COPY requirements.txt .
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Installer les dépendances Python
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copier le code source
 COPY . .
 
-# Exposer le port
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ansible-service ./main.go
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata wget
+
+WORKDIR /root/
+
+COPY --from=builder /app/ansible-service .
+
 EXPOSE 8083
 
-# Variables d'environnement par défaut
-ENV ANSIBLE_SERVICE_PORT=8083
-ENV PYTHONUNBUFFERED=1
-
-# Commande de démarrage
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8083"]
+CMD ["./ansible-service"]

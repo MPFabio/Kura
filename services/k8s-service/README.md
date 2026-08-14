@@ -40,10 +40,10 @@ Variables d'environnement principales :
 
 ### Redis
 
-- `REDIS_HOST` : Hôte Redis (défaut: localhost)
-- `REDIS_PORT` : Port Redis (défaut: 6379)
-- `REDIS_PASSWORD` : Mot de passe Redis (optionnel)
-- `REDIS_DB` : Index de base de données Redis (défaut: 0)
+- `VALKEY_HOST` : Hôte Redis (défaut: localhost)
+- `VALKEY_PORT` : Port Redis (défaut: 6379)
+- `VALKEY_PASSWORD` : Mot de passe Redis (optionnel)
+- `VALKEY_DB` : Index de base de données Redis (défaut: 0)
 - `K8S_CACHE_TTL` : TTL des entrées de cache (défaut: 30s)
 
 ## API Endpoints
@@ -77,8 +77,8 @@ go mod download
 # Exporter les variables nécessaires, par exemple :
 export K8S_INCLUSTER=false
 export KUBECONFIG_PATH=$HOME/.kube/config
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
+export VALKEY_HOST=localhost
+export VALKEY_PORT=6379
 
 # Lancer le service
 go run main.go

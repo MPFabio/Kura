@@ -101,13 +101,14 @@ export default function TerraformPage() {
     sync_interval: '15m',
     auto_sync: true,
   })
-  const [githubConfig, setGithubConfig] = useState({
+  const [forgejoConfig, setForgejoConfig] = useState({
+    url: '',
     owner: '',
     repo: '',
     path: '',
     ref: 'main',
   })
-  const [githubTokenInput, setGithubTokenInput] = useState('')
+  const [forgejoTokenInput, setForgejoTokenInput] = useState('')
   const [selectedStateForSource, setSelectedStateForSource] = useState<string>('')
   const [createStateFromSource, setCreateStateFromSource] = useState(false)
   const [newStateName, setNewStateName] = useState('')
@@ -163,10 +164,10 @@ export default function TerraformPage() {
   })
 
   const saveConfigMutation = useMutation({
-    mutationFn: (data: { github_token?: string }) => terraformService.setConfig(data),
+    mutationFn: (data: { forgejo_token?: string }) => terraformService.setConfig(data),
     onSuccess: () => {
       refetchTerraformConfig()
-      setGithubTokenInput('')
+      setForgejoTokenInput('')
       setSnackbar({ open: true, message: 'Configuration mise à jour', severity: 'success' })
     },
     onError: () => {
@@ -174,12 +175,12 @@ export default function TerraformPage() {
     },
   })
 
-  const deleteGithubTokenMutation = useMutation({
-    mutationFn: () => terraformService.deleteConfigKey('github_token'),
+  const deleteForgejoTokenMutation = useMutation({
+    mutationFn: () => terraformService.deleteConfigKey('forgejo_token'),
     onSuccess: () => {
       refetchTerraformConfig()
-      setGithubTokenInput('')
-      setSnackbar({ open: true, message: 'Token GitHub supprimé', severity: 'success' })
+      setForgejoTokenInput('')
+      setSnackbar({ open: true, message: 'Token Forgejo/Codeberg supprimé', severity: 'success' })
     },
     onError: () => {
       setSnackbar({ open: true, message: 'Erreur lors de la suppression du token', severity: 'error' })
@@ -297,7 +298,8 @@ export default function TerraformPage() {
       sync_interval: '15m',
       auto_sync: true,
     })
-    setGithubConfig({
+    setForgejoConfig({
+      url: '',
       owner: '',
       repo: '',
       path: '',
@@ -344,11 +346,12 @@ export default function TerraformPage() {
           auto_sync: source.config.auto_sync !== false,
         })
       }
-      setGithubConfig({
-        owner: source.config.github_owner || '',
-        repo: source.config.github_repo || '',
-        path: source.config.github_path || '',
-        ref: source.config.github_ref || 'main',
+      setForgejoConfig({
+        url: source.config.forgejo_url || '',
+        owner: source.config.forgejo_owner || '',
+        repo: source.config.forgejo_repo || '',
+        path: source.config.forgejo_path || '',
+        ref: source.config.forgejo_ref || 'main',
       })
       setCreateStateFromSource(false)
       setSelectedStateForSource(source.state_file_id || '')
@@ -415,11 +418,12 @@ export default function TerraformPage() {
           auto_sync: azureConfig.auto_sync,
         }
       }
-      if (githubConfig.owner && githubConfig.repo) {
-        sourceConfig.github_owner = githubConfig.owner
-        sourceConfig.github_repo = githubConfig.repo
-        sourceConfig.github_path = githubConfig.path || undefined
-        sourceConfig.github_ref = githubConfig.ref || 'main'
+      if (forgejoConfig.owner && forgejoConfig.repo) {
+        sourceConfig.forgejo_url = forgejoConfig.url || undefined
+        sourceConfig.forgejo_owner = forgejoConfig.owner
+        sourceConfig.forgejo_repo = forgejoConfig.repo
+        sourceConfig.forgejo_path = forgejoConfig.path || undefined
+        sourceConfig.forgejo_ref = forgejoConfig.ref || 'main'
       }
       if (editingSource) {
         return await terraformSourceService.updateSource(editingSource.id, {
@@ -1405,48 +1409,58 @@ ${moduleLine}${instanceBlocks}
           )}
 
           <ModuleSubtitle sx={{ mt: 3, mb: 1 }}>
-            Drift fine (optionnel)
+            Drift fine
           </ModuleSubtitle>
           <ModuleSecondaryText sx={{ mb: 1 }}>
-            Pour une détection de drift précise sur n'importe quel type de ressource, indiquez le dépôt GitHub contenant les fichiers .tf source. Le token GitHub se configure dans la configuration globale OpenTofu.
+            La détection de drift compare le tfstate avec un `tofu plan -refresh-only` exécuté contre les fichiers .tf source. Indiquez le dépôt Forgejo/Codeberg contenant ces fichiers. Le token se configure dans la configuration globale OpenTofu.
           </ModuleSecondaryText>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Propriétaire (owner)"
-                value={githubConfig.owner}
-                onChange={(e) => setGithubConfig({ ...githubConfig, owner: e.target.value })}
+                label="URL de l'instance"
+                value={forgejoConfig.url}
+                onChange={(e) => setForgejoConfig({ ...forgejoConfig, url: e.target.value })}
                 margin="normal"
-                placeholder="mon-organisation"
+                placeholder="https://codeberg.org"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Propriétaire (owner)"
+                value={forgejoConfig.owner}
+                onChange={(e) => setForgejoConfig({ ...forgejoConfig, owner: e.target.value })}
+                margin="normal"
+                placeholder="MPFabio"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Dépôt (repo)"
-                value={githubConfig.repo}
-                onChange={(e) => setGithubConfig({ ...githubConfig, repo: e.target.value })}
+                value={forgejoConfig.repo}
+                onChange={(e) => setForgejoConfig({ ...forgejoConfig, repo: e.target.value })}
                 margin="normal"
-                placeholder="mon-infra"
+                placeholder="Kuro"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Chemin"
-                value={githubConfig.path}
-                onChange={(e) => setGithubConfig({ ...githubConfig, path: e.target.value })}
+                value={forgejoConfig.path}
+                onChange={(e) => setForgejoConfig({ ...forgejoConfig, path: e.target.value })}
                 margin="normal"
-                placeholder="environments/prod"
+                placeholder="terraform"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Branche / ref"
-                value={githubConfig.ref}
-                onChange={(e) => setGithubConfig({ ...githubConfig, ref: e.target.value })}
+                value={forgejoConfig.ref}
+                onChange={(e) => setForgejoConfig({ ...forgejoConfig, ref: e.target.value })}
                 margin="normal"
                 placeholder="main"
               />
@@ -1575,15 +1589,15 @@ ${moduleLine}${instanceBlocks}
       {activeTab === 2 && (
         <ModuleCard sx={{ maxWidth: 600 }}>
           <ModuleSubtitle sx={{ mb: 1 }}>
-            Token GitHub (drift fine)
+            Token Forgejo/Codeberg (drift fine)
           </ModuleSubtitle>
           <ModuleSecondaryText sx={{ mb: 2 }}>
-            Ce token est utilisé pour récupérer les fichiers .tf source depuis vos dépôts GitHub
+            Ce token est utilisé pour récupérer les fichiers .tf source depuis vos dépôts Forgejo/Codeberg
             lors de la détection de drift "fine" (un seul token, réutilisé par toutes les sources du projet).
-            Scope requis : <code>repo</code> (lecture seule).
+            Scope requis : lecture du dépôt (<code>read:repository</code>).
           </ModuleSecondaryText>
           <Box sx={{ mb: 2 }}>
-            {terraformConfig?.github_token === '***' ? (
+            {terraformConfig?.forgejo_token === '***' ? (
               <Chip
                 size="small"
                 icon={<CheckCircleIcon fontSize="small" />}
@@ -1610,27 +1624,27 @@ ${moduleLine}${instanceBlocks}
           <TextField
             fullWidth
             size="small"
-            label="Token GitHub"
+            label="Token Forgejo/Codeberg"
             type="password"
-            placeholder={terraformConfig?.github_token === '***' ? '•••••••• (laisser vide pour conserver)' : 'ghp_xxx...'}
-            value={githubTokenInput}
-            onChange={(e) => setGithubTokenInput(e.target.value)}
+            placeholder={terraformConfig?.forgejo_token === '***' ? '•••••••• (laisser vide pour conserver)' : 'xxxxxxxxxxxxxxxx'}
+            value={forgejoTokenInput}
+            onChange={(e) => setForgejoTokenInput(e.target.value)}
             sx={{ mb: 2 }}
           />
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               variant="contained"
-              disabled={!githubTokenInput || saveConfigMutation.isPending}
-              onClick={() => saveConfigMutation.mutate({ github_token: githubTokenInput })}
+              disabled={!forgejoTokenInput || saveConfigMutation.isPending}
+              onClick={() => saveConfigMutation.mutate({ forgejo_token: forgejoTokenInput })}
             >
               Enregistrer
             </Button>
-            {terraformConfig?.github_token === '***' && (
+            {terraformConfig?.forgejo_token === '***' && (
               <Button
                 variant="outlined"
                 color="error"
-                disabled={deleteGithubTokenMutation.isPending}
-                onClick={() => deleteGithubTokenMutation.mutate()}
+                disabled={deleteForgejoTokenMutation.isPending}
+                onClick={() => deleteForgejoTokenMutation.mutate()}
               >
                 Supprimer
               </Button>

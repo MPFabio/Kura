@@ -14,4 +14,3 @@ func TestSplitAndTrimSplitsAndTrimsValues(t *testing.T) {
 		t.Fatalf("splitAndTrim(%q) = %#v, want %#v", input, got, want)
 	}
 }
-

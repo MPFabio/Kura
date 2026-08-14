@@ -14,7 +14,7 @@ type LokiResponse struct {
 		ResultType string `json:"resultType"`
 		Result     []struct {
 			Stream map[string]string `json:"stream"`
-			Values [][2]string        `json:"values"`
+			Values [][2]string       `json:"values"`
 		} `json:"result"`
 	} `json:"data"`
 }

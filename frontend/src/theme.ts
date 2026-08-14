@@ -330,6 +330,14 @@ export const theme = createTheme({
           '& .MuiOutlinedInput-root': {
             borderRadius: 6,
             fontSize: '0.875rem',
+            // Neutralise le fond bleu que Chrome applique aux champs auto-remplis :
+            // il masquait l'encoche du label outlined et rendait le libellé illisible.
+            '& input:-webkit-autofill': {
+              WebkitBoxShadow: `0 0 0 1000px ${kuraColors.bg2} inset`,
+              WebkitTextFillColor: kuraColors.text0,
+              caretColor: kuraColors.text0,
+              borderRadius: 'inherit',
+            },
             '& fieldset': {
               borderColor: kuraColors.border2,
               transition: 'border-color 0.15s ease',

@@ -97,15 +97,19 @@ type ProjectPermission struct {
 	ID        string    `json:"id" db:"id"`
 	ProjectID string    `json:"project_id" db:"project_id"`
 	UserID    string    `json:"user_id" db:"user_id"`
-	Module    string    `json:"module" db:"module"`   // k8s, terraform, ansible, pipeline
+	Module    string    `json:"module" db:"module"`   // k8s, terraform, ansible, pipeline, vault, code, metrics
 	Scope     string    `json:"scope" db:"scope"`     // read, write, admin
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// CreateProjectPermissionRequest représente une requête de création de permission
+// PermissionModules liste les modules acceptant une permission granulaire.
+var PermissionModules = []string{"k8s", "terraform", "ansible", "pipeline", "vault", "code", "metrics"}
+
+// CreateProjectPermissionRequest représente une requête de création (ou remplacement)
+// d'une permission : l'écriture est un upsert sur (project, user, module).
 type CreateProjectPermissionRequest struct {
 	UserID string `json:"user_id" binding:"required"`
-	Module string `json:"module" binding:"required,oneof=k8s terraform ansible pipeline"`
+	Module string `json:"module" binding:"required,oneof=k8s terraform ansible pipeline vault code metrics"`
 	Scope  string `json:"scope" binding:"required,oneof=read write admin"`
 }

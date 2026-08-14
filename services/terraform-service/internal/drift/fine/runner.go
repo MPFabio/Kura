@@ -5,6 +5,7 @@ package fine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -35,7 +36,16 @@ func NewRunner(tofuPath string) *Runner {
 
 // RunInput contient les entrées nécessaires à l'exécution d'un plan refresh-only.
 type RunInput struct {
-	TFFiles   []client.TFFile
+	// TFFiles contient les fichiers .tf (et éventuels fichiers annexes
+	// référencés via file("${path.module}/...")), avec des chemins relatifs
+	// à la racine du dépôt (ex: "terraform/main.tf", "kura/cloud-init.yaml").
+	TFFiles []client.TFFile
+	// ModuleDir est le chemin (relatif à la racine du dépôt) du répertoire
+	// contenant la configuration .tf principale (ex: "terraform"). C'est dans
+	// ce répertoire que `tofu` est exécuté, afin que les références
+	// "${path.module}/.." résolvent correctement vers les autres répertoires
+	// du dépôt.
+	ModuleDir string
 	StateJSON []byte
 	EnvCreds  map[string]string
 	// Outputs contient les valeurs de sortie du tfstate, utilisées pour
@@ -44,9 +54,10 @@ type RunInput struct {
 	Outputs map[string]interface{}
 }
 
-// Run écrit les fichiers .tf et le tfstate dans un répertoire temporaire,
-// exécute `tofu init -backend=false` puis `tofu plan -refresh-only`, et
-// retourne le plan au format JSON structuré.
+// Run écrit les fichiers .tf (et fichiers annexes) ainsi que le tfstate dans
+// un répertoire temporaire en conservant leur structure relative au dépôt,
+// exécute `tofu init -backend=false` puis `tofu plan -refresh-only` depuis le
+// répertoire du module, et retourne le plan au format JSON structuré.
 func (r *Runner) Run(ctx context.Context, input RunInput) (*tfjson.Plan, error) {
 	workDir, err := os.MkdirTemp("", "tofu-fine-drift-*")
 	if err != nil {
@@ -59,42 +70,54 @@ func (r *Runner) Run(ctx context.Context, input RunInput) (*tfjson.Plan, error) 
 		if !strings.HasPrefix(filepath.Clean(dest), filepath.Clean(workDir)) {
 			return nil, fmt.Errorf("chemin de fichier invalide: %s", f.Path)
 		}
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
 			return nil, fmt.Errorf("création répertoire pour %s: %w", f.Path, err)
 		}
 		content := []byte(f.Content)
 		if strings.HasSuffix(f.Path, ".tf") {
 			content = stripBackendBlock(content, f.Path)
 		}
-		if err := os.WriteFile(dest, content, 0o644); err != nil {
+		if err := os.WriteFile(dest, content, 0o600); err != nil {
 			return nil, fmt.Errorf("écriture de %s: %w", f.Path, err)
 		}
 	}
 
-	statePath := filepath.Join(workDir, "terraform.tfstate")
-	if err := os.WriteFile(statePath, input.StateJSON, 0o644); err != nil {
+	moduleDir := workDir
+	if input.ModuleDir != "" {
+		moduleDir = filepath.Join(workDir, filepath.FromSlash(input.ModuleDir))
+		if !strings.HasPrefix(filepath.Clean(moduleDir), filepath.Clean(workDir)) {
+			return nil, fmt.Errorf("chemin de module invalide: %s", input.ModuleDir)
+		}
+		if err := os.MkdirAll(moduleDir, 0o700); err != nil {
+			return nil, fmt.Errorf("création du répertoire de module: %w", err)
+		}
+	}
+
+	statePath := filepath.Join(moduleDir, "terraform.tfstate")
+	if err := os.WriteFile(statePath, input.StateJSON, 0o600); err != nil {
 		return nil, fmt.Errorf("écriture du tfstate: %w", err)
 	}
 
-	if vars := declaredVariables(input.TFFiles); len(vars) > 0 {
-		tfvarsJSON, err := buildTFVarsJSON(vars, input.Outputs)
+	moduleFiles := filesInDir(input.TFFiles, input.ModuleDir)
+	if vars := declaredVariables(moduleFiles); len(vars) > 0 {
+		tfvarsJSON, err := buildTFVarsJSON(vars, input.Outputs, gcpProjectID(input.EnvCreds))
 		if err != nil {
 			return nil, fmt.Errorf("génération de terraform.tfvars.json: %w", err)
 		}
 		if tfvarsJSON != nil {
-			tfvarsPath := filepath.Join(workDir, "terraform.tfvars.json")
-			if err := os.WriteFile(tfvarsPath, tfvarsJSON, 0o644); err != nil {
+			tfvarsPath := filepath.Join(moduleDir, "terraform.tfvars.json")
+			if err := os.WriteFile(tfvarsPath, tfvarsJSON, 0o600); err != nil {
 				return nil, fmt.Errorf("écriture de terraform.tfvars.json: %w", err)
 			}
 		}
 	}
 
 	pluginCacheDir := filepath.Join(os.TempDir(), "tofu-plugin-cache")
-	if err := os.MkdirAll(pluginCacheDir, 0o755); err != nil {
+	if err := os.MkdirAll(pluginCacheDir, 0o700); err != nil {
 		return nil, fmt.Errorf("création du cache de plugins: %w", err)
 	}
 
-	tf, err := tfexec.NewTerraform(workDir, r.tofuPath)
+	tf, err := tfexec.NewTerraform(moduleDir, r.tofuPath)
 	if err != nil {
 		return nil, fmt.Errorf("initialisation tofu-exec: %w", err)
 	}
@@ -117,7 +140,7 @@ func (r *Runner) Run(ctx context.Context, input RunInput) (*tfjson.Plan, error) 
 		return nil, fmt.Errorf("tofu init: %w", err)
 	}
 
-	planPath := filepath.Join(workDir, "plan.tfplan")
+	planPath := filepath.Join(moduleDir, "plan.tfplan")
 	if _, err := tf.Plan(ctx, tfexec.RefreshOnly(true), tfexec.Out(planPath)); err != nil {
 		return nil, fmt.Errorf("tofu plan -refresh-only: %w", err)
 	}
@@ -128,4 +151,44 @@ func (r *Runner) Run(ctx context.Context, input RunInput) (*tfjson.Plan, error) 
 	}
 
 	return plan, nil
+}
+
+// gcpProjectID extrait le project_id du JSON de credentials GCP (clé
+// GOOGLE_CREDENTIALS), utilisé pour renseigner automatiquement les variables
+// de type "project" (ex: gcp_project) sans valeur par défaut.
+func gcpProjectID(envCreds map[string]string) string {
+	raw, ok := envCreds["GOOGLE_CREDENTIALS"]
+	if !ok || raw == "" {
+		return ""
+	}
+	var creds struct {
+		ProjectID string `json:"project_id"`
+	}
+	if err := json.Unmarshal([]byte(raw), &creds); err != nil {
+		return ""
+	}
+	return creds.ProjectID
+}
+
+// filesInDir filtre les fichiers dont le chemin (relatif à la racine du dépôt)
+// se trouve directement dans dir (le répertoire du module), en retournant leur
+// chemin relatif à dir. Permet de n'analyser que les .tf de la configuration
+// principale (et pas les fichiers annexes référencés ailleurs dans le dépôt).
+func filesInDir(files []client.TFFile, dir string) []client.TFFile {
+	prefix := ""
+	if dir != "" {
+		prefix = dir + "/"
+	}
+	var result []client.TFFile
+	for _, f := range files {
+		rel := strings.TrimPrefix(f.Path, prefix)
+		if rel == f.Path && prefix != "" {
+			continue // pas dans dir
+		}
+		if strings.Contains(rel, "/") {
+			continue // sous-répertoire de dir, pas le module lui-même
+		}
+		result = append(result, client.TFFile{Path: rel, Content: f.Content})
+	}
+	return result
 }

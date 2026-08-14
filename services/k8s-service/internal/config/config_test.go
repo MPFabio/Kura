@@ -23,4 +23,3 @@ func TestGetEnvReturnsValueWhenSet(t *testing.T) {
 		t.Fatalf("getEnv(%q) = %q, want %q", key, got, "from-env")
 	}
 }
-

@@ -406,7 +406,7 @@ func (s *ProjectService) GetProjectPermissions(userID, projectID string) (map[st
 	}
 
 	perms := make(map[string]string)
-	for _, mod := range []string{"k8s", "terraform", "ansible", "pipeline"} {
+	for _, mod := range models.PermissionModules {
 		pp, err := s.repo.GetProjectPermission(projectID, userID, mod)
 		if err != nil {
 			return nil, err
@@ -423,6 +423,33 @@ func (s *ProjectService) GetProjectPermissions(userID, projectID string) (map[st
 		}
 	}
 	return perms, nil
+}
+
+// ListAllProjectPermissions retourne toutes les permissions granulaires du projet
+// (réservé aux owners/admins : c'est la vue de gestion des droits)
+func (s *ProjectService) ListAllProjectPermissions(requesterID, projectID string) ([]*models.ProjectPermission, error) {
+	member, err := s.repo.GetProjectMember(projectID, requesterID)
+	if err != nil || (member.Role != "owner" && member.Role != "admin") {
+		return nil, errors.New("seuls les propriétaires et administrateurs peuvent consulter les permissions")
+	}
+	perms, err := s.repo.ListProjectPermissions(projectID)
+	if err != nil {
+		return nil, err
+	}
+	if perms == nil {
+		perms = []*models.ProjectPermission{}
+	}
+	return perms, nil
+}
+
+// DeleteProjectPermission retire une permission granulaire : l'utilisateur retombe
+// sur le comportement par défaut de son rôle projet (réservé aux owners/admins)
+func (s *ProjectService) DeleteProjectPermission(requesterID, projectID, userID, module string) error {
+	member, err := s.repo.GetProjectMember(projectID, requesterID)
+	if err != nil || (member.Role != "owner" && member.Role != "admin") {
+		return errors.New("seuls les propriétaires et administrateurs peuvent gérer les permissions")
+	}
+	return s.repo.DeleteProjectPermission(projectID, userID, module)
 }
 
 // CreateProjectPermission crée une permission granulaire (réservé aux owners/admins du projet)

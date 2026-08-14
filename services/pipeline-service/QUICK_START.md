@@ -13,8 +13,8 @@ docker compose up -d redis
 docker compose up -d pipeline-service
 
 # Ou en local
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
+export VALKEY_HOST=localhost
+export VALKEY_PORT=6379
 go run main.go
 ```
 

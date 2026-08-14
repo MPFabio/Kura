@@ -10,12 +10,12 @@ type Config struct {
 	Environment    string
 	LogLevel       string
 	AuthServiceURL string
-	VaultAddr      string
-	VaultToken     string
+	OpenBaoAddr    string
+	OpenBaoToken   string
 	MountPath      string
-	RedisAddr      string
-	RedisPassword  string
-	RedisDB        int
+	ValkeyAddr     string
+	ValkeyPassword string
+	ValkeyDB       int
 
 	// Tracing (OpenTelemetry)
 	OTLPEndpoint string
@@ -23,24 +23,24 @@ type Config struct {
 
 func Load() (*Config, error) {
 	redisDB := 0
-	if v := os.Getenv("REDIS_DB"); v != "" {
+	if v := os.Getenv("VALKEY_DB"); v != "" {
 		fmt.Sscanf(v, "%d", &redisDB)
 	}
 
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
+	valkeyHost := getEnv("VALKEY_HOST", "localhost")
+	valkeyPort := getEnv("VALKEY_PORT", "6379")
 
 	return &Config{
 		ServerPort:     getEnv("VAULT_SERVICE_PORT", "8087"),
 		Environment:    getEnv("ENV", "development"),
 		LogLevel:       getEnv("LOG_LEVEL", "info"),
 		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
-		VaultAddr:      getEnv("VAULT_ADDR", "http://vault:8200"),
-		VaultToken:     getEnv("VAULT_TOKEN", ""),
-		MountPath:      getEnv("VAULT_MOUNT_PATH", "secret"),
-		RedisAddr:      fmt.Sprintf("%s:%s", redisHost, redisPort),
-		RedisPassword:  getEnv("REDIS_PASSWORD", ""),
-		RedisDB:        redisDB,
+		OpenBaoAddr:    getEnv("OPENBAO_ADDR", "http://openbao:8200"),
+		OpenBaoToken:   getEnv("OPENBAO_TOKEN", ""),
+		MountPath:      getEnv("OPENBAO_MOUNT_PATH", "secret"),
+		ValkeyAddr:     fmt.Sprintf("%s:%s", valkeyHost, valkeyPort),
+		ValkeyPassword: getEnv("VALKEY_PASSWORD", ""),
+		ValkeyDB:       redisDB,
 
 		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}, nil

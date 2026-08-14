@@ -17,11 +17,11 @@ type Config struct {
 	// Config store (auth-service)
 	AuthServiceURL string
 
-	// Redis
-	RedisAddr     string
-	RedisPassword string
-	RedisDB       int
-	CacheTTL      time.Duration
+	// Valkey
+	ValkeyAddr     string
+	ValkeyPassword string
+	ValkeyDB       int
+	CacheTTL       time.Duration
 
 	// CI/CD - GitHub
 	GitHubToken         string
@@ -48,18 +48,18 @@ func Load() (*Config, error) {
 		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}
 
-	// Redis
-	redisHost := getEnv("REDIS_HOST", "localhost")
-	redisPort := getEnv("REDIS_PORT", "6379")
-	cfg.RedisAddr = fmt.Sprintf("%s:%s", redisHost, redisPort)
-	cfg.RedisPassword = getEnv("REDIS_PASSWORD", "")
+	// Valkey
+	valkeyHost := getEnv("VALKEY_HOST", "localhost")
+	valkeyPort := getEnv("VALKEY_PORT", "6379")
+	cfg.ValkeyAddr = fmt.Sprintf("%s:%s", valkeyHost, valkeyPort)
+	cfg.ValkeyPassword = getEnv("VALKEY_PASSWORD", "")
 
-	redisDBStr := getEnv("REDIS_DB", "0")
+	redisDBStr := getEnv("VALKEY_DB", "0")
 	redisDB, err := strconv.Atoi(redisDBStr)
 	if err != nil {
-		return nil, fmt.Errorf("REDIS_DB invalide: %v", err)
+		return nil, fmt.Errorf("VALKEY_DB invalide: %v", err)
 	}
-	cfg.RedisDB = redisDB
+	cfg.ValkeyDB = redisDB
 
 	// TTL du cache pour l'historique des exécutions (24h par défaut)
 	cacheTTLStr := getEnv("PIPELINE_CACHE_TTL", "24h")

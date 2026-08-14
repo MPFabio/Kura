@@ -35,6 +35,22 @@ func (h *CodeHandler) ListRepositories(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": repos})
 }
 
+// GetBranches renvoie les branches d'un dépôt.
+func (h *CodeHandler) GetBranches(c *gin.Context) {
+	repo := c.Query("repo")
+	if repo == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "paramètre repo requis"})
+		return
+	}
+
+	branches, err := h.svc.GetBranches(c.Request.Context(), repo)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": branches})
+}
+
 // GetTree renvoie le contenu d'un répertoire d'un dépôt.
 func (h *CodeHandler) GetTree(c *gin.Context) {
 	repo := c.Query("repo")
