@@ -191,6 +191,9 @@ services:
       GF_SECURITY_ALLOW_EMBEDDING: "true"
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      # Organisation cible de l'utilisateur anonyme : sans elle, Grafana ne
+      # rattache pas le role Viewer et l'iframe recoit un 403 dashboards:read.
+      GF_AUTH_ANONYMOUS_ORG_NAME: "Main Org."
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_INSTALL_PLUGINS: ""
