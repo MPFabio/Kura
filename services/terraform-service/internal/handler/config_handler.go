@@ -37,10 +37,10 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	if encKey != "" {
 		encKeyMasked = "***"
 	}
-	githubToken := h.cfgStore.GetOrFallback(ctx, "github_token", "")
-	githubTokenMasked := ""
-	if githubToken != "" {
-		githubTokenMasked = "***"
+	forgejoToken := h.cfgStore.GetOrFallback(ctx, "forgejo_token", "")
+	forgejoTokenMasked := ""
+	if forgejoToken != "" {
+		forgejoTokenMasked = "***"
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"state_backend":  backend,
@@ -49,17 +49,17 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		"s3_region":      region,
 		"s3_endpoint":    endpoint,
 		"encryption_key": encKeyMasked,
-		"github_token":   githubTokenMasked,
+		"forgejo_token":  forgejoTokenMasked,
 	})
 }
 
 // deletableConfigKeys liste les clés de configuration pouvant être supprimées via DeleteConfigKey.
 var deletableConfigKeys = map[string]bool{
-	"github_token":   true,
+	"forgejo_token":  true,
 	"encryption_key": true,
 }
 
-// DeleteConfigKey supprime une clé de configuration (ex: github_token).
+// DeleteConfigKey supprime une clé de configuration (ex: forgejo_token).
 // DELETE /api/v1/terraform/config/:key
 func (h *ConfigHandler) DeleteConfigKey(c *gin.Context) {
 	key := c.Param("key")
@@ -87,7 +87,7 @@ func (h *ConfigHandler) SetConfig(c *gin.Context) {
 		S3AccessKeyID string `json:"s3_access_key_id"`
 		S3SecretKey   string `json:"s3_secret_key"`
 		EncryptionKey string `json:"encryption_key"`
-		GitHubToken   string `json:"github_token"`
+		ForgejoToken  string `json:"forgejo_token"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -118,8 +118,8 @@ func (h *ConfigHandler) SetConfig(c *gin.Context) {
 	if body.EncryptionKey != "" {
 		kv["encryption_key"] = body.EncryptionKey
 	}
-	if body.GitHubToken != "" {
-		kv["github_token"] = body.GitHubToken
+	if body.ForgejoToken != "" {
+		kv["forgejo_token"] = body.ForgejoToken
 	}
 	if len(kv) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "aucun champ à mettre à jour"})

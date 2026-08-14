@@ -35,8 +35,8 @@ docker build -t terraform-service .
 
 # Lancer le conteneur
 docker run -p 8082:8082 \
-  -e REDIS_HOST=localhost \
-  -e REDIS_PORT=6379 \
+  -e VALKEY_HOST=localhost \
+  -e VALKEY_PORT=6379 \
   terraform-service
 ```
 
@@ -45,10 +45,10 @@ docker run -p 8082:8082 \
 Le service utilise les variables d'environnement suivantes :
 
 - `TERRAFORM_SERVICE_PORT` : Port du serveur (défaut: 8082)
-- `REDIS_HOST` : Host Redis (défaut: localhost)
-- `REDIS_PORT` : Port Redis (défaut: 6379)
-- `REDIS_PASSWORD` : Mot de passe Redis (optionnel)
-- `REDIS_DB` : Base de données Redis (défaut: 0)
+- `VALKEY_HOST` : Host Redis (défaut: localhost)
+- `VALKEY_PORT` : Port Redis (défaut: 6379)
+- `VALKEY_PASSWORD` : Mot de passe Redis (optionnel)
+- `VALKEY_DB` : Base de données Redis (défaut: 0)
 - `TERRAFORM_CACHE_TTL` : TTL du cache (défaut: 5m)
 - `ENV` : Environnement (development/production)
 - `LOG_LEVEL` : Niveau de log (info/debug)

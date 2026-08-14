@@ -1,0 +1,17 @@
+# Projet ArgoCD dédié à Kura : borne les dépôts sources et les destinations
+# autorisées, conformément au principe de moindre privilège (DORA).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: kura
+  namespace: argocd
+spec:
+  description: Plateforme DevOps Kura
+  sourceRepos:
+    - https://forgejo.client.interne/ops/modulops.git
+  destinations:
+    - namespace: kura
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace

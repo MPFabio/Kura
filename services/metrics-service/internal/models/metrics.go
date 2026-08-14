@@ -11,12 +11,12 @@ type ServiceHealth struct {
 
 // ServiceMetric représente les métriques détaillées d'un service.
 type ServiceMetric struct {
-	Name        string  `json:"name"`
-	Job         string  `json:"job"`
-	Up          bool    `json:"up"`
-	Goroutines  float64 `json:"goroutines"`
-	CPURate     float64 `json:"cpu_rate"`
-	MemoryMB    float64 `json:"memory_mb"`
+	Name       string  `json:"name"`
+	Job        string  `json:"job"`
+	Up         bool    `json:"up"`
+	Goroutines float64 `json:"goroutines"`
+	CPURate    float64 `json:"cpu_rate"`
+	MemoryMB   float64 `json:"memory_mb"`
 }
 
 // Overview représente les KPIs globaux de la plateforme.
@@ -42,7 +42,7 @@ type LokiResponse struct {
 		ResultType string `json:"resultType"`
 		Result     []struct {
 			Stream map[string]string `json:"stream"`
-			Values [][2]string        `json:"values"`
+			Values [][2]string       `json:"values"`
 		} `json:"result"`
 	} `json:"data"`
 }

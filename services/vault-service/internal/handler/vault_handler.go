@@ -30,15 +30,15 @@ func (h *VaultHandler) GetConfig(c *gin.Context) {
 // POST /api/v1/vault/config
 func (h *VaultHandler) SetConfig(c *gin.Context) {
 	var body struct {
-		VaultAddr  string `json:"vault_addr"`
-		VaultToken string `json:"vault_token"`
-		MountPath  string `json:"vault_mount_path"`
+		OpenBaoAddr  string `json:"openbao_addr"`
+		OpenBaoToken string `json:"openbao_token"`
+		MountPath    string `json:"openbao_mount_path"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.SetConfig(c.Request.Context(), body.VaultAddr, body.VaultToken, body.MountPath); err != nil {
+	if err := h.svc.SetConfig(c.Request.Context(), body.OpenBaoAddr, body.OpenBaoToken, body.MountPath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

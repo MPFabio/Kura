@@ -57,7 +57,7 @@ func NewClusterService(cache ClusterCache, cfg *config.Config) *ClusterService {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	log.Printf("🔄 Initialisation du ClusterService, chargement depuis Redis...")
+	log.Printf("🔄 Initialisation du ClusterService, chargement depuis Valkey...")
 	cs.loadClustersFromCache(ctx)
 
 	return cs
@@ -255,7 +255,7 @@ func (s *ClusterService) WriteGCPCredentialsToTempFile(cluster *models.Cluster) 
 		return "", nil
 	}
 	tmpDir := "/tmp/kubeconfigs"
-	os.MkdirAll(tmpDir, 0755)
+	os.MkdirAll(tmpDir, 0700)
 	filePath := filepath.Join(tmpDir, fmt.Sprintf("gcp-sa-%s.json", cluster.ID))
 	if err := os.WriteFile(filePath, []byte(cluster.CloudCredentials), 0600); err != nil {
 		return "", fmt.Errorf("écriture des credentials GCP: %w", err)
@@ -431,7 +431,7 @@ func rewriteKubeconfigServerForDocker(content string) string {
 func (s *ClusterService) saveKubeconfigToTempFile(cluster *models.Cluster) (string, error) {
 	// Créer un répertoire temporaire pour les kubeconfigs
 	tmpDir := "/tmp/kubeconfigs"
-	os.MkdirAll(tmpDir, 0755)
+	os.MkdirAll(tmpDir, 0700)
 
 	// Déterminer le contenu du kubeconfig
 	var kubeconfigContent string
@@ -468,13 +468,13 @@ func (s *ClusterService) saveKubeconfigToTempFile(cluster *models.Cluster) (stri
 	return filePath, nil
 }
 
-// loadClustersFromCache charge les clusters depuis Redis, avec fallback Postgres.
+// loadClustersFromCache charge les clusters depuis Valkey, avec fallback Postgres.
 func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 	listKey := "k8s:clusters:list"
 	raw, err := s.cache.Get(ctx, listKey)
 	if err != nil || raw == "" {
 		// Fallback : charger depuis Postgres (configstore)
-		log.Printf("⚠️  Redis vide, tentative de restauration des clusters depuis Postgres...")
+		log.Printf("⚠️  Valkey vide, tentative de restauration des clusters depuis Postgres...")
 		s.loadClustersFromConfigstore(ctx)
 		return
 	}
@@ -485,7 +485,7 @@ func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 		return
 	}
 
-	log.Printf("📦 Chargement de %d cluster(s) depuis Redis...", len(entries))
+	log.Printf("📦 Chargement de %d cluster(s) depuis Valkey...", len(entries))
 
 	for _, entry := range entries {
 		var cached string
@@ -536,7 +536,7 @@ func (s *ClusterService) loadClustersFromCache(ctx context.Context) {
 	}
 }
 
-// saveClustersList sauvegarde la liste des clusters dans Redis et Postgres.
+// saveClustersList sauvegarde la liste des clusters dans Valkey et Postgres.
 func (s *ClusterService) saveClustersList(ctx context.Context) {
 	entries := make([]string, 0, len(s.clusters))
 	for _, c := range s.clusters {
@@ -548,7 +548,7 @@ func (s *ClusterService) saveClustersList(ctx context.Context) {
 
 	// Persistance Postgres pour survie aux redéploiements
 	kv := map[string]string{
-		"clusters_list":  string(entriesJSON),
+		"clusters_list":   string(entriesJSON),
 		"clusters_active": s.activeClusterID,
 	}
 	for _, c := range s.clusters {
@@ -596,7 +596,7 @@ func (s *ClusterService) loadClustersFromConfigstore(ctx context.Context) {
 			continue
 		}
 		s.clusters[cluster.ID] = &cluster
-		// Remettre dans Redis
+		// Remettre dans Valkey
 		cacheKey := fmt.Sprintf("k8s:cluster:%s:%s", cluster.ProjectID, cluster.ID)
 		_ = s.cache.Set(ctx, cacheKey, raw, 0)
 		log.Printf("✅ Cluster restauré depuis Postgres: %s (%s)", cluster.ID, cluster.Name)
@@ -608,6 +608,6 @@ func (s *ClusterService) loadClustersFromConfigstore(ctx context.Context) {
 		}
 		_ = s.cache.Set(ctx, "k8s:clusters:active", activeID, 0)
 	}
-	// Remettre la liste dans Redis
+	// Remettre la liste dans Valkey
 	_ = s.cache.Set(ctx, "k8s:clusters:list", listJSON, 0)
 }

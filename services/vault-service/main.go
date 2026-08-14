@@ -13,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
+	"github.com/modulops/vault-service/internal/authz"
 	"github.com/modulops/vault-service/internal/config"
 	"github.com/modulops/vault-service/internal/handler"
 	"github.com/modulops/vault-service/internal/service"
@@ -38,14 +39,14 @@ func main() {
 	}
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr,
-		Password: cfg.RedisPassword,
-		DB:       cfg.RedisDB,
+		Addr:     cfg.ValkeyAddr,
+		Password: cfg.ValkeyPassword,
+		DB:       cfg.ValkeyDB,
 	})
 	defer rdb.Close()
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		log.Printf("⚠️  Redis non disponible (%v) — cache désactivé", err)
+		log.Printf("⚠️  Valkey non disponible (%v) — cache désactivé", err)
 		rdb = nil
 	}
 
@@ -58,8 +59,9 @@ func main() {
 	router := setupRouter(h, cfg)
 
 	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
-		Handler: router,
+		Addr:              ":" + cfg.ServerPort,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {
@@ -99,6 +101,7 @@ func setupRouter(h *handler.VaultHandler, cfg *config.Config) *gin.Engine {
 	})
 
 	v1 := router.Group("/api/v1/vault")
+	v1.Use(authz.Middleware(cfg.AuthServiceURL, "vault"))
 	{
 		v1.GET("/status", h.GetStatus)
 		v1.GET("/config", h.GetConfig)
@@ -116,7 +119,7 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Project-ID")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)

@@ -228,25 +228,19 @@ func (h *TerraformHandler) GetResourceByAddress(c *gin.Context) {
 	c.JSON(http.StatusOK, resource)
 }
 
-// DetectDrift détecte les dérives pour un état.
-// Query param "method" : "fine" (tofu plan -refresh-only via dépôt GitHub),
-// "fast" (détecteurs existants par type de ressource), ou "auto" (défaut :
-// fine si un dépôt GitHub est configuré sur la source, sinon fast).
+// DetectDrift détecte les dérives pour un état en exécutant
+// `tofu plan -refresh-only` contre les fichiers .tf source récupérés depuis
+// Forgejo/Codeberg et le tfstate stocké (mode "fine" uniquement).
 func (h *TerraformHandler) DetectDrift(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
-	method := c.DefaultQuery("method", "auto")
 
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "id requis"})
 		return
 	}
-	if method != "auto" && method != "fine" && method != "fast" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "method invalide (auto, fine ou fast)"})
-		return
-	}
 
-	// Récupérer la source associée à cet état (credentials + config GitHub)
+	// Récupérer la source associée à cet état (credentials + config Forgejo/Codeberg)
 	var credentialsJSON string
 	var providerType string
 	var source *models.StateSource
@@ -280,59 +274,26 @@ func (h *TerraformHandler) DetectDrift(c *gin.Context) {
 		}
 	}
 
-	hasGitHubRepo := source != nil && source.Config.GitHubOwner != "" && source.Config.GitHubRepo != ""
-
-	if method == "auto" {
-		if hasGitHubRepo {
-			method = "fine"
-		} else {
-			method = "fast"
-		}
-	}
-
-	if method == "fine" {
-		if !hasGitHubRepo {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "aucun dépôt GitHub configuré pour cette source (mode fine)"})
-			return
-		}
-
-		githubToken := h.cfgStore.GetOrFallback(ctx, "github_token", "")
-		envCreds := map[string]string{}
-		if providerType == "gcp" && credentialsJSON != "" {
-			envCreds["GOOGLE_CREDENTIALS"] = credentialsJSON
-		}
-
-		results, err := h.svc.DetectDriftFine(ctx, id, source, githubToken, envCreds)
-		if err != nil {
-			log.Printf("Erreur DetectDriftFine pour id %s: %v", id, err)
-			if c.Query("method") == "auto" || c.Query("method") == "" {
-				// Fallback en mode fast si le mode fine échoue en auto
-				results, err = h.svc.DetectDrift(ctx, id, credentialsJSON, providerType)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-					return
-				}
-				c.JSON(http.StatusOK, gin.H{"items": results})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"items": results})
+	hasForgejoRepo := source != nil && source.Config.ForgejoOwner != "" && source.Config.ForgejoRepo != ""
+	if !hasForgejoRepo {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "aucun dépôt Forgejo/Codeberg configuré pour cette source (drift fine)"})
 		return
 	}
 
-	results, err := h.svc.DetectDrift(ctx, id, credentialsJSON, providerType)
+	forgejoToken := h.cfgStore.GetOrFallback(ctx, "forgejo_token", "")
+	envCreds := map[string]string{}
+	if providerType == "gcp" && credentialsJSON != "" {
+		envCreds["GOOGLE_CREDENTIALS"] = credentialsJSON
+	}
+
+	results, err := h.svc.DetectDriftFine(ctx, id, source, forgejoToken, envCreds)
 	if err != nil {
-		log.Printf("Erreur DetectDrift pour id %s: %v", id, err)
+		log.Printf("Erreur DetectDriftFine pour id %s: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"items": results,
-	})
+	c.JSON(http.StatusOK, gin.H{"items": results})
 }
 
 // DeleteStateFile supprime un fichier d'état.

@@ -162,6 +162,19 @@ function DocContent({ docId }: { docId: string }) {
             <li><strong>Admin</strong> : peut modifier les ressources du projet et gérer les membres</li>
             <li><strong>Member</strong> : accès en lecture et actions sur les ressources, sans gestion des membres</li>
           </Box>
+          <Typography component="h2">Permissions par module</Typography>
+          <Typography>
+            Le rôle projet peut être affiné module par module depuis <strong>Paramètres → Membres → Permissions par module</strong>. Pour chaque membre, choisissez un niveau par module (Kubernetes, OpenTofu, Semaphore, Pipelines, OpenBao, Code, Observabilité) :
+          </Typography>
+          <Box component="ul">
+            <li><strong>Défaut</strong> : le rôle projet s&apos;applique (admin : tous les droits, member : lecture seule)</li>
+            <li><strong>Lecture</strong> : consultation uniquement</li>
+            <li><strong>Écriture</strong> : consultation et actions (lancer un job, modifier un secret, scaler un déploiement…)</li>
+            <li><strong>Admin</strong> : tous les droits sur le module</li>
+          </Box>
+          <Typography>
+            Ces droits sont vérifiés côté serveur par chaque service : une action refusée renvoie une erreur « droits insuffisants sur le module ». Seuls les owners et admins du projet peuvent modifier ces permissions.
+          </Typography>
           <Typography component="h2">Changer de projet</Typography>
           <Typography>
             Utilisez le sélecteur de projet en haut de la barre latérale pour basculer entre vos projets. L&apos;ensemble des modules (Kubernetes, OpenTofu, Semaphore…) se met à jour automatiquement avec les ressources du projet sélectionné.
@@ -470,7 +483,7 @@ provider "google" {
             Kura ne fournit pas d&apos;OpenBao : vous connectez <strong>votre propre instance</strong> (auto-hébergée). Depuis la page OpenBao, ouvrez le panneau <strong>Connexion OpenBao</strong> et renseignez :
           </Typography>
           <Box component="ul">
-            <li><strong>Adresse OpenBao</strong> : l&apos;URL de votre instance OpenBao, joignable depuis Kura (ex : <code>https://vault.monentreprise.com:8200</code>)</li>
+            <li><strong>Adresse OpenBao</strong> : l&apos;URL de votre instance OpenBao, joignable depuis Kura (ex : <code>https://openbao.monentreprise.com:8200</code>)</li>
             <li><strong>Token OpenBao</strong> : un token avec les droits de lecture/écriture sur le mount KV utilisé (créé via <code>bao token create</code> ou une policy dédiée)</li>
             <li><strong>Mount path</strong> : le chemin du moteur KV v2 à utiliser (par défaut <code>secret</code>)</li>
           </Box>
@@ -505,7 +518,7 @@ provider "google" {
             <li><strong>Dashboard Grafana</strong> : vue temporelle des métriques (goroutines, mémoire, état des services dans le temps)</li>
           </Box>
           <Typography>
-            Le <strong>metrics-service</strong> interroge l&apos;API HTTP de VictoriaMetrics (<code>/api/v1/query</code>, compatible PromQL) et effectue des health checks directs sur chaque service. Les données sont mises en cache 30 secondes dans Redis pour éviter de surcharger VictoriaMetrics. La page se rafraîchit automatiquement toutes les 30 secondes.
+            Le <strong>metrics-service</strong> interroge l&apos;API HTTP de VictoriaMetrics (<code>/api/v1/query</code>, compatible PromQL) et effectue des health checks directs sur chaque service. Les données sont mises en cache 30 secondes dans Valkey pour éviter de surcharger VictoriaMetrics. La page se rafraîchit automatiquement toutes les 30 secondes.
           </Typography>
           <Typography component="h2">Onglet Logs</Typography>
           <Typography>

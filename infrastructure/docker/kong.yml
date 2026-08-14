@@ -235,7 +235,7 @@ services:
     - DELETE
   - name: ansible-webhooks-route
     paths:
-    - /api/v1/webhooks/ansible-tower
+    - /api/v1/webhooks/ansible
     strip_path: false
     methods:
     - POST
@@ -313,6 +313,7 @@ plugins:
     - Content-Type
     - Date
     - Authorization
+    - X-Project-ID
     exposed_headers:
     - X-Auth-Token
     credentials: true

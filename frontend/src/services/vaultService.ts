@@ -8,9 +8,9 @@ export interface VaultStatus {
 }
 
 export interface VaultConfig {
-  vault_addr: string
-  vault_mount_path: string
-  vault_token: string
+  openbao_addr: string
+  openbao_mount_path: string
+  openbao_token: string
   linked: string
 }
 
@@ -44,7 +44,7 @@ export const vaultService = {
     return data
   },
 
-  setConfig: async (config: { vault_addr?: string; vault_token?: string; vault_mount_path?: string }): Promise<void> => {
+  setConfig: async (config: { openbao_addr?: string; openbao_token?: string; openbao_mount_path?: string }): Promise<void> => {
     await apiClient.post('/v1/vault/config', config)
   },
 

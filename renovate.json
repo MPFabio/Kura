@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "platform": "gitea",
+  "endpoint": "https://forgejo.client.interne/api/v1",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Paris",
+  "schedule": ["before 6am on saturday"],
+  "labels": ["dependances"],
+  "prConcurrentLimit": 5,
+  "enabledManagers": ["gomod", "npm", "docker-compose", "dockerfile", "helm-values"],
+  "postUpdateOptions": ["gomodTidy"],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "matchUpdateTypes": ["minor"],
+      "groupName": "mises a jour mineures hebdomadaires"
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "labels": ["a-arbitrer"],
+      "automerge": false
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["securite", "a-arbitrer"]
+  }
+}

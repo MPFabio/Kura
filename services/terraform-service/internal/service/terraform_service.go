@@ -10,7 +10,6 @@ import (
 
 	"github.com/modulops/terraform-service/internal/client"
 	"github.com/modulops/terraform-service/internal/config"
-	gcpDrift "github.com/modulops/terraform-service/internal/drift/gcp"
 	"github.com/modulops/terraform-service/internal/drift/fine"
 	"github.com/modulops/terraform-service/internal/models"
 	"github.com/modulops/terraform-service/internal/parser"
@@ -188,7 +187,7 @@ func (s *TerraformService) ListStateFiles(ctx context.Context, projectID string)
 		resultMap[stateFile.ID] = stateFile
 	}
 
-	// Charger depuis Redis si l'interface Keys est disponible
+	// Charger depuis Valkey si l'interface Keys est disponible
 	// Toujours utiliser le pattern "terraform:state:*" pour trouver les états quel que soit le format de clé
 	// (terraform:state:id ou terraform:state:projectID:id), puis filtrer par project_id.
 	type KeysCache interface {
@@ -244,94 +243,12 @@ func (s *TerraformService) GetStateSummary(ctx context.Context, id string) (*mod
 	return summary, nil
 }
 
-// DetectDrift détecte les dérives entre l'état Terraform et l'état réel.
-// Cette méthode délègue à un détecteur spécifique selon le provider.
-func (s *TerraformService) DetectDrift(ctx context.Context, stateFileID string, credentialsJSON string, providerType string) ([]*models.DriftResult, error) {
-	stateFile, err := s.GetStateFile(ctx, stateFileID)
-	if err != nil {
-		return nil, err
-	}
-
-	if stateFile.State == nil {
-		return nil, fmt.Errorf("état vide")
-	}
-
-	var results []*models.DriftResult
-
-	// Utiliser le détecteur approprié selon le provider
-	switch providerType {
-	case "gcp":
-		detector, err := gcpDrift.NewDetector(credentialsJSON)
-		if err != nil {
-			return nil, fmt.Errorf("erreur lors de la création du détecteur GCP: %w", err)
-		}
-		results, err = detector.DetectDrift(ctx, stateFile)
-		if err != nil {
-			return nil, fmt.Errorf("erreur lors de la détection de drift GCP: %w", err)
-		}
-	case "aws", "s3":
-		// TODO: Implémenter le détecteur AWS
-		results = make([]*models.DriftResult, 0)
-		for _, resource := range stateFile.State.Resources {
-			resourceAddr := s.parser.BuildResourceAddress(&resource)
-			results = append(results, &models.DriftResult{
-				ResourceAddress: resourceAddr,
-				ResourceType:    resource.Type,
-				Status:          "unknown",
-				DetectedAt:      time.Now(),
-				Message:         "Détection de drift AWS non implémentée",
-			})
-		}
-	case "azure":
-		// TODO: Implémenter le détecteur Azure
-		results = make([]*models.DriftResult, 0)
-		for _, resource := range stateFile.State.Resources {
-			resourceAddr := s.parser.BuildResourceAddress(&resource)
-			results = append(results, &models.DriftResult{
-				ResourceAddress: resourceAddr,
-				ResourceType:    resource.Type,
-				Status:          "unknown",
-				DetectedAt:      time.Now(),
-				Message:         "Détection de drift Azure non implémentée",
-			})
-		}
-	default:
-		// Fallback: détection basique
-		results = make([]*models.DriftResult, 0)
-		for _, resource := range stateFile.State.Resources {
-			resourceAddr := s.parser.BuildResourceAddress(&resource)
-			driftResult := &models.DriftResult{
-				ResourceAddress: resourceAddr,
-				ResourceType:    resource.Type,
-				Status:          "unknown",
-				DetectedAt:      time.Now(),
-				Message:         fmt.Sprintf("Provider %s non supporté pour la détection de drift", providerType),
-			}
-			if len(resource.Instances) == 0 {
-				driftResult.Status = "missing"
-				driftResult.Message = "Aucune instance trouvée pour cette ressource"
-			}
-			results = append(results, driftResult)
-		}
-	}
-
-	for _, r := range results {
-		if r.Method == "" {
-			r.Method = "fast"
-		}
-	}
-
-	s.persistDriftResults(ctx, stateFile, results)
-
-	return results, nil
-}
-
 // DetectDriftFine détecte les dérives en exécutant `tofu plan -refresh-only`
-// contre les fichiers .tf source récupérés depuis GitHub et le tfstate stocké.
-// Retourne une erreur si la source n'a pas de dépôt GitHub configuré.
-func (s *TerraformService) DetectDriftFine(ctx context.Context, stateFileID string, source *models.StateSource, githubToken string, envCreds map[string]string) ([]*models.DriftResult, error) {
-	if source == nil || source.Config.GitHubOwner == "" || source.Config.GitHubRepo == "" {
-		return nil, fmt.Errorf("aucun dépôt GitHub configuré pour cette source")
+// contre les fichiers .tf source récupérés depuis Forgejo/Codeberg et le tfstate stocké.
+// Retourne une erreur si la source n'a pas de dépôt Forgejo/Codeberg configuré.
+func (s *TerraformService) DetectDriftFine(ctx context.Context, stateFileID string, source *models.StateSource, forgejoToken string, envCreds map[string]string) ([]*models.DriftResult, error) {
+	if source == nil || source.Config.ForgejoOwner == "" || source.Config.ForgejoRepo == "" {
+		return nil, fmt.Errorf("aucun dépôt Forgejo/Codeberg configuré pour cette source")
 	}
 
 	stateFile, err := s.GetStateFile(ctx, stateFileID)
@@ -347,14 +264,25 @@ func (s *TerraformService) DetectDriftFine(ctx context.Context, stateFileID stri
 		return nil, fmt.Errorf("sérialisation du tfstate: %w", err)
 	}
 
-	gh := client.NewGitHubClient(githubToken)
-	ref := source.Config.GitHubRef
+	fj := client.NewForgejoClient(source.Config.ForgejoURL, forgejoToken)
+	ref := source.Config.ForgejoRef
 	if ref == "" {
 		ref = "main"
 	}
-	tfFiles, err := gh.FetchTFFiles(source.Config.GitHubOwner, source.Config.GitHubRepo, source.Config.GitHubPath, ref)
+	moduleDir := strings.Trim(source.Config.ForgejoPath, "/")
+	tfFiles, err := fj.FetchTFFiles(source.Config.ForgejoOwner, source.Config.ForgejoRepo, source.Config.ForgejoPath, ref)
 	if err != nil {
 		return nil, fmt.Errorf("récupération des fichiers .tf: %w", err)
+	}
+
+	// Récupère les fichiers annexes référencés via file("${path.module}/...")
+	// (ex: scripts cloud-init) qui se trouvent hors du répertoire du module.
+	for _, refPath := range fine.ExtractModuleFileRefs(tfFiles, moduleDir) {
+		extra, err := fj.FetchFile(source.Config.ForgejoOwner, source.Config.ForgejoRepo, refPath, ref)
+		if err != nil {
+			return nil, fmt.Errorf("récupération du fichier référencé %s: %w", refPath, err)
+		}
+		tfFiles = append(tfFiles, extra)
 	}
 
 	outputValues := make(map[string]interface{}, len(stateFile.State.Outputs))
@@ -365,6 +293,7 @@ func (s *TerraformService) DetectDriftFine(ctx context.Context, stateFileID stri
 	runner := fine.NewRunner(s.cfg.TofuPath)
 	plan, err := runner.Run(ctx, fine.RunInput{
 		TFFiles:   tfFiles,
+		ModuleDir: moduleDir,
 		StateJSON: stateJSON,
 		EnvCreds:  envCreds,
 		Outputs:   outputValues,
@@ -399,7 +328,7 @@ func (s *TerraformService) persistDriftResults(ctx context.Context, stateFile *m
 
 // DeleteStateFile supprime un fichier d'état.
 func (s *TerraformService) DeleteStateFile(ctx context.Context, id string) error {
-	// Récupérer l'état pour connaître project_id (clé Redis peut être terraform:state:projectID:id)
+	// Récupérer l'état pour connaître project_id (clé Valkey peut être terraform:state:projectID:id)
 	stateFile, exists := s.states[id]
 	if exists {
 		// Supprimer les deux formes de clé cache (avec et sans project_id)
@@ -413,7 +342,7 @@ func (s *TerraformService) DeleteStateFile(ctx context.Context, id string) error
 		return nil
 	}
 
-	// État pas en mémoire : supprimer du cache Redis (clé avec project_id) pour qu’il disparaisse à la prochaine liste
+	// État pas en mémoire : supprimer du cache Valkey (clé avec project_id) pour qu’il disparaisse à la prochaine liste
 	if deleted := s.deleteStateFileFromCacheByID(ctx, id); deleted {
 		return nil
 	}

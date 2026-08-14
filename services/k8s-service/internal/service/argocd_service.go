@@ -55,7 +55,7 @@ func NewArgoCDService(cache ArgoCache, clusterService *ClusterService, cfg *conf
 			// certificat TLS auto-signé par défaut : la vérification du certificat
 			// n'apporte aucune garantie de sécurité supplémentaire dans ce contexte.
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402 -- cible = port-forward 127.0.0.1 vers argocd-server (certificat auto-signé), la vérification n'apporte rien ici
 			},
 		},
 		codeClient: client.NewCodeServiceClient(cfg.CodeServiceURL),
@@ -130,7 +130,7 @@ func (s *ArgoCDService) bootstrapSelfManagement(ctx context.Context, authToken, 
 # géré par ArgoCD lui-même (auto-gestion / "app of apps").
 # Reprend les patches de résilience appliqués au bootstrap (cf. patchRepoServerResilience).
 redis:
-  # Sans ce ServiceAccount dédié, le conteneur d'initialisation du secret Redis
+  # Sans ce ServiceAccount dédié, le conteneur d'initialisation du secret Redis (composant interne du chart ArgoCD)
   # (secret-init) tourne avec le ServiceAccount "default" et échoue
   # (secrets is forbidden). Avec serviceAccount.create=true, le chart bascule
   # vers un Job dédié (RBAC correct) et retire cet init-container du Deployment.

@@ -1,0 +1,81 @@
+{{- /*
+Briques de données à état : PostgreSQL, Valkey, MinIO, OpenBao, Semaphore.
+Chacune est un StatefulSet à réplique unique avec PVC dédié ; la haute
+disponibilité des données repose sur les sauvegardes (runbook PRA) et le
+rescheduling Kubernetes, conformément au dossier d'architecture.
+*/ -}}
+{{- $root := . }}
+{{- range $name, $spec := dict "postgres" .Values.postgres "valkey" .Values.valkey "minio" .Values.minio "openbao" .Values.openbao "semaphore" .Values.semaphore }}
+{{- if $spec.enabled }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "kura.labels" $root | nindent 4 }}
+    {{- include "kura.selectorLabels" $name | nindent 4 }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kura.selectorLabels" $name | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kura.labels" $root | nindent 8 }}
+        {{- include "kura.selectorLabels" $name | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ $name }}
+          image: {{ $spec.image }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          envFrom:
+            - secretRef:
+                name: {{ $root.Values.global.existingSecret }}
+                optional: true
+          {{- if eq $name "valkey" }}
+          command:
+            - sh
+            - -c
+            - exec valkey-server --requirepass "$VALKEY_PASSWORD" --appendonly yes --dir /data
+          {{- end }}
+          {{- if eq $name "minio" }}
+          args: ["server", "/data"]
+          {{- end }}
+          ports:
+            - containerPort: {{ $spec.port }}
+              name: main
+          volumeMounts:
+            - name: data
+              mountPath: {{ $spec.dataPath }}
+          resources:
+            {{- toYaml $spec.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if $spec.storageClassName }}
+        storageClassName: {{ $spec.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $spec.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "kura.labels" $root | nindent 4 }}
+    {{- include "kura.selectorLabels" $name | nindent 4 }}
+spec:
+  selector:
+    {{- include "kura.selectorLabels" $name | nindent 4 }}
+  ports:
+    - port: {{ $spec.port }}
+      targetPort: main
+{{- end }}
+{{- end }}

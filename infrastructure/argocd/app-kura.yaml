@@ -1,0 +1,35 @@
+# Application ArgoCD : synchronise le chart Helm du dépôt vers le cluster du
+# client. Le déploiement est déclaratif : un commit sur main = un déploiement,
+# avec retour arrière par revert Git (Phase 4, GitOps).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kura
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: kura
+  source:
+    repoURL: https://forgejo.client.interne/ops/modulops.git
+    targetRevision: main
+    path: infrastructure/helm/kura
+    helm:
+      valueFiles:
+        - values.yaml
+      # Les valeurs propres au client (registre, hostname, storage class)
+      # sont surchargées dans un dépôt de configuration séparé si besoin.
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kura
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2

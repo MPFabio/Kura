@@ -98,6 +98,31 @@ export interface CreateProjectMappingRequest {
   cluster_namespace?: string
 }
 
+// Permissions granulaires par module (surcharge du rôle projet)
+export const PERMISSION_MODULES = ['k8s', 'terraform', 'ansible', 'pipeline', 'vault', 'code', 'metrics'] as const
+export type PermissionModule = (typeof PERMISSION_MODULES)[number]
+export type PermissionScope = 'read' | 'write' | 'admin'
+
+export const PERMISSION_MODULE_LABELS: Record<PermissionModule, string> = {
+  k8s: 'Kubernetes',
+  terraform: 'OpenTofu',
+  ansible: 'Semaphore',
+  pipeline: 'Pipelines',
+  vault: 'OpenBao',
+  code: 'Code',
+  metrics: 'Observabilité',
+}
+
+export interface ProjectPermission {
+  id: string
+  project_id: string
+  user_id: string
+  module: PermissionModule
+  scope: PermissionScope
+  created_at: string
+  updated_at: string
+}
+
 export const projectService = {
   getProjects: async (): Promise<ProjectResponse> => {
     try {
@@ -187,6 +212,31 @@ export const projectService = {
       console.error(`Erreur lors de la suppression du membre ${userId} du projet ${projectId}:`, error)
       throw error
     }
+  },
+
+  listPermissions: async (projectId: string): Promise<{ permissions: ProjectPermission[] }> => {
+    const response = await getProjectClient().get<{ permissions: ProjectPermission[] }>(
+      `/v1/projects/${projectId}/permissions`
+    )
+    return { permissions: response.data?.permissions ?? [] }
+  },
+
+  setPermission: async (
+    projectId: string,
+    userId: string,
+    module: PermissionModule,
+    scope: PermissionScope
+  ): Promise<ProjectPermission> => {
+    const response = await getProjectClient().post<ProjectPermission>(`/v1/projects/${projectId}/permissions`, {
+      user_id: userId,
+      module,
+      scope,
+    })
+    return response.data
+  },
+
+  deletePermission: async (projectId: string, userId: string, module: PermissionModule): Promise<void> => {
+    await getProjectClient().delete(`/v1/projects/${projectId}/permissions/${userId}/${module}`)
   },
 
   listMappings: async (projectId: string): Promise<{ items: ProjectMapping[] }> => {

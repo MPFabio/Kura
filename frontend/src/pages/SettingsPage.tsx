@@ -22,7 +22,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useProject } from '../contexts/ProjectContext'
 import { authService } from '../services/authService'
-import { projectService, ProjectMapping, ProjectMember } from '../services/projectService'
+import {
+  projectService,
+  ProjectMapping,
+  ProjectMember,
+  ProjectPermission,
+  PermissionModule,
+  PermissionScope,
+  PERMISSION_MODULES,
+  PERMISSION_MODULE_LABELS,
+} from '../services/projectService'
 import ModuleTitle from '../components/ModuleTitle'
 import ModuleButton from '../components/ModuleButton'
 import ModuleCard from '../components/ModuleCard'
@@ -181,6 +190,52 @@ export default function SettingsPage() {
       setMemberError(err.response?.data?.error || err.message || 'Erreur lors de la suppression du membre')
     },
   })
+
+  // Permissions granulaires par module : visible uniquement pour les owners/admins
+  // du projet (l'API renvoie 403 sinon → la grille est masquée)
+  const { data: permissionsData, isError: permissionsForbidden } = useQuery({
+    queryKey: ['project-permissions', selectedProjectId],
+    queryFn: () => projectService.listPermissions(selectedProjectId),
+    enabled: !!selectedProjectId && section === 'members',
+    retry: false,
+  })
+
+  const setPermissionMutation = useMutation({
+    mutationFn: ({ userId, module, scope }: { userId: string; module: PermissionModule; scope: PermissionScope }) =>
+      projectService.setPermission(selectedProjectId, userId, module, scope),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-permissions', selectedProjectId] })
+    },
+    onError: (err: any) => {
+      setMemberError(err.response?.data?.error || err.message || 'Erreur lors de la mise à jour de la permission')
+    },
+  })
+
+  const deletePermissionMutation = useMutation({
+    mutationFn: ({ userId, module }: { userId: string; module: PermissionModule }) =>
+      projectService.deletePermission(selectedProjectId, userId, module),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-permissions', selectedProjectId] })
+    },
+    onError: (err: any) => {
+      setMemberError(err.response?.data?.error || err.message || 'Erreur lors de la suppression de la permission')
+    },
+  })
+
+  const permissionFor = (userId: string, module: PermissionModule): PermissionScope | 'default' => {
+    const p = (permissionsData?.permissions ?? []).find(
+      (perm: ProjectPermission) => perm.user_id === userId && perm.module === module
+    )
+    return p ? p.scope : 'default'
+  }
+
+  const handlePermissionChange = (userId: string, module: PermissionModule, value: string) => {
+    if (value === 'default') {
+      deletePermissionMutation.mutate({ userId, module })
+    } else {
+      setPermissionMutation.mutate({ userId, module, scope: value as PermissionScope })
+    }
+  }
 
   const handleAddRepo = () => {
     const repo = newRepo.trim()
@@ -531,6 +586,59 @@ export default function SettingsPage() {
                         </Typography>
                       )}
                     </List>
+                  )}
+
+                  {!permissionsForbidden && (membersData?.items ?? []).some((m: ProjectMember) => m.role !== 'owner') && (
+                    <Box sx={{ mt: 3 }}>
+                      <ModuleSubtitle sx={{ mb: 1 }}>Permissions par module</ModuleSubtitle>
+                      <Typography sx={{ color: '#a0a0a0', fontSize: '0.875rem', mb: 2 }}>
+                        Affinez les droits d&apos;un membre module par module. « Défaut » applique le rôle
+                        projet (admin : tous les droits, member : lecture seule). Les owners ont toujours
+                        tous les droits.
+                      </Typography>
+                      <Box sx={{ overflowX: 'auto' }}>
+                        <Box component="table" sx={{ borderCollapse: 'collapse', minWidth: 720 }}>
+                          <Box component="thead">
+                            <Box component="tr">
+                              <Box component="th" sx={{ textAlign: 'left', p: 1, color: '#a0a0a0', fontSize: '0.75rem', fontWeight: 600 }}>
+                                Membre
+                              </Box>
+                              {PERMISSION_MODULES.map((mod) => (
+                                <Box key={mod} component="th" sx={{ textAlign: 'left', p: 1, color: '#a0a0a0', fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {PERMISSION_MODULE_LABELS[mod]}
+                                </Box>
+                              ))}
+                            </Box>
+                          </Box>
+                          <Box component="tbody">
+                            {(membersData?.items ?? [])
+                              .filter((m: ProjectMember) => m.role !== 'owner')
+                              .map((m: ProjectMember) => (
+                                <Box component="tr" key={m.id}>
+                                  <Box component="td" sx={{ p: 1, fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: '#f0f0f0', whiteSpace: 'nowrap' }}>
+                                    {m.user?.email || m.user?.username || m.user_id}
+                                  </Box>
+                                  {PERMISSION_MODULES.map((mod) => (
+                                    <Box component="td" key={mod} sx={{ p: 0.5 }}>
+                                      <Select
+                                        size="small"
+                                        value={permissionFor(m.user_id, mod)}
+                                        onChange={(e) => handlePermissionChange(m.user_id, mod, e.target.value)}
+                                        sx={{ fontSize: '0.75rem', minWidth: 96 }}
+                                      >
+                                        <MenuItem value="default">Défaut</MenuItem>
+                                        <MenuItem value="read">Lecture</MenuItem>
+                                        <MenuItem value="write">Écriture</MenuItem>
+                                        <MenuItem value="admin">Admin</MenuItem>
+                                      </Select>
+                                    </Box>
+                                  ))}
+                                </Box>
+                              ))}
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Box>
                   )}
                 </Box>
               )}

@@ -29,17 +29,17 @@ var upgrader = websocket.Upgrader{
 type TerminalHandler struct {
 	svc            *service.K8sService
 	clusterService *service.ClusterService
-	redisClient    service.Cache
+	valkeyClient   service.Cache
 	cfg            *config.Config
 	mu             sync.RWMutex
 }
 
 // NewTerminalHandler crée un nouveau handler de terminal.
-func NewTerminalHandler(svc *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *TerminalHandler {
+func NewTerminalHandler(svc *service.K8sService, clusterService *service.ClusterService, valkeyClient service.Cache, cfg *config.Config) *TerminalHandler {
 	return &TerminalHandler{
 		svc:            svc,
 		clusterService: clusterService,
-		redisClient:    redisClient,
+		valkeyClient:   valkeyClient,
 		cfg:            cfg,
 	}
 }
@@ -94,9 +94,9 @@ func (h *TerminalHandler) getService(ctx context.Context) (*service.K8sService, 
 	tempCfg := &config.Config{
 		KubeconfigPath: kubeconfigPath,
 		InCluster:      false,
-		RedisAddr:      h.cfg.RedisAddr,
-		RedisPassword:  h.cfg.RedisPassword,
-		RedisDB:        h.cfg.RedisDB,
+		ValkeyAddr:     h.cfg.ValkeyAddr,
+		ValkeyPassword: h.cfg.ValkeyPassword,
+		ValkeyDB:       h.cfg.ValkeyDB,
 		CacheTTL:       h.cfg.CacheTTL,
 		ServerPort:     h.cfg.ServerPort,
 		Environment:    h.cfg.Environment,
@@ -110,7 +110,7 @@ func (h *TerminalHandler) getService(ctx context.Context) (*service.K8sService, 
 
 	// Créer le service avec le nouveau client
 	var k8sClientInterface service.K8sClient = k8sClient
-	newSvc := service.NewK8sService(k8sClientInterface, h.redisClient, h.cfg)
+	newSvc := service.NewK8sService(k8sClientInterface, h.valkeyClient, h.cfg)
 
 	// Mettre à jour le service de manière thread-safe
 	h.mu.Lock()
@@ -125,7 +125,7 @@ func (h *TerminalHandler) HandleTerminal(c *gin.Context) {
 	// Récupérer les paramètres depuis l'URL
 	namespace := c.Param("namespace")
 	pod := c.Param("name")
-	
+
 	if namespace == "" || pod == "" {
 		log.Printf("Paramètres manquants: namespace=%s, pod=%s", namespace, pod)
 		c.JSON(400, gin.H{"error": "namespace et name requis"})
@@ -258,14 +258,14 @@ func (h *TerminalHandler) HandleTerminal(c *gin.Context) {
 		// Essayer /bin/sh d'abord (le plus commun)
 		command := []string{"/bin/sh"}
 		log.Printf("Exécution de /bin/sh dans le pod %s/%s", namespace, pod)
-		
+
 		err := svc.ExecPod(ctx, namespace, pod, container, command, stdinReader, stdoutWriter, stderrWriter, true, sizeQueue)
 		if err != nil {
 			log.Printf("Erreur lors de l'exécution de /bin/sh dans le pod %s/%s: %v", namespace, pod, err)
-			
+
 			errStr := err.Error()
 			var errorMsg string
-			
+
 			// Si l'erreur indique que /bin/sh n'existe pas, suggérer d'essayer d'autres shells ou conteneurs
 			if contains(errStr, "no such file") || contains(errStr, "not found") || contains(errStr, "stat") {
 				errorMsg = fmt.Sprintf("Le shell /bin/sh n'est pas disponible dans ce conteneur.\r\n") +
@@ -277,7 +277,7 @@ func (h *TerminalHandler) HandleTerminal(c *gin.Context) {
 			} else {
 				errorMsg = "Erreur lors de l'exécution: " + err.Error()
 			}
-			
+
 			// Envoyer l'erreur au client
 			if writeErr := conn.WriteJSON(map[string]interface{}{
 				"type": "error",
@@ -305,7 +305,7 @@ func (h *TerminalHandler) HandleTerminal(c *gin.Context) {
 				return
 			}
 		case "resize":
-			sizeQueue.Resize(uint16(msg.Width), uint16(msg.Height))
+			sizeQueue.Resize(clampTerminalDim(msg.Width), clampTerminalDim(msg.Height))
 		}
 	}
 
@@ -337,4 +337,16 @@ func (t *terminalSizeQueue) Resize(width, height uint16) {
 // contains vérifie si une chaîne contient une sous-chaîne (insensible à la casse)
 func contains(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
+}
+
+// clampTerminalDim borne une dimension de terminal dans la plage uint16 attendue
+// par l'API resize de Kubernetes (le client envoie un int non contrôlé).
+func clampTerminalDim(v int) uint16 {
+	if v < 0 {
+		return 0
+	}
+	if v > 65535 {
+		return 65535
+	}
+	return uint16(v)
 }

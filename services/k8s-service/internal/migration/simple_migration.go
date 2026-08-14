@@ -27,7 +27,7 @@ func SimpleClusterMigration(ctx context.Context, cache Cache, defaultProjectID s
 
 	log.Println("🔄 Démarrage de la migration simple des clusters...")
 
-	// Récupérer tous les clusters depuis Redis (ancien format sans project_id)
+	// Récupérer tous les clusters depuis Valkey (ancien format sans project_id)
 	listKey := "k8s:clusters:list"
 	idsJSON, err := cache.Get(ctx, listKey)
 	if err != nil || idsJSON == "" {

@@ -14,6 +14,6 @@ type DiscoveredComponent struct {
 // cluster client : applications ArgoCD déployées et composants
 // d'observabilité reconnus parmi elles.
 type DiscoveryReport struct {
-	Applications []ArgoApplication      `json:"applications"`
+	Applications  []ArgoApplication     `json:"applications"`
 	Observability []DiscoveredComponent `json:"observability"`
 }

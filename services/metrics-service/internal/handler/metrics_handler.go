@@ -145,17 +145,17 @@ func (h *MetricsHandler) GetTrace(c *gin.Context) {
 
 // SetConfig met à jour les URLs Prometheus et/ou Grafana.
 // POST /api/v1/metrics/config
-// Body: { "prometheus_url": "...", "grafana_url": "..." }
+// Body: { "victoriametrics_url": "...", "grafana_url": "..." }
 func (h *MetricsHandler) SetConfig(c *gin.Context) {
 	var body struct {
-		PrometheusURL string `json:"prometheus_url"`
-		GrafanaURL    string `json:"grafana_url"`
+		VictoriaMetricsURL string `json:"victoriametrics_url"`
+		GrafanaURL         string `json:"grafana_url"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.SetConfig(c.Request.Context(), body.PrometheusURL, body.GrafanaURL); err != nil {
+	if err := h.svc.SetConfig(c.Request.Context(), body.VictoriaMetricsURL, body.GrafanaURL); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

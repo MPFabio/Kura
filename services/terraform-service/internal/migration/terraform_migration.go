@@ -27,7 +27,7 @@ func SimpleTerraformMigration(ctx context.Context, cache Cache, defaultProjectID
 
 	log.Println("🔄 Démarrage de la migration simple des terraform states...")
 
-	// Récupérer tous les terraform states depuis Redis
+	// Récupérer tous les terraform states depuis Valkey
 	keys, err := cache.Keys(ctx, "terraform:state:*")
 	if err != nil {
 		return fmt.Errorf("erreur lors de la récupération des clés: %w", err)

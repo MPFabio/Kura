@@ -70,10 +70,10 @@ func (c *CodeServiceClient) CommitGitOpsFiles(ctx context.Context, authToken, pr
 	url := fmt.Sprintf("%s/api/v1/code/projects/%s/gitops/commit", c.baseURL, projectID)
 
 	payload, err := json.Marshal(map[string]interface{}{
-		"branch":              branch,
-		"create_branch_from":  createBranchFrom,
-		"files":               files,
-		"message":             message,
+		"branch":             branch,
+		"create_branch_from": createBranchFrom,
+		"files":              files,
+		"message":            message,
 	})
 	if err != nil {
 		return err

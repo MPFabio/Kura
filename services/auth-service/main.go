@@ -63,8 +63,9 @@ func main() {
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
-		Handler: router,
+		Addr:              ":" + cfg.ServerPort,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	// Démarrer le serveur dans une goroutine
@@ -122,6 +123,7 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 			auth.POST("/logout", authHandler.Logout)
 			auth.GET("/me", authHandler.RequireAuth(), authHandler.GetCurrentUser)
 			auth.GET("/permissions", authHandler.RequireAuth(), authHandler.GetPermissions)
+			auth.GET("/authorize", authHandler.RequireAuth(), authHandler.Authorize)
 			auth.PUT("/me", authHandler.RequireAuth(), authHandler.UpdateCurrentUser)
 			auth.PUT("/password", authHandler.RequireAuth(), authHandler.ChangePassword)
 		}
@@ -145,6 +147,7 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 			projects.PATCH("/:id/mappings/:mapping_id/gitops-repository", projectHandler.SetMappingGitOpsRepository)
 			projects.GET("/:id/permissions", projectHandler.ListProjectPermissions)
 			projects.POST("/:id/permissions", projectHandler.CreateProjectPermission)
+			projects.DELETE("/:id/permissions/:user_id/:module", projectHandler.DeleteProjectPermission)
 		}
 
 		// Routes d'administration (nécessitent le rôle admin)
