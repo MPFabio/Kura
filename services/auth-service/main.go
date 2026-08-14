@@ -16,6 +16,7 @@ import (
 	"github.com/modulops/auth-service/internal/tracing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
@@ -111,6 +112,9 @@ func setupRouter(authHandler *handler.AuthHandler, projectHandler *handler.Proje
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "auth-service"})
 	})
+
+	// Métriques Prometheus (cible de scraping vmagent)
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Routes d'authentification
 	v1 := router.Group("/api/v1")

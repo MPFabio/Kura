@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
-	"github.com/modulops/k8s-service/internal/cache"
 	"github.com/modulops/k8s-service/internal/authz"
+	"github.com/modulops/k8s-service/internal/cache"
 	"github.com/modulops/k8s-service/internal/config"
 	"github.com/modulops/k8s-service/internal/handler"
 	"github.com/modulops/k8s-service/internal/k8s"
@@ -142,6 +143,9 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "k8s-service"})
 	})
+
+	// Métriques Prometheus (cible de scraping vmagent)
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Routes internes (réseau Docker uniquement, non exposées via Kong) :
 	// utilisées par d'autres services internes (ex: Semaphore via les playbooks Ansible).
