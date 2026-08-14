@@ -1,0 +1,52 @@
+name: Incident
+about: Consignation d'un incident d'exploitation (ouverture automatique par webhook Alertmanager ou signalement humain)
+labels: ["incident", "a-qualifier"]
+body:
+  - type: input
+    id: detection
+    attributes:
+      label: "Détection (alerte ou signalement)"
+      description: "Nom de l'alerte vmalert ou origine du signalement humain"
+      placeholder: "ex : ServiceDown (terraform-service) / signalement utilisateur"
+    validations:
+      required: true
+  - type: input
+    id: perimetre
+    attributes:
+      label: "Périmètre touché (services, clusters)"
+      placeholder: "ex : terraform-service, cluster client staging"
+    validations:
+      required: true
+  - type: dropdown
+    id: severite
+    attributes:
+      label: "Sévérité proposée (P1-P4)"
+      description: "Qualification confirmée ensuite par l'astreinte (procédure A3.3)"
+      options:
+        - "P1 : service critique indisponible"
+        - "P2 : dégradation majeure"
+        - "P3 : dégradation mineure"
+        - "P4 : anomalie sans impact utilisateur"
+    validations:
+      required: true
+  - type: textarea
+    id: chronologie
+    attributes:
+      label: "Chronologie (horodatée)"
+      placeholder: "14:02 alerte reçue / 14:05 prise en charge / ..."
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: "Impact utilisateurs"
+      placeholder: "Fonctionnalités indisponibles ou dégradées, nombre d'utilisateurs concernés"
+    validations:
+      required: true
+  - type: textarea
+    id: actions
+    attributes:
+      label: "Actions engagées"
+      placeholder: "Mesures immédiates, contournement, correctif en cours"
+    validations:
+      required: true

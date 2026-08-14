@@ -1,0 +1,82 @@
+{{- /*
+Template générique : un Deployment + un Service par entrée de .Values.services.
+Les 8 microservices Go et le frontend partagent la même forme ; seules les
+valeurs (port, réplicas, ressources) changent.
+*/ -}}
+{{- $root := . }}
+{{- range $name, $svc := .Values.services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "kura.labels" $root | nindent 4 }}
+    {{- include "kura.selectorLabels" $name | nindent 4 }}
+spec:
+  replicas: {{ $svc.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "kura.selectorLabels" $name | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kura.labels" $root | nindent 8 }}
+        {{- include "kura.selectorLabels" $name | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ $name }}
+          image: {{ include "kura.serviceImage" (dict "root" $root "name" $name) }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ $svc.port }}
+              name: http
+          envFrom:
+            - secretRef:
+                name: {{ $root.Values.global.existingSecret }}
+                optional: true
+          env:
+            {{- range $key, $value := $root.Values.commonEnv }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: {{ $svc.healthPath | default "/health" }}
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: {{ $svc.healthPath | default "/health" }}
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "kura.labels" $root | nindent 4 }}
+    {{- include "kura.selectorLabels" $name | nindent 4 }}
+spec:
+  selector:
+    {{- include "kura.selectorLabels" $name | nindent 4 }}
+  ports:
+    - port: {{ $svc.port }}
+      targetPort: http
+      name: http
+{{- end }}

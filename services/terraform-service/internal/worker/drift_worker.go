@@ -97,20 +97,26 @@ func (w *DriftWorker) runDriftCheck(ctx context.Context) {
 		default:
 		}
 
-		if !source.Enabled || !source.Config.AutoSync {
+		// La détection de drift ne se fait qu'en mode "fine" (tofu plan -refresh-only
+		// contre les fichiers .tf source) : un dépôt Forgejo/Codeberg doit être configuré.
+		if !source.Enabled || !source.Config.AutoSync || source.Config.ForgejoOwner == "" || source.Config.ForgejoRepo == "" {
 			continue
 		}
 
+		sourceCopy := *source
 		var credentialsJSON string
-		providerType := source.Type
-		if source.Type == "gcp" && source.Config.GCPCredentialsJSON != "" {
-			sourceCopy := *source
-			if err := w.syncService.DecryptCredentials(&sourceCopy); err == nil {
+		if err := w.syncService.DecryptCredentials(&sourceCopy); err == nil {
+			if sourceCopy.Type == "gcp" && sourceCopy.Config.GCPCredentialsJSON != "" {
 				credentialsJSON = sourceCopy.Config.GCPCredentialsJSON
 			}
 		}
+		envCreds := map[string]string{}
+		if credentialsJSON != "" {
+			envCreds["GOOGLE_CREDENTIALS"] = credentialsJSON
+		}
+		forgejoToken := w.syncService.GetForgejoToken(ctx)
 
-		results, err := w.terraformService.DetectDrift(ctx, source.StateFileID, credentialsJSON, providerType)
+		results, err := w.terraformService.DetectDriftFine(ctx, source.StateFileID, &sourceCopy, forgejoToken, envCreds)
 		if err != nil {
 			log.Printf("⚠️  Drift worker: état %s: %v", source.StateFileID, err)
 			continue

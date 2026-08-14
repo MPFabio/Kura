@@ -25,17 +25,17 @@ type K8sHandler struct {
 	svc            *service.K8sService
 	clusterService *service.ClusterService
 	cfg            *config.Config
-	redisClient    service.Cache
+	valkeyClient   service.Cache
 	mu             sync.RWMutex // Pour la sécurité des threads lors de la mise à jour de svc
 }
 
 // NewK8sHandler crée un nouveau handler Kubernetes.
-func NewK8sHandler(svc *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *K8sHandler {
+func NewK8sHandler(svc *service.K8sService, clusterService *service.ClusterService, valkeyClient service.Cache, cfg *config.Config) *K8sHandler {
 	return &K8sHandler{
 		svc:            svc,
 		clusterService: clusterService,
 		cfg:            cfg,
-		redisClient:    redisClient,
+		valkeyClient:   valkeyClient,
 	}
 }
 
@@ -105,8 +105,9 @@ func (h *K8sHandler) checkService(c *gin.Context) bool {
 			os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", gcpPath)
 			// Le plugin GKE appelle "gcloud config config-helper" ; gcloud doit avoir le compte activé
 			gcloudConfigDir := filepath.Join("/tmp/kubeconfigs", "gcloud-"+activeCluster.ID)
-			os.MkdirAll(gcloudConfigDir, 0755)
+			os.MkdirAll(gcloudConfigDir, 0700)
 			os.Setenv("CLOUDSDK_CONFIG", gcloudConfigDir)
+			// #nosec G204 -- arguments fixes ; gcpPath est un chemin de fichier temporaire généré par le service, pas une entrée utilisateur
 			cmd := exec.Command("gcloud", "auth", "activate-service-account", "--key-file="+gcpPath, "--quiet")
 			cmd.Env = append(os.Environ(), "CLOUDSDK_CONFIG="+gcloudConfigDir)
 			if err := cmd.Run(); err != nil {
@@ -129,9 +130,9 @@ func (h *K8sHandler) checkService(c *gin.Context) bool {
 	tempCfg := &config.Config{
 		KubeconfigPath: kubeconfigPath,
 		InCluster:      false,
-		RedisAddr:      h.cfg.RedisAddr,
-		RedisPassword:  h.cfg.RedisPassword,
-		RedisDB:        h.cfg.RedisDB,
+		ValkeyAddr:     h.cfg.ValkeyAddr,
+		ValkeyPassword: h.cfg.ValkeyPassword,
+		ValkeyDB:       h.cfg.ValkeyDB,
 		CacheTTL:       h.cfg.CacheTTL,
 		ServerPort:     h.cfg.ServerPort,
 		Environment:    h.cfg.Environment,
@@ -152,8 +153,8 @@ func (h *K8sHandler) checkService(c *gin.Context) bool {
 
 	// Créer le service avec le nouveau client
 	var k8sClientInterface service.K8sClient = k8sClient
-	// h.redisClient est de type service.Cache, qui est compatible avec NewK8sService
-	newSvc := service.NewK8sService(k8sClientInterface, h.redisClient, h.cfg)
+	// h.valkeyClient est de type service.Cache, qui est compatible avec NewK8sService
+	newSvc := service.NewK8sService(k8sClientInterface, h.valkeyClient, h.cfg)
 
 	// Mettre à jour le service de manière thread-safe
 	h.mu.Lock()
@@ -624,21 +625,26 @@ func (h *K8sHandler) ScaleDeployment(c *gin.Context) {
 	}
 
 	// Convertir en int32
-	var replicas int32
+	var replicas64 int64
 	switch v := req.Replicas.(type) {
 	case float64:
-		replicas = int32(v)
+		replicas64 = int64(v)
 	case int32:
-		replicas = v
+		replicas64 = int64(v)
 	case int:
-		replicas = int32(v)
+		replicas64 = int64(v)
 	case int64:
-		replicas = int32(v)
+		replicas64 = v
 	default:
 		log.Printf("Type de replicas invalide: %T", req.Replicas)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "replicas doit être un nombre"})
 		return
 	}
+	if replicas64 < 0 || replicas64 > 10000 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "replicas doit être compris entre 0 et 10000"})
+		return
+	}
+	replicas := int32(replicas64)
 
 	if replicas < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "replicas doit être >= 0"})
@@ -676,8 +682,8 @@ func (h *K8sHandler) RestartDeployment(c *gin.Context) {
 
 // PatchDeploymentEnvRequest représente la requête pour modifier les env vars.
 type PatchDeploymentEnvRequest struct {
-	Container string           `json:"container" binding:"required"`
-	Env       []corev1.EnvVar  `json:"env" binding:"required"`
+	Container string          `json:"container" binding:"required"`
+	Env       []corev1.EnvVar `json:"env" binding:"required"`
 }
 
 // PatchDeploymentEnv met à jour les variables d'environnement d'un container.

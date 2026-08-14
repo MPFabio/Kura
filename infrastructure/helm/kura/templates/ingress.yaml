@@ -1,0 +1,30 @@
+{{- if .Values.ingress.enabled }}
+{{- /*
+Point d'entrée unique : tout le trafic passe par Kong (routes API et frontend),
+conformément à l'exigence de traçabilité DORA (journalisation centralisée).
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kura
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tlsSecretName }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | quote }}]
+      secretName: {{ .Values.ingress.tlsSecretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kong
+                port:
+                  number: {{ .Values.kong.proxyPort }}
+{{- end }}

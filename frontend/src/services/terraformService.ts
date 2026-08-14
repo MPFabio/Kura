@@ -68,7 +68,7 @@ export interface TerraformConfig {
   s3_region: string
   s3_endpoint: string
   encryption_key: string
-  github_token: string
+  forgejo_token: string
 }
 
 export const terraformService = {
@@ -77,7 +77,7 @@ export const terraformService = {
     return response.data
   },
 
-  setConfig: async (data: { github_token?: string }): Promise<{ message: string }> => {
+  setConfig: async (data: { forgejo_token?: string }): Promise<{ message: string }> => {
     const response = await apiClient.post<{ message: string }>('/v1/terraform/config', data)
     return response.data
   },
@@ -140,9 +140,9 @@ export const terraformService = {
     }
   },
 
-  detectDrift: async (id: string, method: 'auto' | 'fine' | 'fast' = 'auto'): Promise<TerraformDriftResponse> => {
+  detectDrift: async (id: string): Promise<TerraformDriftResponse> => {
     try {
-      const response = await apiClient.post<TerraformDriftResponse>(`/v1/terraform/states/${id}/drift?method=${method}`)
+      const response = await apiClient.post<TerraformDriftResponse>(`/v1/terraform/states/${id}/drift`)
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la détection de drift pour l'état ${id}:`, error)
@@ -219,11 +219,12 @@ export interface TerraformSource {
     // Synchronisation
     sync_interval?: string
     auto_sync: boolean
-    // Drift "fine" (fichiers .tf source via GitHub)
-    github_owner?: string
-    github_repo?: string
-    github_path?: string
-    github_ref?: string
+    // Drift "fine" (fichiers .tf source via Forgejo/Codeberg)
+    forgejo_url?: string
+    forgejo_owner?: string
+    forgejo_repo?: string
+    forgejo_path?: string
+    forgejo_ref?: string
   }
   enabled: boolean
   last_sync?: string

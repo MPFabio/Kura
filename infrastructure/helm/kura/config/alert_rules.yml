@@ -1,0 +1,11 @@
+groups:
+  - name: kura-services
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} indisponible"
+          description: "La cible {{ $labels.instance }} (job {{ $labels.job }}) est injoignable depuis plus de 2 minutes."

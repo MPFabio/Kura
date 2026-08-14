@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +13,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"github.com/modulops/k8s-service/internal/cache"
+	"github.com/modulops/k8s-service/internal/authz"
 	"github.com/modulops/k8s-service/internal/config"
 	"github.com/modulops/k8s-service/internal/handler"
 	"github.com/modulops/k8s-service/internal/k8s"
@@ -23,31 +22,9 @@ import (
 )
 
 func main() {
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("/tmp/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"main.go:21","message":"main() entry","data":{},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-		}
-	}()
-	// #endregion
 
 	// Charger la configuration
 	cfg, err := config.Load()
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("/tmp/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			cfgData := map[string]interface{}{"KubeconfigPath": cfg.KubeconfigPath, "InCluster": cfg.InCluster, "ServerPort": cfg.ServerPort}
-			if err != nil {
-				cfgData["error"] = err.Error()
-			}
-			f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"main.go:24","message":"config.Load() result","data":` + func() string { b, _ := json.Marshal(cfgData); return string(b) }() + `,"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-		}
-	}()
-	// #endregion
 	if err != nil {
 		log.Fatalf("Erreur lors du chargement de la configuration: %v", err)
 	}
@@ -64,116 +41,48 @@ func main() {
 		}()
 	}
 
-	// Initialiser le cache Redis
-	redisClient, err := cache.NewRedisClient(cfg)
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("/tmp/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			redisData := map[string]interface{}{}
-			if err != nil {
-				redisData["error"] = err.Error()
-			} else {
-				redisData["status"] = "success"
-			}
-			f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"main.go:30","message":"Redis client init result","data":` + func() string { b, _ := json.Marshal(redisData); return string(b) }() + `,"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-		}
-	}()
-	// #endregion
+	// Initialiser le cache Valkey
+	valkeyClient, err := cache.NewValkeyClient(cfg)
 	if err != nil {
-		log.Fatalf("Erreur lors de l'initialisation de Redis: %v", err)
+		log.Fatalf("Erreur lors de l'initialisation de Valkey: %v", err)
 	}
-	defer redisClient.Close()
+	defer valkeyClient.Close()
 
 	// Note: La migration des clusters existants vers un projet par défaut
 	// doit être effectuée manuellement ou via l'API, pas automatiquement au démarrage
 
 	// Initialiser le service de gestion de clusters
-	clusterService := service.NewClusterService(redisClient, cfg)
+	clusterService := service.NewClusterService(valkeyClient, cfg)
 
-	// Initialiser le client Kubernetes (optionnel au démarrage)
-	// Le service peut démarrer sans cluster, les clusters seront ajoutés via l'API
+	// Initialiser le client Kubernetes (optionnel au démarrage : les clusters
+	// sont ajoutés via l'API et le client est alors créé dynamiquement).
 	var k8sClient *k8s.Client
-	// Ne pas initialiser le client Kubernetes au démarrage si KUBECONFIG_PATH est vide
-	// Les clusters seront ajoutés via l'API et le client sera initialisé dynamiquement
-	// #region agent log
-	func() {
-		f, _ := os.OpenFile("/tmp/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if f != nil {
-			defer f.Close()
-			f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"main.go:43","message":"Before k8s client init check","data":{"KubeconfigPath":"` + cfg.KubeconfigPath + `","InCluster":` + fmt.Sprintf("%v", cfg.InCluster) + `},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-		}
-	}()
-	// #endregion
 	if cfg.KubeconfigPath != "" {
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				defer f.Close()
-				f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"main.go:44","message":"Calling k8s.NewClient (KubeconfigPath not empty)","data":{"KubeconfigPath":"` + cfg.KubeconfigPath + `"},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-			}
-		}()
-		// #endregion
-		k8sClient, err = k8s.NewClient(cfg)
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				defer f.Close()
-				k8sData := map[string]interface{}{}
-				if err != nil {
-					k8sData["error"] = err.Error()
-				} else {
-					k8sData["status"] = "success"
-				}
-				f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"main.go:45","message":"k8s.NewClient result","data":` + func() string { b, _ := json.Marshal(k8sData); return string(b) }() + `,"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-			}
-		}()
-		// #endregion
-		if err != nil {
-			log.Printf("⚠️  Aucun cluster Kubernetes configuré au démarrage")
-			log.Printf("💡 Vous pouvez ajouter des clusters via l'API /api/v1/k8s/clusters")
-			log.Printf("   ou via l'interface frontend")
+		if k8sClient, err = k8s.NewClient(cfg); err != nil {
 			k8sClient = nil
 		}
-	} else {
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				defer f.Close()
-				f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"main.go:52","message":"Skipping k8s.NewClient (KubeconfigPath empty)","data":{},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-			}
-		}()
-		// #endregion
+	}
+	if k8sClient == nil {
 		log.Printf("⚠️  Aucun cluster Kubernetes configuré au démarrage")
-		log.Printf("💡 Vous pouvez ajouter des clusters via l'API /api/v1/k8s/clusters")
-		log.Printf("   ou via l'interface frontend")
-		k8sClient = nil
+		log.Printf("💡 Vous pouvez ajouter des clusters via l'API /api/v1/k8s/clusters ou via l'interface frontend")
 	}
 
-	// Initialiser le service métier (peut être nil si pas de cluster)
+	// Service métier : nil tant qu'aucun cluster n'est configuré.
 	var k8sService *service.K8sService
 	if k8sClient != nil {
-		// Convertir *k8s.Client en service.K8sClient (interface)
 		var k8sClientInterface service.K8sClient = k8sClient
-		k8sService = service.NewK8sService(k8sClientInterface, redisClient, cfg)
-	} else {
-		// Créer un service vide qui sera initialisé quand un cluster sera ajouté
-		k8sService = nil
+		k8sService = service.NewK8sService(k8sClientInterface, valkeyClient, cfg)
 	}
 
 	// Initialiser les handlers HTTP
-	k8sHandler := handler.NewK8sHandler(k8sService, clusterService, redisClient, cfg)
-	terminalHandler := handler.NewTerminalHandler(k8sService, clusterService, redisClient, cfg)
+	k8sHandler := handler.NewK8sHandler(k8sService, clusterService, valkeyClient, cfg)
+	terminalHandler := handler.NewTerminalHandler(k8sService, clusterService, valkeyClient, cfg)
 	clusterHandler := handler.NewClusterHandler(clusterService, cfg)
 	clusterHandler.SetInvalidators(k8sHandler, terminalHandler)
-	argocdService := service.NewArgoCDService(redisClient, clusterService, cfg)
-	helmCatalogService := service.NewHelmCatalogService(redisClient)
+	argocdService := service.NewArgoCDService(valkeyClient, clusterService, cfg)
+	helmCatalogService := service.NewHelmCatalogService(valkeyClient)
 	argocdHandler := handler.NewArgoCDHandler(argocdService, helmCatalogService)
-	registryService := service.NewRegistryService(redisClient, clusterService, cfg)
+	registryService := service.NewRegistryService(valkeyClient, clusterService, cfg)
 	registryHandler := handler.NewRegistryHandler(registryService)
 	observabilityService := service.NewObservabilityService(clusterService)
 	observabilityHandler := handler.NewObservabilityHandler(observabilityService)
@@ -181,36 +90,19 @@ func main() {
 	discoveryHandler := handler.NewDiscoveryHandler(discoveryService)
 
 	// Configurer le routeur HTTP
-	router := setupRouter(k8sHandler, terminalHandler, clusterHandler, argocdHandler, registryHandler, observabilityHandler, discoveryHandler, k8sService, clusterService, redisClient, cfg)
+	router := setupRouter(k8sHandler, terminalHandler, clusterHandler, argocdHandler, registryHandler, observabilityHandler, discoveryHandler, k8sService, clusterService, valkeyClient, cfg)
 
 	// Créer le serveur HTTP
 	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
-		Handler: router,
+		Addr:              ":" + cfg.ServerPort,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	// Démarrer le serveur dans une goroutine
 	go func() {
-		// #region agent log
-		func() {
-			f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if f != nil {
-				defer f.Close()
-				f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"main.go:82","message":"Starting HTTP server","data":{"port":"` + cfg.ServerPort + `"},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-			}
-		}()
-		// #endregion
 		log.Printf("Service Kubernetes démarré sur le port %s", cfg.ServerPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			// #region agent log
-			func() {
-				f, _ := os.OpenFile("c:\\Users\\fabio\\Documents\\Kura\\.cursor\\debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-				if f != nil {
-					defer f.Close()
-					f.WriteString(`{"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"main.go:84","message":"HTTP server error","data":{"error":"` + err.Error() + `"},"timestamp":` + fmt.Sprintf("%d", time.Now().UnixMilli()) + "}\n")
-				}
-			}()
-			// #endregion
 			log.Fatalf("Erreur lors du démarrage du serveur: %v", err)
 		}
 	}()
@@ -233,7 +125,7 @@ func main() {
 	log.Println("Service Kubernetes arrêté")
 }
 
-func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.TerminalHandler, clusterHandler *handler.ClusterHandler, argocdHandler *handler.ArgoCDHandler, registryHandler *handler.RegistryHandler, observabilityHandler *handler.ObservabilityHandler, discoveryHandler *handler.DiscoveryHandler, k8sService *service.K8sService, clusterService *service.ClusterService, redisClient service.Cache, cfg *config.Config) *gin.Engine {
+func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.TerminalHandler, clusterHandler *handler.ClusterHandler, argocdHandler *handler.ArgoCDHandler, registryHandler *handler.RegistryHandler, observabilityHandler *handler.ObservabilityHandler, discoveryHandler *handler.DiscoveryHandler, k8sService *service.K8sService, clusterService *service.ClusterService, valkeyClient service.Cache, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -260,7 +152,16 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 
 	v1 := router.Group("/api/v1")
 	{
+		// Routes hors session utilisateur : webhook (émis par des systèmes externes)
+		// et terminal WebSocket (le navigateur ne peut pas poser de header Authorization).
+		open := v1.Group("/k8s")
+		{
+			open.POST("/webhooks/events", k8sHandler.ReceiveEventWebhook)
+			open.GET("/namespaces/:namespace/pods/:name/terminal", terminalHandler.HandleTerminal)
+		}
+
 		k8sGroup := v1.Group("/k8s")
+		k8sGroup.Use(authz.Middleware(cfg.AuthServiceURL, "k8s"))
 		{
 			// Gestion des clusters
 			k8sGroup.POST("/clusters", clusterHandler.CreateCluster)
@@ -311,15 +212,9 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 			// Événements
 			k8sGroup.GET("/namespaces/:namespace/events", k8sHandler.GetEvents)
 
-			// Terminal (WebSocket) - toujours disponible, créé dynamiquement si nécessaire
-			k8sGroup.GET("/namespaces/:namespace/pods/:name/terminal", terminalHandler.HandleTerminal)
-
 			// Nodes (cluster-wide)
 			k8sGroup.GET("/nodes", k8sHandler.GetNodes)
 			k8sGroup.GET("/nodes/:name/yaml", k8sHandler.GetNodeYAML)
-
-			// Webhook pour recevoir des événements Kubernetes (squelette)
-			k8sGroup.POST("/webhooks/events", k8sHandler.ReceiveEventWebhook)
 
 			// ArgoCD (GitOps CD)
 			argocdGroup := k8sGroup.Group("/argocd")
@@ -370,7 +265,7 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Project-ID")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 
 		// Support WebSocket upgrade

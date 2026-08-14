@@ -15,6 +15,11 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // Projet actif : permet aux services de vérifier les permissions par module
+  const projectId = localStorage.getItem('currentProjectId')
+  if (projectId) {
+    config.headers['X-Project-ID'] = projectId
+  }
   return config
 })
 

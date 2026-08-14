@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/modulops/terraform-service/internal/client"
 )
@@ -42,11 +43,13 @@ func declaredVariables(files []client.TFFile) []declaredVariable {
 				v.HasDefault = true
 			}
 			if typeAttr, ok := attrs["type"]; ok {
-				// Le type est une expression de type (ex: string, number, bool,
-				// list(string)...). On ne s'intéresse qu'aux types primitifs,
-				// dont l'expression source est un simple identifiant.
+				// Le type est soit un identifiant simple (string, number, bool),
+				// soit un appel de type composé (list(string), map(string),
+				// set(...), object({...})...).
 				if traversal, diags := hcl.AbsTraversalForExpr(typeAttr.Expr); !diags.HasErrors() && len(traversal) == 1 {
 					v.Type = traversal.RootName()
+				} else if call, ok := typeAttr.Expr.(*hclsyntax.FunctionCallExpr); ok {
+					v.Type = call.Name
 				}
 			}
 			result = append(result, v)
@@ -61,13 +64,15 @@ func declaredVariables(files []client.TFFile) []declaredVariable {
 // l'utilisateur. Les variables sans défaut sont résolues, par ordre de
 // priorité :
 //  1. correspondance exacte de nom avec une sortie (output) du tfstate ;
-//  2. pour les variables "zone"/"region", une sortie dont le nom contient
+//  2. pour les variables "project"/"project_id", l'ID du projet GCP des
+//     credentials utilisés pour la synchronisation (gcpProjectID) ;
+//  3. pour les variables "zone"/"region", une sortie dont le nom contient
 //     ce mot-clé, ou (pour "region") une région dérivée d'une sortie "zone" ;
-//  3. valeur zéro adaptée au type déclaré (0, false, "", ou "" par défaut).
+//  4. valeur zéro adaptée au type déclaré (0, false, "", [], {} ou "" par défaut).
 //
 // Les variables ayant un défaut dans le code sont omises pour laisser
 // `tofu` utiliser ce défaut.
-func buildTFVarsJSON(vars []declaredVariable, outputs map[string]interface{}) ([]byte, error) {
+func buildTFVarsJSON(vars []declaredVariable, outputs map[string]interface{}, gcpProjectID string) ([]byte, error) {
 	values := make(map[string]interface{})
 	for _, v := range vars {
 		if v.HasDefault {
@@ -75,6 +80,10 @@ func buildTFVarsJSON(vars []declaredVariable, outputs map[string]interface{}) ([
 		}
 		if out, ok := outputs[v.Name]; ok {
 			values[v.Name] = out
+			continue
+		}
+		if gcpProjectID != "" && strings.Contains(strings.ToLower(v.Name), "project") {
+			values[v.Name] = gcpProjectID
 			continue
 		}
 		if alt, ok := matchByHeuristic(v.Name, outputs); ok {
@@ -147,6 +156,10 @@ func zeroValueForType(t string) interface{} {
 		return 0
 	case "bool":
 		return false
+	case "list", "set", "tuple":
+		return []interface{}{}
+	case "map", "object":
+		return map[string]interface{}{}
 	default:
 		return ""
 	}

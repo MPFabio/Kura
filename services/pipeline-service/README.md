@@ -37,8 +37,8 @@ Variables d'environnement :
 | Variable | Défaut | Description |
 |----------|--------|-------------|
 | PIPELINE_SERVICE_PORT | 8084 | Port du serveur |
-| REDIS_HOST | localhost | Hôte Redis |
-| REDIS_PORT | 6379 | Port Redis |
+| VALKEY_HOST | localhost | Hôte Redis |
+| VALKEY_PORT | 6379 | Port Redis |
 | PIPELINE_CACHE_TTL | 24h | TTL du cache des runs |
 | GITHUB_TOKEN | - | Token API GitHub (optionnel) |
 | GITLAB_TOKEN | - | Token API GitLab (optionnel) |

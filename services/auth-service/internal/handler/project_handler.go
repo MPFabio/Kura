@@ -348,12 +348,33 @@ func (h *ProjectHandler) ListProjectPermissions(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "id du projet requis"})
 		return
 	}
-	perms, err := h.projectService.GetProjectPermissions(userID.(string), projectID)
+	perms, err := h.projectService.ListAllProjectPermissions(userID.(string), projectID)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"permissions": perms})
+}
+
+// DeleteProjectPermission retire une permission granulaire d'un membre pour un module
+func (h *ProjectHandler) DeleteProjectPermission(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "utilisateur non authentifié"})
+		return
+	}
+	projectID := c.Param("id")
+	targetUserID := c.Param("user_id")
+	module := c.Param("module")
+	if projectID == "" || targetUserID == "" || module == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "projet, utilisateur et module requis"})
+		return
+	}
+	if err := h.projectService.DeleteProjectPermission(userID.(string), projectID, targetUserID, module); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "permission supprimée"})
 }
 
 // CreateProjectPermission crée une permission granulaire

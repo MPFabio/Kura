@@ -3,11 +3,11 @@ package models
 import "time"
 
 type SecretMetadata struct {
-	Path        string    `json:"path"`
-	Version     int       `json:"version,omitempty"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-	UpdatedAt   time.Time `json:"updated_at,omitempty"`
-	Destroyed   bool      `json:"destroyed,omitempty"`
+	Path      string    `json:"path"`
+	Version   int       `json:"version,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	Destroyed bool      `json:"destroyed,omitempty"`
 }
 
 type Secret struct {
@@ -23,10 +23,10 @@ type SecretWriteRequest struct {
 
 // AuditEntry représente une entrée dans l'audit trail de Vault.
 type AuditEntry struct {
-	Time      string `json:"time"`
-	Type      string `json:"type"`
-	Auth      Auth   `json:"auth"`
-	Request   Req    `json:"request"`
+	Time    string `json:"time"`
+	Type    string `json:"type"`
+	Auth    Auth   `json:"auth"`
+	Request Req    `json:"request"`
 }
 
 type Auth struct {

@@ -47,9 +47,9 @@ func New(cfg *config.Config, rdb *redis.Client) *MetricsService {
 	}
 }
 
-// getPrometheusURL retourne l'URL Prometheus (configstore prioritaire sur env).
-func (s *MetricsService) getPrometheusURL(ctx context.Context) string {
-	return s.cfgStore.GetOrFallback(ctx, "prometheus_url", s.cfg.PrometheusURL)
+// getVictoriaMetricsURL retourne l'URL Prometheus (configstore prioritaire sur env).
+func (s *MetricsService) getVictoriaMetricsURL(ctx context.Context) string {
+	return s.cfgStore.GetOrFallback(ctx, "victoriametrics_url", s.cfg.VictoriaMetricsURL)
 }
 
 // getGrafanaURL retourne l'URL Grafana (configstore prioritaire sur env).
@@ -68,10 +68,10 @@ func (s *MetricsService) getTempoURL(ctx context.Context) string {
 }
 
 // SetConfig met à jour les URLs Prometheus et Grafana.
-func (s *MetricsService) SetConfig(ctx context.Context, prometheusURL, grafanaURL string) error {
+func (s *MetricsService) SetConfig(ctx context.Context, victoriaMetricsURL, grafanaURL string) error {
 	kv := map[string]string{}
-	if prometheusURL != "" {
-		kv["prometheus_url"] = prometheusURL
+	if victoriaMetricsURL != "" {
+		kv["victoriametrics_url"] = victoriaMetricsURL
 	}
 	if grafanaURL != "" {
 		kv["grafana_url"] = grafanaURL
@@ -85,8 +85,8 @@ func (s *MetricsService) SetConfig(ctx context.Context, prometheusURL, grafanaUR
 // GetConfig retourne la config actuelle (URLs masquées si sensibles).
 func (s *MetricsService) GetConfig(ctx context.Context) (map[string]string, error) {
 	return map[string]string{
-		"prometheus_url": s.getPrometheusURL(ctx),
-		"grafana_url":    s.getGrafanaURL(ctx),
+		"victoriametrics_url": s.getVictoriaMetricsURL(ctx),
+		"grafana_url":         s.getGrafanaURL(ctx),
 	}, nil
 }
 
@@ -206,7 +206,7 @@ func (s *MetricsService) checkHealth(ctx context.Context, healthURL string) bool
 
 // queryPrometheus exécute une instant query et retourne une map job → valeur float64.
 func (s *MetricsService) queryPrometheus(ctx context.Context, query string) (map[string]float64, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/query", s.getPrometheusURL(ctx))
+	endpoint := fmt.Sprintf("%s/api/v1/query", s.getVictoriaMetricsURL(ctx))
 	params := url.Values{"query": {query}}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)

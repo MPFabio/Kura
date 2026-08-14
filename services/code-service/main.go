@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
+	"github.com/modulops/code-service/internal/authz"
 	"github.com/modulops/code-service/internal/config"
 	"github.com/modulops/code-service/internal/handler"
 	"github.com/modulops/code-service/internal/service"
@@ -42,8 +43,9 @@ func main() {
 	router := setupRouter(h, cfg)
 
 	srv := &http.Server{
-		Addr:    ":" + cfg.ServerPort,
-		Handler: router,
+		Addr:              ":" + cfg.ServerPort,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {
@@ -83,7 +85,17 @@ func setupRouter(h *handler.CodeHandler, cfg *config.Config) *gin.Engine {
 	})
 
 	v1 := router.Group("/api/v1")
+
+	// Routes GitOps : appelées en service-à-service par le k8s-service
+	// (réseau Docker interne, sans token utilisateur)
+	gitops := v1.Group("/code")
+	{
+		gitops.GET("/projects/:projectID/gitops/branches", h.GetGitOpsBranches)
+		gitops.POST("/projects/:projectID/gitops/commit", h.CommitGitOpsFiles)
+	}
+
 	code := v1.Group("/code")
+	code.Use(authz.Middleware(cfg.AuthServiceURL, "code"))
 	{
 		code.GET("/repos", h.ListRepositories)
 		code.GET("/branches", h.GetBranches)
@@ -91,8 +103,6 @@ func setupRouter(h *handler.CodeHandler, cfg *config.Config) *gin.Engine {
 		code.GET("/file", h.GetFile)
 		code.GET("/commits", h.GetCommits)
 		code.GET("/commits/:sha", h.GetCommitDiff)
-		code.GET("/projects/:projectID/gitops/branches", h.GetGitOpsBranches)
-		code.POST("/projects/:projectID/gitops/commit", h.CommitGitOpsFiles)
 	}
 
 	return router
@@ -102,7 +112,7 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Project-ID")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)

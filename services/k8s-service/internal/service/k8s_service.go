@@ -63,10 +63,10 @@ type K8sService struct {
 }
 
 // NewK8sService crée un nouveau service Kubernetes.
-func NewK8sService(k8sClient K8sClient, redisClient Cache, cfg *config.Config) *K8sService {
+func NewK8sService(k8sClient K8sClient, valkeyClient Cache, cfg *config.Config) *K8sService {
 	return &K8sService{
 		k8sClient: k8sClient,
-		cache:     redisClient,
+		cache:     valkeyClient,
 		cfg:       cfg,
 	}
 }
@@ -88,7 +88,7 @@ type PodDTO struct {
 	Labels            map[string]string `json:"labels,omitempty"`
 }
 
-// ListNamespaces retourne la liste des namespaces, avec cache Redis.
+// ListNamespaces retourne la liste des namespaces, avec cache Valkey.
 func (s *K8sService) ListNamespaces(ctx context.Context) ([]NamespaceDTO, error) {
 	cacheKey := "k8s:namespaces"
 
@@ -123,7 +123,7 @@ func (s *K8sService) ListNamespaces(ctx context.Context) ([]NamespaceDTO, error)
 	return result, nil
 }
 
-// ListPods retourne la liste des pods pour un namespace donné, avec cache Redis.
+// ListPods retourne la liste des pods pour un namespace donné, avec cache Valkey.
 func (s *K8sService) ListPods(ctx context.Context, namespace string) ([]PodDTO, error) {
 	if namespace == "" {
 		return nil, fmt.Errorf("namespace requis")

@@ -83,7 +83,7 @@ export default function VaultPage() {
   })
 
   const saveConfigMutation = useMutation({
-    mutationFn: (data: { vault_addr?: string; vault_token?: string; vault_mount_path?: string }) =>
+    mutationFn: (data: { openbao_addr?: string; openbao_token?: string; openbao_mount_path?: string }) =>
       vaultService.setConfig(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vault-config'] })
@@ -124,9 +124,9 @@ export default function VaultPage() {
 
   const handleSaveConfig = () => {
     saveConfigMutation.mutate({
-      ...(vaultAddr && { vault_addr: vaultAddr }),
-      ...(vaultToken && { vault_token: vaultToken }),
-      ...(vaultMountPath && { vault_mount_path: vaultMountPath }),
+      ...(vaultAddr && { openbao_addr: vaultAddr }),
+      ...(vaultToken && { openbao_token: vaultToken }),
+      ...(vaultMountPath && { openbao_mount_path: vaultMountPath }),
     })
   }
 
@@ -239,15 +239,15 @@ export default function VaultPage() {
 
         {configExpanded && (
           <Box sx={{ px: 2, pb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {configData?.vault_addr && (
+            {configData?.openbao_addr && (
               <Alert severity="info" sx={{ mb: 1 }}>
-                Adresse actuelle : <strong>{configData.vault_addr}</strong> — Mount path : <strong>{configData.vault_mount_path}</strong>
+                Adresse actuelle : <strong>{configData.openbao_addr}</strong> — Mount path : <strong>{configData.openbao_mount_path}</strong>
                 {configured && ' — Token configuré ✓'}
               </Alert>
             )}
             <TextField
               label="Adresse OpenBao"
-              placeholder="http://vault:8200"
+              placeholder="http://openbao:8200"
               value={vaultAddr}
               onChange={(e) => setVaultAddr(e.target.value)}
               size="small"
@@ -313,7 +313,7 @@ export default function VaultPage() {
               onClick={() => handleBreadcrumbClick(-1)}
               sx={{ color: currentPath ? kuraColors.text2 : kuraColors.text0, fontWeight: currentPath ? 400 : 600 }}
             >
-              {configData?.vault_mount_path || 'secret'}
+              {configData?.openbao_mount_path || 'secret'}
             </Link>
             {breadcrumbParts.map((part, idx) => (
               <Link

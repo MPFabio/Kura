@@ -29,14 +29,14 @@ const (
 
 // PipelineService gère la logique métier des pipelines
 type PipelineService struct {
-	cache    *cache.RedisClient
+	cache    *cache.ValkeyClient
 	cfg      *config.Config
 	cfgStore *configstore.Client
 	adapters map[models.Provider]adapter.PipelineAdapter
 }
 
 // NewPipelineService crée un nouveau service de pipelines.
-func NewPipelineService(c *cache.RedisClient, cfg *config.Config) *PipelineService {
+func NewPipelineService(c *cache.ValkeyClient, cfg *config.Config) *PipelineService {
 	adapters := map[models.Provider]adapter.PipelineAdapter{
 		models.ProviderGitHub:  adapter.NewGitHubAdapter(),
 		models.ProviderForgejo: adapter.NewForgejoAdapter(),
@@ -83,7 +83,7 @@ func (s *PipelineService) ProcessWebhook(ctx context.Context, provider models.Pr
 	return run, nil
 }
 
-// StoreRun stocke une exécution dans Redis
+// StoreRun stocke une exécution dans Valkey
 func (s *PipelineService) StoreRun(ctx context.Context, run *models.PipelineRun) error {
 	data, err := json.Marshal(run)
 	if err != nil {

@@ -135,11 +135,17 @@ type SourceConfig struct {
 	SyncInterval string `json:"sync_interval,omitempty"` // "5m", "15m", "1h", etc.
 	AutoSync     bool   `json:"auto_sync"`
 
-	// Pour le drift "fine" (fichiers .tf source via GitHub)
-	GitHubOwner string `json:"github_owner,omitempty"`
-	GitHubRepo  string `json:"github_repo,omitempty"`
-	GitHubPath  string `json:"github_path,omitempty"`
-	GitHubRef   string `json:"github_ref,omitempty"`
+	// Pour le drift "fine" (fichiers .tf source via Forgejo/Codeberg)
+	// Ancien support GitHub, désactivé (cf. ForgejoOwner/ForgejoRepo ci-dessous) :
+	// GitHubOwner string `json:"github_owner,omitempty"`
+	// GitHubRepo  string `json:"github_repo,omitempty"`
+	// GitHubPath  string `json:"github_path,omitempty"`
+	// GitHubRef   string `json:"github_ref,omitempty"`
+	ForgejoURL   string `json:"forgejo_url,omitempty"` // ex: https://codeberg.org
+	ForgejoOwner string `json:"forgejo_owner,omitempty"`
+	ForgejoRepo  string `json:"forgejo_repo,omitempty"`
+	ForgejoPath  string `json:"forgejo_path,omitempty"`
+	ForgejoRef   string `json:"forgejo_ref,omitempty"`
 }
 
 // SyncJob représente un job de synchronisation.

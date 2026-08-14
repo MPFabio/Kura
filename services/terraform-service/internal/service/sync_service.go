@@ -10,46 +10,24 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/modulops/terraform-service/internal/config"
+	"github.com/modulops/terraform-service/internal/configstore"
 	"github.com/modulops/terraform-service/internal/models"
 	"github.com/modulops/terraform-service/internal/s3"
 	azureStorage "github.com/modulops/terraform-service/internal/storage/azure"
 	gcpStorage "github.com/modulops/terraform-service/internal/storage/gcp"
 )
 
-// #region agent log
-func debugLog(location, message string, data map[string]interface{}) {
-	logEntry := map[string]interface{}{
-		"sessionId": "debug-session",
-		"runId":     "run1",
-		"location":  location,
-		"message":   message,
-		"data":      data,
-		"timestamp": time.Now().UnixMilli(),
-	}
-	if jsonData, err := json.Marshal(logEntry); err == nil {
-		// Écrire dans /tmp qui est accessible même dans distroless
-		if f, err := os.OpenFile("/tmp/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
-			f.WriteString(string(jsonData) + "\n")
-			f.Close()
-		}
-		// Aussi logger via le logger standard pour voir dans docker logs
-		log.Printf("[DEBUG] %s: %s - %+v", location, message, data)
-	}
-}
-
-// #endregion
-
 // SyncService gère la synchronisation des états Terraform depuis différentes sources.
 type SyncService struct {
 	terraformService *TerraformService
 	cache            Cache
 	cfg              *config.Config
+	cfgStore         *configstore.Client
 	sources          map[string]*models.StateSource // ID source -> source
 	jobs             map[string]*models.SyncJob     // ID job -> job
 	mu               sync.RWMutex
@@ -84,6 +62,7 @@ func NewSyncService(terraformService *TerraformService, cache Cache, cfg *config
 		terraformService: terraformService,
 		cache:            cache,
 		cfg:              cfg,
+		cfgStore:         configstore.New(cfg.AuthServiceURL, "terraform"),
 		sources:          make(map[string]*models.StateSource),
 		jobs:             make(map[string]*models.SyncJob),
 		encryptionKey:    key,
@@ -467,47 +446,22 @@ func (s *SyncService) SyncStateSync(ctx context.Context, sourceID string) error 
 
 // executeSync exécute la synchronisation.
 func (s *SyncService) executeSync(ctx context.Context, source *models.StateSource, job *models.SyncJob) {
-	// #region agent log
-	debugLog("sync_service.go:414", "executeSync entry", map[string]interface{}{
-		"sourceId": source.ID, "sourceType": source.Type, "stateFileID": source.StateFileID, "jobId": job.ID,
-	})
-	// #endregion
 	defer func() {
 		job.CompletedAt = time.Now()
 		if job.Status == "running" {
 			job.Status = "success"
 		}
-		// #region agent log
-		debugLog("sync_service.go:423", "executeSync exit", map[string]interface{}{
-			"jobId": job.ID, "status": job.Status, "error": job.Error, "message": job.Message,
-		})
-		// #endregion
 		s.mu.Lock()
 		s.jobs[job.ID] = job
 		s.mu.Unlock()
 	}()
 
 	// Décrypter les credentials
-	// #region agent log
-	debugLog("sync_service.go:426", "before decryptCredentials", map[string]interface{}{
-		"sourceId": source.ID, "hasGCPCreds": source.Config.GCPCredentialsJSON != "",
-	})
-	// #endregion
 	if err := s.decryptCredentials(source); err != nil {
-		// #region agent log
-		debugLog("sync_service.go:430", "decryptCredentials failed", map[string]interface{}{
-			"sourceId": source.ID, "error": err.Error(),
-		})
-		// #endregion
 		job.Status = "failed"
 		job.Error = fmt.Sprintf("erreur lors du déchiffrement: %v", err)
 		return
 	}
-	// #region agent log
-	debugLog("sync_service.go:432", "after decryptCredentials success", map[string]interface{}{
-		"sourceId": source.ID, "hasGCPCreds": source.Config.GCPCredentialsJSON != "",
-	})
-	// #endregion
 
 	switch source.Type {
 	case "s3":
@@ -523,26 +477,11 @@ func (s *SyncService) executeSync(ctx context.Context, source *models.StateSourc
 			return
 		}
 	case "gcp":
-		// #region agent log
-		debugLog("sync_service.go:445", "before syncFromGCP", map[string]interface{}{
-			"sourceId": source.ID, "bucket": source.Config.GCPBucket, "objectName": source.Config.GCPObjectName,
-		})
-		// #endregion
 		if err := s.syncFromGCP(ctx, source, job); err != nil {
-			// #region agent log
-			debugLog("sync_service.go:448", "syncFromGCP failed", map[string]interface{}{
-				"sourceId": source.ID, "error": err.Error(),
-			})
-			// #endregion
 			job.Status = "failed"
 			job.Error = err.Error()
 			return
 		}
-		// #region agent log
-		debugLog("sync_service.go:455", "syncFromGCP success", map[string]interface{}{
-			"sourceId": source.ID, "jobMessage": job.Message,
-		})
-		// #endregion
 	case "terraform_cloud":
 		job.Status = "failed"
 		job.Error = "synchronisation depuis Terraform Cloud non encore implémentée"
@@ -648,11 +587,6 @@ func (s *SyncService) syncFromAzure(ctx context.Context, source *models.StateSou
 
 // syncFromGCP synchronise depuis GCP Cloud Storage.
 func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSource, job *models.SyncJob) error {
-	// #region agent log
-	debugLog("sync_service.go:555", "syncFromGCP entry", map[string]interface{}{
-		"sourceId": source.ID, "stateFileID": source.StateFileID, "bucket": source.Config.GCPBucket, "objectName": source.Config.GCPObjectName,
-	})
-	// #endregion
 	config := source.Config
 
 	// Nettoyer les espaces dans le bucket et objectName
@@ -664,61 +598,25 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 		config.GCPObjectName = strings.TrimPrefix(config.GCPObjectName, config.GCPBucket+"/")
 	}
 
-	// #region agent log
-	debugLog("sync_service.go:562", "after trim bucket/object", map[string]interface{}{
-		"sourceId": source.ID, "bucket": config.GCPBucket, "objectName": config.GCPObjectName,
-	})
-	// #endregion
-
 	// Créer le client GCP
 	gcpClient, err := gcpStorage.NewClient(config.GCPCredentialsJSON)
 	if err != nil {
-		// #region agent log
-		debugLog("sync_service.go:568", "NewClient failed", map[string]interface{}{
-			"sourceId": source.ID, "error": err.Error(),
-		})
-		// #endregion
 		return fmt.Errorf("erreur lors de la création du client GCP: %w", err)
 	}
 
 	// Tester la connexion
 	if err := gcpClient.TestConnection(ctx, config.GCPBucket); err != nil {
-		// #region agent log
-		debugLog("sync_service.go:575", "TestConnection failed", map[string]interface{}{
-			"sourceId": source.ID, "bucket": config.GCPBucket, "bucketLen": len(config.GCPBucket), "error": err.Error(),
-		})
-		// #endregion
 		return fmt.Errorf("erreur de connexion GCP: %w", err)
 	}
 
 	// Récupérer le fichier tfstate
-	// #region agent log
-	debugLog("sync_service.go:570", "before GetStateFile", map[string]interface{}{
-		"sourceId": source.ID, "bucket": config.GCPBucket, "objectName": config.GCPObjectName,
-	})
-	// #endregion
 	stateData, err := gcpClient.GetStateFile(ctx, config.GCPBucket, config.GCPObjectName)
 	if err != nil {
-		// #region agent log
-		debugLog("sync_service.go:573", "GetStateFile failed", map[string]interface{}{
-			"sourceId": source.ID, "error": err.Error(),
-		})
-		// #endregion
 		return fmt.Errorf("erreur lors de la récupération du fichier: %w", err)
 	}
-	// #region agent log
-	debugLog("sync_service.go:575", "after GetStateFile success", map[string]interface{}{
-		"sourceId": source.ID, "stateDataSize": len(stateData),
-	})
-	// #endregion
 
 	// Déterminer le nom de l'état
 	var stateName string
-	// #region agent log
-	debugLog("sync_service.go:576", "before stateName extraction", map[string]interface{}{
-		"sourceId": source.ID, "stateFileID": source.StateFileID, "isTemp": strings.HasPrefix(source.StateFileID, "temp-"),
-	})
-	// #endregion
 	if strings.HasPrefix(source.StateFileID, "temp-") {
 		// Extraire le nom depuis l'ID temporaire (format: temp-nom-1234567890)
 		parts := strings.Split(source.StateFileID, "-")
@@ -750,100 +648,44 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 	// Nettoyer les espaces dans le stateName
 	stateName = strings.TrimSpace(stateName)
 
-	// #region agent log
-	debugLog("sync_service.go:603", "after stateName extraction", map[string]interface{}{
-		"sourceId": source.ID, "stateName": stateName,
-	})
-	// #endregion
-
 	// Parser et mettre à jour l'état
-	// #region agent log
-	debugLog("sync_service.go:606", "before ParseStateFileWithID", map[string]interface{}{
-		"sourceId": source.ID, "stateFileID": source.StateFileID, "stateName": stateName, "stateDataSize": len(stateData),
-	})
-	// #endregion
 	stateFile, err := s.terraformService.ParseStateFileWithID(ctx, source.StateFileID, stateName, stateData, "")
 	if err != nil {
-		// #region agent log
-		debugLog("sync_service.go:610", "ParseStateFileWithID failed", map[string]interface{}{
-			"sourceId": source.ID, "error": err.Error(),
-		})
-		// #endregion
 		return fmt.Errorf("erreur lors du parsing: %w", err)
 	}
-	// #region agent log
-	debugLog("sync_service.go:616", "after ParseStateFileWithID success", map[string]interface{}{
-		"sourceId": source.ID, "stateFileID": stateFile.ID, "stateFileName": stateFile.Name, "resourceCount": len(stateFile.State.Resources), "oldStateFileID": source.StateFileID,
-	})
-	// #endregion
 
 	// Détecter le drift automatiquement après synchronisation
 	if stateFile != nil && stateFile.ID != "" {
-		// #region agent log
-		debugLog("sync_service.go:627", "before drift detection", map[string]interface{}{
-			"sourceId": source.ID, "stateFileID": stateFile.ID, "sourceType": source.Type,
-		})
-		// #endregion
 
 		// Décrypter les credentials pour la détection de drift
 		sourceCopy := *source
-		if err := s.decryptCredentials(&sourceCopy); err == nil {
+		// La détection de drift ne se fait qu'en mode "fine" (tofu plan -refresh-only
+		// contre les fichiers .tf source) : un dépôt Forgejo/Codeberg doit être configuré.
+		if err := s.decryptCredentials(&sourceCopy); err == nil && sourceCopy.Config.ForgejoOwner != "" && sourceCopy.Config.ForgejoRepo != "" {
 			var credentialsJSON string
 			if sourceCopy.Type == "gcp" && sourceCopy.Config.GCPCredentialsJSON != "" {
 				credentialsJSON = sourceCopy.Config.GCPCredentialsJSON
 			}
+			envCreds := map[string]string{}
+			if credentialsJSON != "" {
+				envCreds["GOOGLE_CREDENTIALS"] = credentialsJSON
+			}
+			forgejoToken := s.cfgStore.GetOrFallback(ctx, "forgejo_token", "")
 
-			// Effectuer la détection de drift
-			driftResults, driftErr := s.terraformService.DetectDrift(ctx, stateFile.ID, credentialsJSON, sourceCopy.Type)
-			if driftErr != nil {
-				// Log l'erreur mais ne fait pas échouer la synchronisation
-				// #region agent log
-				debugLog("sync_service.go:642", "drift detection failed", map[string]interface{}{
-					"sourceId": source.ID, "stateFileID": stateFile.ID, "error": driftErr.Error(),
-				})
-				// #endregion
-			} else {
-				// #region agent log
-				driftCount := 0
-				for _, r := range driftResults {
-					if r.Status == "drifted" || r.Status == "missing" {
-						driftCount++
-					}
-				}
-				debugLog("sync_service.go:651", "drift detection completed", map[string]interface{}{
-					"sourceId": source.ID, "stateFileID": stateFile.ID, "driftCount": driftCount, "totalResources": len(driftResults),
-				})
-				// #endregion
+			// Effectuer la détection de drift (une erreur ne fait pas échouer la synchronisation)
+			if _, driftErr := s.terraformService.DetectDriftFine(ctx, stateFile.ID, &sourceCopy, forgejoToken, envCreds); driftErr != nil {
+				log.Printf("Détection de drift après synchronisation GCP échouée (source %s): %v", source.ID, driftErr)
 			}
 		}
 	}
 
 	// Si l'ID était temporaire, mettre à jour la source avec le nouvel ID permanent
 	if strings.HasPrefix(source.StateFileID, "temp-") && source.StateFileID != stateFile.ID {
-		// #region agent log
-		debugLog("sync_service.go:620", "updating source with new stateFileID", map[string]interface{}{
-			"sourceId": source.ID, "oldStateFileID": source.StateFileID, "newStateFileID": stateFile.ID,
-		})
-		// #endregion
-		// Mettre à jour la source avec le nouvel ID seulement si l'ID a changé
-		if source.StateFileID != stateFile.ID {
-			source.StateFileID = stateFile.ID
-			s.mu.Lock()
-			s.sources[source.ID] = source
-			s.saveSourceToCache(ctx, source)
-			s.mu.Unlock()
-			// #region agent log
-			debugLog("sync_service.go:627", "source updated with new stateFileID", map[string]interface{}{
-				"sourceId": source.ID, "newStateFileID": source.StateFileID,
-			})
-			// #endregion
-		} else {
-			// #region agent log
-			debugLog("sync_service.go:633", "stateFileID unchanged, no update needed", map[string]interface{}{
-				"sourceId": source.ID, "stateFileID": source.StateFileID,
-			})
-			// #endregion
-		}
+		source.StateFileID = stateFile.ID
+		s.mu.Lock()
+		s.sources[source.ID] = source
+		s.saveSourceToCache(ctx, source)
+		s.mu.Unlock()
 	}
 
 	job.Message = fmt.Sprintf("État synchronisé depuis GCP: %s (version %d, %d ressources)",
@@ -969,6 +811,11 @@ func (s *SyncService) DecryptCredentials(source *models.StateSource) error {
 	return s.decryptCredentials(source)
 }
 
+// GetForgejoToken retourne le token Forgejo/Codeberg configuré pour le drift fine.
+func (s *SyncService) GetForgejoToken(ctx context.Context) string {
+	return s.cfgStore.GetOrFallback(ctx, "forgejo_token", "")
+}
+
 // decryptCredentials déchiffre les credentials.
 func (s *SyncService) decryptCredentials(source *models.StateSource) error {
 	block, err := aes.NewCipher(s.encryptionKey)
@@ -1057,11 +904,6 @@ func (s *SyncService) decryptCredentials(source *models.StateSource) error {
 		var testJSON map[string]interface{}
 		if json.Unmarshal([]byte(source.Config.GCPCredentialsJSON), &testJSON) == nil {
 			// C'est déjà du JSON valide, pas besoin de déchiffrer
-			// #region agent log
-			debugLog("sync_service.go:953", "GCP credentials already in plaintext JSON", map[string]interface{}{
-				"sourceId": source.ID,
-			})
-			// #endregion
 			return nil
 		}
 

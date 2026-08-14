@@ -427,10 +427,19 @@ func (r *Repository) ListProjectPermissions(projectID string) ([]*models.Project
 	return list, nil
 }
 
-// CreateProjectPermission crée une permission
+// CreateProjectPermission crée ou remplace une permission (upsert sur project/user/module)
 func (r *Repository) CreateProjectPermission(pp *models.ProjectPermission) error {
 	query := `INSERT INTO project_permissions (id, project_id, user_id, module, scope, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (project_id, user_id, module)
+		DO UPDATE SET scope = EXCLUDED.scope, updated_at = EXCLUDED.updated_at`
 	_, err := r.db.Exec(query, pp.ID, pp.ProjectID, pp.UserID, pp.Module, pp.Scope, pp.CreatedAt, pp.UpdatedAt)
+	return err
+}
+
+// DeleteProjectPermission supprime une permission granulaire (retour au comportement par défaut)
+func (r *Repository) DeleteProjectPermission(projectID, userID, module string) error {
+	_, err := r.db.Exec(`DELETE FROM project_permissions WHERE project_id = $1 AND user_id = $2 AND module = $3`,
+		projectID, userID, module)
 	return err
 }

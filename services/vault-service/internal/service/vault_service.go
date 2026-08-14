@@ -29,9 +29,9 @@ func New(cfg *config.Config, rdb *redis.Client) (*VaultService, error) {
 	cs := configstore.New(cfg.AuthServiceURL, "vault")
 	ctx := context.Background()
 
-	addr := cs.GetOrFallback(ctx, "vault_addr", cfg.VaultAddr)
-	token := cs.GetOrFallback(ctx, "vault_token", cfg.VaultToken)
-	mountPath := cs.GetOrFallback(ctx, "vault_mount_path", cfg.MountPath)
+	addr := cs.GetOrFallback(ctx, "openbao_addr", cfg.OpenBaoAddr)
+	token := cs.GetOrFallback(ctx, "openbao_token", cfg.OpenBaoToken)
+	mountPath := cs.GetOrFallback(ctx, "openbao_mount_path", cfg.MountPath)
 
 	vcfg := vault.DefaultConfig()
 	vcfg.Address = addr
@@ -53,18 +53,18 @@ func New(cfg *config.Config, rdb *redis.Client) (*VaultService, error) {
 
 // GetConfig retourne la config Vault actuelle (token masqué).
 func (s *VaultService) GetConfig(ctx context.Context) (map[string]string, error) {
-	addr := s.cfgStore.GetOrFallback(ctx, "vault_addr", s.cfg.VaultAddr)
-	mount := s.cfgStore.GetOrFallback(ctx, "vault_mount_path", s.cfg.MountPath)
-	tokenSet := s.cfgStore.GetOrFallback(ctx, "vault_token", s.cfg.VaultToken) != ""
+	addr := s.cfgStore.GetOrFallback(ctx, "openbao_addr", s.cfg.OpenBaoAddr)
+	mount := s.cfgStore.GetOrFallback(ctx, "openbao_mount_path", s.cfg.MountPath)
+	tokenSet := s.cfgStore.GetOrFallback(ctx, "openbao_token", s.cfg.OpenBaoToken) != ""
 	linked := "false"
 	if tokenSet {
 		linked = "true"
 	}
 	return map[string]string{
-		"vault_addr":       addr,
-		"vault_mount_path": mount,
-		"vault_token":      "***",
-		"linked":           linked,
+		"openbao_addr":       addr,
+		"openbao_mount_path": mount,
+		"openbao_token":      "***",
+		"linked":             linked,
 	}, nil
 }
 
@@ -72,13 +72,13 @@ func (s *VaultService) GetConfig(ctx context.Context) (map[string]string, error)
 func (s *VaultService) SetConfig(ctx context.Context, addr, token, mountPath string) error {
 	kv := map[string]string{}
 	if addr != "" {
-		kv["vault_addr"] = addr
+		kv["openbao_addr"] = addr
 	}
 	if token != "" {
-		kv["vault_token"] = token
+		kv["openbao_token"] = token
 	}
 	if mountPath != "" {
-		kv["vault_mount_path"] = mountPath
+		kv["openbao_mount_path"] = mountPath
 	}
 	if len(kv) == 0 {
 		return nil
@@ -97,7 +97,7 @@ func (s *VaultService) SetConfig(ctx context.Context, addr, token, mountPath str
 		if token != "" {
 			client.SetToken(token)
 		} else {
-			client.SetToken(s.cfgStore.GetOrFallback(ctx, "vault_token", s.cfg.VaultToken))
+			client.SetToken(s.cfgStore.GetOrFallback(ctx, "openbao_token", s.cfg.OpenBaoToken))
 		}
 		s.client = client
 	} else if token != "" {
@@ -243,6 +243,10 @@ func intFromMeta(meta map[string]interface{}, key string) int {
 		return int(v)
 	case int:
 		return v
+	case json.Number:
+		if n, err := v.Int64(); err == nil {
+			return int(n)
+		}
 	}
 	return 0
 }
