@@ -47,9 +47,15 @@ spec:
               value: /dev/stdout
             - name: KONG_PROXY_ERROR_LOG
               value: /dev/stderr
+            # Status API (lecture seule) : sert /metrics du plugin prometheus.
+            # L'Admin API n'est pas exposée : elle permet de modifier la config.
+            - name: KONG_STATUS_LISTEN
+              value: "0.0.0.0:8100"
           ports:
             - containerPort: {{ .Values.kong.proxyPort }}
               name: proxy
+            - containerPort: 8100
+              name: status
           volumeMounts:
             - name: declarative
               mountPath: /kong
@@ -80,4 +86,7 @@ spec:
     - port: {{ .Values.kong.proxyPort }}
       targetPort: proxy
       name: proxy
+    - port: 8100
+      targetPort: status
+      name: status
 {{- end }}

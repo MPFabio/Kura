@@ -70,6 +70,10 @@ services:
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: "127.0.0.1:8001"
+      # Status API (lecture seule) : expose /metrics du plugin prometheus au
+      # réseau interne pour vmagent. L'Admin API, elle, reste sur la loopback
+      # du conteneur : elle permet de modifier la configuration.
+      KONG_STATUS_LISTEN: "0.0.0.0:8100"
       KONG_DNS_RESOLVER: "127.0.0.11"
       KONG_DNS_ORDER: "LAST,A,CNAME"
       KONG_NGINX_WORKER_PROCESSES: "1"

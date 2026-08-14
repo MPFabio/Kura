@@ -290,6 +290,12 @@ services:
     - OPTIONS
 
 plugins:
+# Expose les métriques Kong sur la Status API (/metrics), scrapées par vmagent.
+- name: prometheus
+  config:
+    status_code_metrics: true
+    latency_metrics: true
+    upstream_health_metrics: true
 - name: rate-limiting
   config:
     minute: 100
