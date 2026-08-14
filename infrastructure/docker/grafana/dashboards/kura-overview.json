@@ -34,7 +34,7 @@
       },
       "targets": [
         {
-          "expr": "count(up{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"} == 1) or vector(0)",
+          "expr": "count(up{job=~\".+-service\"} == 1) or vector(0)",
           "legendFormat": "Services UP",
           "refId": "A"
         }
@@ -66,7 +66,7 @@
       },
       "targets": [
         {
-          "expr": "count(up{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"} == 0) or vector(0)",
+          "expr": "count(up{job=~\".+-service\"} == 0) or vector(0)",
           "legendFormat": "Services DOWN",
           "refId": "A"
         }
@@ -88,7 +88,7 @@
       },
       "targets": [
         {
-          "expr": "sum(go_goroutines{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"})",
+          "expr": "sum(go_goroutines{job=~\".+-service\"})",
           "legendFormat": "Goroutines",
           "refId": "A"
         }
@@ -110,7 +110,7 @@
       },
       "targets": [
         {
-          "expr": "sum(process_resident_memory_bytes{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"})",
+          "expr": "sum(process_resident_memory_bytes{job=~\".+-service\"})",
           "legendFormat": "Mémoire totale",
           "refId": "A"
         }
@@ -130,7 +130,7 @@
       },
       "targets": [
         {
-          "expr": "go_goroutines{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"}",
+          "expr": "go_goroutines{job=~\".+-service\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
@@ -150,7 +150,7 @@
       },
       "targets": [
         {
-          "expr": "process_resident_memory_bytes{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"}",
+          "expr": "process_resident_memory_bytes{job=~\".+-service\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
@@ -181,7 +181,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=~\"auth-service|k8s-service|terraform-service|ansible-service|pipeline-service|metrics-service\"}",
+          "expr": "up{job=~\".+-service\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
