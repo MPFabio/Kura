@@ -64,7 +64,10 @@ func (r *Repository) GetServiceConfig(service, key string) (string, error) {
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
-	return value, err
+	if err != nil {
+		return "", err
+	}
+	return decryptValue(value)
 }
 
 // GetServiceConfigs retourne toutes les clés/valeurs d'un service.
@@ -83,18 +86,26 @@ func (r *Repository) GetServiceConfigs(service string) (map[string]string, error
 		if err := rows.Scan(&k, &v); err != nil {
 			return nil, err
 		}
-		result[k] = v
+		plain, err := decryptValue(v)
+		if err != nil {
+			return nil, err
+		}
+		result[k] = plain
 	}
 	return result, rows.Err()
 }
 
 // SetServiceConfig insère ou met à jour une clé pour un service.
 func (r *Repository) SetServiceConfig(service, key, value string) error {
-	_, err := r.db.Exec(
+	stored, err := encryptValue(key, value)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Exec(
 		`INSERT INTO service_configs (service, key, value, updated_at)
 		 VALUES ($1, $2, $3, NOW())
 		 ON CONFLICT (service, key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
-		service, key, value,
+		service, key, stored,
 	)
 	return err
 }
@@ -125,7 +136,11 @@ func (r *Repository) SetServiceConfigs(service string, kv map[string]string) err
 	}
 	defer stmt.Close()
 	for k, v := range kv {
-		if _, err := stmt.Exec(service, k, v); err != nil {
+		stored, err := encryptValue(k, v)
+		if err != nil {
+			return err
+		}
+		if _, err := stmt.Exec(service, k, stored); err != nil {
 			return err
 		}
 	}

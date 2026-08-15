@@ -50,6 +50,16 @@ func main() {
 	}
 	defer repo.Close()
 
+	// Chiffre au repos les identifiants encore stockés en clair. Idempotent, et
+	// sans effet si aucune clé maître n'est configurée.
+	if !repository.EncryptionEnabled() {
+		log.Printf("⚠️  CONFIG_ENCRYPTION_KEY absente : les identifiants (jetons Forgejo, OpenBao, clés de comptes de service) sont stockés en clair en base")
+	} else if migrated, err := repo.EncryptExistingConfigs(); err != nil {
+		log.Fatalf("Erreur lors du chiffrement des identifiants existants: %v", err)
+	} else if migrated > 0 {
+		log.Printf("🔐 %d identifiant(s) chiffré(s) au repos", migrated)
+	}
+
 	// Initialiser les services
 	authService := service.NewAuthService(repo, cfg)
 	projectService := service.NewProjectService(repo)

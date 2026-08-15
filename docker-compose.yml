@@ -342,6 +342,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-kura}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: 24h
+      # Chiffre au repos les identifiants stockés dans service_configs (jetons
+      # Forgejo, OpenBao, clés de comptes de service). Sans cette clé, les
+      # valeurs restent écrites en clair. Sa perte rend les secrets déjà
+      # chiffrés illisibles : ils doivent alors être ressaisis.
+      CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY}
       ENV: development
       LOG_LEVEL: info
       OTEL_EXPORTER_OTLP_ENDPOINT: tempo:4317

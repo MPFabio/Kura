@@ -7,6 +7,15 @@ global:
   imagePullPolicy: IfNotPresent
   # Nom du Secret existant portant les mots de passe (postgres, valkey, jwt…).
   # Créé par l'équipe d'exploitation du client, jamais versionné.
+  #
+  # Doit contenir au minimum : POSTGRES_PASSWORD, VALKEY_PASSWORD, JWT_SECRET,
+  # GF_SECURITY_ADMIN_PASSWORD et CONFIG_ENCRYPTION_KEY.
+  #
+  # CONFIG_ENCRYPTION_KEY chiffre au repos les identifiants que les modules
+  # utilisent pour joindre les systèmes externes (jetons Forgejo, OpenBao, clés
+  # de comptes de service). Sans elle, ces valeurs sont stockées en clair dans
+  # Postgres. À sauvegarder avec la base : sa perte rend les secrets déjà
+  # chiffrés illisibles, et ils devront être ressaisis.
   existingSecret: "kura-secrets"
 
 # ── Microservices Go + frontend ───────────────────────────────────────────────
