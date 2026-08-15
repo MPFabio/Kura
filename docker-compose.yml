@@ -211,6 +211,26 @@ services:
     networks:
       - kura-network
 
+  # Pose les ACL de lecture sur les tableaux de bord provisionnes : sans elles,
+  # l'iframe Grafana embarquee dans Kura (acces anonyme) recoit un 403.
+  # Conteneur ephemere : il s'execute au demarrage puis s'arrete.
+  grafana-init:
+    image: curlimages/curl:8.11.0
+    container_name: kura-grafana-init
+    restart: "no"
+    environment:
+      GRAFANA_URL: http://grafana:3000
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+    entrypoint: ["/bin/sh", "/init-permissions.sh"]
+    volumes:
+      - ./infrastructure/docker/grafana/init-permissions.sh:/init-permissions.sh:ro
+    depends_on:
+      grafana:
+        condition: service_healthy
+    networks:
+      - kura-network
+
   loki:
     image: grafana/loki:2.9.4
     container_name: kura-loki

@@ -1,0 +1,76 @@
+{{- /*
+Provisioning Grafana : sources de données et tableaux de bord.
+
+Sans ce ConfigMap, le Grafana du chart demarrait sans aucune source de
+donnees : les tableaux de bord existaient mais restaient vides, alors que le
+deploiement docker-compose, lui, etait correctement provisionne.
+
+Les uid des sources sont fixes (prometheus, loki, tempo, alertmanager) car les
+tableaux de bord y font reference. Sans uid explicite, Grafana en genere un
+aleatoire a chaque initialisation et les panneaux affichent « No data ».
+
+Les fichiers sont lus depuis config/grafana/ du chart. Ils doublonnent ceux de
+infrastructure/docker/grafana/provisioning/ utilises par docker-compose : toute
+modification doit etre reportee des deux cotes.
+*/ -}}
+{{- if .Values.observability.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://victoriametrics:{{ .Values.observability.victoriametrics.port }}
+        isDefault: true
+        jsonData:
+          timeInterval: "15s"
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki:{{ .Values.observability.loki.port }}
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://tempo:{{ .Values.observability.tempo.port }}
+      - name: Alertmanager
+        uid: alertmanager
+        type: alertmanager
+        access: proxy
+        url: http://alertmanager:9093
+        jsonData:
+          implementation: prometheus
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'Default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+data:
+{{- range $path, $_ := .Files.Glob "config/grafana/dashboards/*.json" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    # uid fixe : les dashboards y font reference (datasource.uid).
+    # Sans lui Grafana en genere un aleatoire a chaque init et les
+    # panneaux affichent « No data ».
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://victoriametrics:8428
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: "15s"

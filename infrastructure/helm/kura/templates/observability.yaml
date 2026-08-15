@@ -74,16 +74,70 @@ spec:
           imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
           {{- if eq $comp "victoriametrics" }}
           args:
-            - --storageDataPath=/data
+            - --storageDataPath={{ $spec.dataPath }}
             - --retentionPeriod={{ $spec.retention }}
             - --httpListenAddr=:{{ $spec.port }}
+          {{- end }}
+          {{- if eq $comp "grafana" }}
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $root.Values.global.existingSecret }}
+                  key: GF_SECURITY_ADMIN_PASSWORD
+            # Le tableau de bord est affiche dans une iframe par Kura, servie
+            # sous /grafana : sans ces trois reglages, Grafana refuse
+            # l'integration ou genere des URLs d'assets invalides.
+            - name: GF_SECURITY_ALLOW_EMBEDDING
+              value: "true"
+            - name: GF_SERVER_ROOT_URL
+              value: "%(protocol)s://%(domain)s/grafana/"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_NAME
+              value: "Main Org."
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: Viewer
           {{- end }}
           ports:
             - containerPort: {{ $spec.port }}
               name: main
           volumeMounts:
             - name: data
-              mountPath: /data
+              mountPath: {{ $spec.dataPath }}
+            {{- if eq $comp "grafana" }}
+            - name: provisioning-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+            - name: provisioning-dashboards
+              mountPath: /etc/grafana/provisioning/dashboards
+              readOnly: true
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+            {{- end }}
+      {{- if eq $comp "grafana" }}
+      volumes:
+        - name: provisioning-datasources
+          configMap:
+            name: grafana-provisioning
+            items:
+              - key: datasources.yaml
+                path: datasources.yaml
+        - name: provisioning-dashboards
+          configMap:
+            name: grafana-provisioning
+            items:
+              - key: dashboards.yaml
+                path: dashboards.yaml
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+      {{- end }}
   volumeClaimTemplates:
     - metadata:
         name: data

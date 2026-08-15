@@ -176,6 +176,7 @@ observability:
     port: 8428
     retention: 15d
     storage: 10Gi
+    dataPath: /data
   vmagent:
     image: victoriametrics/vmagent:v1.102.1
   vmalert:
@@ -186,16 +187,20 @@ observability:
     image: grafana/grafana:10.2.0
     port: 3000
     storage: 2Gi
+    # Chemin impose par Grafana : monter ailleurs revient a ne rien persister.
+    dataPath: /var/lib/grafana
   loki:
     image: grafana/loki:2.9.4
     port: 3100
     storage: 10Gi
+    dataPath: /loki
   promtail:
     image: grafana/promtail:2.9.4
   tempo:
     image: grafana/tempo:2.3.1
     port: 3200
     storage: 10Gi
+    dataPath: /var/tempo
 
 # ── Exposition ────────────────────────────────────────────────────────────────
 ingress:

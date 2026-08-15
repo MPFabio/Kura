@@ -1,0 +1,65 @@
+{{- /*
+Equivalent Kubernetes du service grafana-init du docker-compose : accorde au
+role Viewer la lecture des tableaux de bord provisionnes, sans quoi l'iframe
+embarquee dans Kura (acces anonyme) recoit un 403 dashboards:read.
+
+Rejoue apres chaque install et chaque upgrade : le job est idempotent, et les
+tableaux de bord peuvent avoir change entre deux versions du chart.
+*/ -}}
+{{- if .Values.observability.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-init
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "kura.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: grafana-init
+          image: curlimages/curl:8.11.0
+          command: ["/bin/sh", "/scripts/init-permissions.sh"]
+          env:
+            - name: GRAFANA_URL
+              value: http://grafana:{{ .Values.observability.grafana.port }}
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.existingSecret }}
+                  key: GF_SECURITY_ADMIN_PASSWORD
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: grafana-init-script
+            defaultMode: 0555
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-init-script
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+data:
+  init-permissions.sh: |
+{{ .Files.Get "config/grafana/init-permissions.sh" | indent 4 }}
+{{- end }}
