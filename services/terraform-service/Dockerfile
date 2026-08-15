@@ -10,9 +10,15 @@ COPY go.mod go.sum* ./
 # Étape 2 : télécharger toutes les dépendances
 RUN go mod download
 
-# Étape 3 : copier le code source et s'assurer que go.sum contient bien toutes les entrées nécessaires
+# Étape 3 : copier le code source
+#
+# Pas de `go mod tidy` ici : il résout aussi les dépendances de test de toutes
+# les dépendances transitives (des paquets que ce service n'utilise pas), ce
+# qui allongeait le build de plusieurs minutes et le rendait tributaire du
+# réseau. Il réécrivait surtout go.mod et go.sum au moment du build, annulant
+# la reproductibilité que ces fichiers servent précisément à garantir. Ils sont
+# versionnés : le build doit s'y conformer, pas les modifier.
 COPY . .
-RUN go mod tidy
 
 # Étape 4 : builder le binaire
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o terraform-service ./main.go
