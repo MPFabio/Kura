@@ -139,6 +139,53 @@ var selfManagedWorkloads = map[string]bool{
 // du pod). On ne touche donc PAS au selector de argocd-redis — seulement à son
 // pod template — pour que le selector créé corresponde exactement à celui du
 // chart.
+// chartContainerNames traduit les noms de conteneurs du manifeste install.yaml
+// vers ceux qu'emploie le chart Helm argo-cd, auquel l'auto-gestion confie
+// ensuite ces workloads.
+//
+// Pourquoi c'est indispensable : l'Application "argocd" synchronise avec
+// ServerSideApply. Kubernetes fusionne alors les listes de conteneurs par leur
+// nom (clé de fusion). Si Kura crée un conteneur "argocd-server" et que le
+// chart en déclare un nommé "server", les deux coexistent au lieu de se
+// remplacer : le pod se retrouve avec deux exemplaires du même processus, qui
+// se disputent le même port et bouclent en CrashLoopBackOff
+// ("bind: address already in use").
+//
+// Constaté en production sur les cinq workloads ci-dessous. argocd-redis n'y
+// figure pas : son conteneur porte déjà le même nom des deux côtés.
+var chartContainerNames = map[string]map[string]string{
+	"argocd-server":                    {"argocd-server": "server"},
+	"argocd-repo-server":               {"argocd-repo-server": "repo-server"},
+	"argocd-applicationset-controller": {"argocd-applicationset-controller": "applicationset-controller"},
+	"argocd-notifications-controller":  {"argocd-notifications-controller": "notifications-controller"},
+	"argocd-application-controller":    {"argocd-application-controller": "application-controller"},
+	"argocd-dex-server":                {"dex-server": "dex"},
+}
+
+// renameContainers applique la traduction de noms au pod template.
+func renameContainers(obj *unstructured.Unstructured, renames map[string]string) {
+	containers, found, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "containers")
+	if err != nil || !found {
+		return
+	}
+	changed := false
+	for i, c := range containers {
+		m, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name, _ := m["name"].(string)
+		if newName, ok := renames[name]; ok {
+			m["name"] = newName
+			containers[i] = m
+			changed = true
+		}
+	}
+	if changed {
+		_ = unstructured.SetNestedSlice(obj.Object, containers, "spec", "template", "spec", "containers")
+	}
+}
+
 func prepareForSelfManagement(obj *unstructured.Unstructured) {
 	kind := obj.GetKind()
 	if kind != "Deployment" && kind != "StatefulSet" {
@@ -161,6 +208,10 @@ func prepareForSelfManagement(obj *unstructured.Unstructured) {
 		addLabel("spec", "selector", "matchLabels")
 	}
 	addLabel("spec", "template", "metadata", "labels")
+
+	if renames, ok := chartContainerNames[obj.GetName()]; ok {
+		renameContainers(obj, renames)
+	}
 }
 
 // patchRepoServerResilience donne à argocd-repo-server des requests CPU/mémoire
@@ -171,7 +222,7 @@ func patchRepoServerResilience(ctx context.Context, clientset *kubernetes.Client
 			"template": {
 				"spec": {
 					"containers": [{
-						"name": "argocd-repo-server",
+						"name": "repo-server",
 						"resources": {
 							"requests": {"cpu": "100m", "memory": "256Mi"},
 							"limits": {"memory": "512Mi"}
