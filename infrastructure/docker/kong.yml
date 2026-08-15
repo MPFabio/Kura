@@ -210,6 +210,11 @@ services:
 
 - name: terraform-service
   url: http://terraform-service-upstream
+  # La detection de drift lance `tofu init` puis `plan -refresh-only` : au
+  # premier appel, le telechargement du provider depasse le defaut de 60 s.
+  connect_timeout: 60000
+  write_timeout: 300000
+  read_timeout: 300000
   routes:
   - name: terraform-route
     paths:

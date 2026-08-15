@@ -75,3 +75,7 @@ temp/
 # OS
 Thumbs.db
 .DS_Store
+
+# Exports temporaires de bases (jamais versionner : hachages et cles chiffrees)
+*.sqlite
+*.sqlite3
