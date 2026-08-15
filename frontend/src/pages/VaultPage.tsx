@@ -306,15 +306,30 @@ export default function VaultPage() {
             </Box>
           </Box>
 
-          <Breadcrumbs sx={{ mb: 2 }}>
-            <Link
-              component="button"
-              underline="hover"
-              onClick={() => handleBreadcrumbClick(-1)}
-              sx={{ color: currentPath ? kuraColors.text2 : kuraColors.text0, fontWeight: currentPath ? 400 : 600 }}
-            >
-              {configData?.openbao_mount_path || 'secret'}
-            </Link>
+          {/* Fil d'Ariane du chemin courant.
+              Il était rendu sans intitulé : un mot souligné, seul au-dessus
+              d'un « aucun secret trouvé », se lisait comme une entrée de la
+              liste alors qu'il désigne le point de montage. La racine n'est
+              plus cliquable quand on s'y trouve déjà, un lien sans effet
+              donnant à penser que l'interface ne répond pas. */}
+          <Breadcrumbs sx={{ mb: 2 }} aria-label="Chemin dans le coffre">
+            <Typography component="span" sx={{ fontSize: '0.8125rem', color: kuraColors.text2, mr: 0.5 }}>
+              Chemin :
+            </Typography>
+            {currentPath ? (
+              <Link
+                component="button"
+                underline="hover"
+                onClick={() => handleBreadcrumbClick(-1)}
+                sx={{ color: kuraColors.text2 }}
+              >
+                {configData?.openbao_mount_path || 'secret'}
+              </Link>
+            ) : (
+              <Typography component="span" sx={{ color: kuraColors.text0, fontWeight: 600 }}>
+                {configData?.openbao_mount_path || 'secret'}
+              </Typography>
+            )}
             {breadcrumbParts.map((part, idx) => (
               <Link
                 key={idx}
@@ -403,7 +418,9 @@ export default function VaultPage() {
             </TableContainer>
           ) : (
             <Alert severity="info">
-              Aucun secret trouvé{currentPath ? ` dans ${currentPath}` : ''}.
+              {currentPath
+                ? `Aucun secret dans ${currentPath}.`
+                : 'Ce coffre est vide. Utilisez « Nouveau secret » pour en enregistrer un.'}
             </Alert>
           )}
         </Box>
