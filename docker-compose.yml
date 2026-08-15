@@ -31,14 +31,14 @@ services:
           memory: 256m
     ports:
       - "6379:6379"
+    # volatile-lru et non allkeys-lru : Valkey heberge aussi des donnees
+    # durables sans expiration (sources et etats OpenTofu, configurations).
+    # Avec allkeys-lru, une pression memoire les evincerait silencieusement
+    # au meme titre que du cache.
     command: >
       valkey-server
       --requirepass ${VALKEY_PASSWORD}
       --maxmemory 256mb
-      # volatile-lru et non allkeys-lru : Valkey heberge aussi des donnees
-      # durables sans expiration (sources et etats OpenTofu, configurations).
-      # Avec allkeys-lru, une pression memoire les evincerait silencieusement
-      # au meme titre que du cache.
       --maxmemory-policy volatile-lru
       --appendonly yes
       --appendfsync everysec
