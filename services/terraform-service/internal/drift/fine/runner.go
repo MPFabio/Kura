@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -23,13 +25,10 @@ const defaultTofuPath = "/usr/local/bin/tofu"
 
 // runMu sérialise les exécutions de plans au sein du service.
 //
-// Le cache de plugins (TF_PLUGIN_CACHE_DIR) est partagé par toutes les
-// exécutions, et OpenTofu y lie les binaires de providers en dur (hardlink)
-// dans le .terraform du répertoire de travail. Deux exécutions simultanées
-// (typiquement le worker de drift périodique et une détection déclenchée
-// depuis l'interface) se retrouvent alors : l'une exécute le provider pendant
-// que l'autre tente de réécrire le même inode, et l'init échoue avec
-// « text file busy ».
+// Un plan de rafraîchissement lance un processus de fournisseur par ressource
+// et consomme plusieurs centaines de mégaoctets : en laisser tourner deux de
+// front sur une machine modeste conduit le noyau à en tuer un (constaté en
+// production, « signal: killed » sur un OOM de cgroup).
 //
 // Le verrou est au niveau du paquet, et non du Runner, car un Runner est créé
 // à chaque détection : un verrou d'instance ne protégerait rien.
@@ -136,9 +135,28 @@ func (r *Runner) Run(ctx context.Context, input RunInput) (*tfjson.Plan, error) 
 		}
 	}
 
-	pluginCacheDir := filepath.Join(os.TempDir(), "tofu-plugin-cache")
+	// Cache de plugins propre à cette exécution, amorcé par copie du cache
+	// partagé.
+	//
+	// Un cache unique partagé produisait des « text file busy » : après un
+	// plan, les processus de provider lancés par tofu survivent brièvement et
+	// tiennent leur binaire ouvert. L'exécution suivante voulait réécrire ce
+	// même fichier, et Linux refuse d'ouvrir en écriture un exécutable en cours
+	// d'exécution. Sérialiser les plans n'y suffit pas : ces processus se
+	// terminent après le retour du plan, donc après la libération du verrou.
+	//
+	// Chaque exécution travaille donc sur sa propre copie, détruite avec le
+	// répertoire de travail. Le cache partagé n'est plus écrit qu'une seule
+	// fois, lors du tout premier amorçage, ce qui évite de retélécharger le
+	// fournisseur à chaque détection.
+	pluginCacheDir := filepath.Join(workDir, "plugin-cache")
 	if err := os.MkdirAll(pluginCacheDir, 0o700); err != nil {
 		return nil, fmt.Errorf("création du cache de plugins: %w", err)
+	}
+	sharedCacheDir := filepath.Join(os.TempDir(), "tofu-plugin-cache")
+	seeded, err := copyTree(sharedCacheDir, pluginCacheDir)
+	if err != nil {
+		return nil, fmt.Errorf("amorçage du cache de plugins: %w", err)
 	}
 
 	tf, err := tfexec.NewTerraform(moduleDir, r.tofuPath)
@@ -162,6 +180,17 @@ func (r *Runner) Run(ctx context.Context, input RunInput) (*tfjson.Plan, error) 
 
 	if err := tf.Init(ctx, tfexec.Backend(false)); err != nil {
 		return nil, fmt.Errorf("tofu init: %w", err)
+	}
+
+	// Premier amorçage : le cache partagé était vide, on l'alimente avec ce que
+	// cet init vient de télécharger. Les exécutions suivantes repartiront de
+	// cette copie au lieu d'interroger le registre.
+	if !seeded {
+		if _, err := copyTree(pluginCacheDir, sharedCacheDir); err != nil {
+			// Sans cache partagé, les prochains plans retéléchargeront le
+			// fournisseur : c'est plus lent, mais ce n'est pas un échec.
+			log.Printf("[tofu] amorçage du cache partagé impossible: %v", err)
+		}
 	}
 
 	planPath := filepath.Join(moduleDir, "plan.tfplan")
@@ -215,4 +244,78 @@ func filesInDir(files []client.TFFile, dir string) []client.TFFile {
 		result = append(result, client.TFFile{Path: rel, Content: f.Content})
 	}
 	return result
+}
+
+// copyTree recopie le contenu de src dans dst en préservant les permissions.
+//
+// Le bit exécutable des binaires de fournisseur doit impérativement être
+// conservé, faute de quoi tofu les retéléchargerait — ou échouerait à les
+// lancer.
+//
+// Retourne false si src n'existe pas : ce n'est pas une erreur, c'est le cas
+// du tout premier amorçage.
+func copyTree(src, dst string) (bool, error) {
+	info, err := os.Stat(src)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !info.IsDir() {
+		return false, fmt.Errorf("%s n'est pas un répertoire", src)
+	}
+
+	empty := true
+	err = filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return nil
+		}
+		target := filepath.Join(dst, rel)
+
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o700)
+		}
+		// Les liens symboliques du cache ne sont pas suivis : tofu n'en crée
+		// pas, et les recopier à l'aveugle ferait sortir du répertoire.
+		if !d.Type().IsRegular() {
+			return nil
+		}
+
+		entryInfo, err := d.Info()
+		if err != nil {
+			return err
+		}
+		in, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer in.Close()
+
+		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+			return err
+		}
+		out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, entryInfo.Mode().Perm())
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		if _, err := io.Copy(out, in); err != nil {
+			return err
+		}
+		empty = false
+		return out.Close()
+	})
+	if err != nil {
+		return false, err
+	}
+	return !empty, nil
 }
