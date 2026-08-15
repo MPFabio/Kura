@@ -16,8 +16,7 @@ export default function ObservabilityIcon({ sx, active = false }: ObservabilityI
         height: 80,
         flexShrink: 0,
         opacity: active ? 1 : 0.5,
-        filter: active ? 'none' : 'grayscale(1)',
-        transition: 'opacity 0.15s ease, filter 0.15s ease',
+        transition: 'opacity 0.15s ease',
         ...sx,
       }}
     >

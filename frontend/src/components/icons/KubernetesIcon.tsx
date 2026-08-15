@@ -17,8 +17,8 @@ export default function KubernetesIcon({ sx, active = false }: KubernetesIconPro
         width: 24,
         height: 24,
         objectFit: 'contain',
-        filter: active ? 'none' : 'grayscale(1) opacity(0.4)',
-        transition: 'filter 0.2s ease',
+        opacity: active ? 1 : 0.5,
+        transition: 'opacity 0.15s ease',
         flexShrink: 0,
         ...sx,
       }}
