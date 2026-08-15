@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
 	tfjson "github.com/hashicorp/terraform-json"
@@ -19,6 +20,20 @@ import (
 )
 
 const defaultTofuPath = "/usr/local/bin/tofu"
+
+// runMu sérialise les exécutions de plans au sein du service.
+//
+// Le cache de plugins (TF_PLUGIN_CACHE_DIR) est partagé par toutes les
+// exécutions, et OpenTofu y lie les binaires de providers en dur (hardlink)
+// dans le .terraform du répertoire de travail. Deux exécutions simultanées
+// (typiquement le worker de drift périodique et une détection déclenchée
+// depuis l'interface) se retrouvent alors : l'une exécute le provider pendant
+// que l'autre tente de réécrire le même inode, et l'init échoue avec
+// « text file busy ».
+//
+// Le verrou est au niveau du paquet, et non du Runner, car un Runner est créé
+// à chaque détection : un verrou d'instance ne protégerait rien.
+var runMu sync.Mutex
 
 // Runner exécute des plans OpenTofu dans un répertoire temporaire isolé.
 type Runner struct {
@@ -59,6 +74,15 @@ type RunInput struct {
 // exécute `tofu init -backend=false` puis `tofu plan -refresh-only` depuis le
 // répertoire du module, et retourne le plan au format JSON structuré.
 func (r *Runner) Run(ctx context.Context, input RunInput) (*tfjson.Plan, error) {
+	runMu.Lock()
+	defer runMu.Unlock()
+
+	// L'attente du verrou a pu consommer tout le délai imparti : inutile de
+	// démarrer un plan condamné à être interrompu.
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("attente d'un plan concurrent: %w", err)
+	}
+
 	workDir, err := os.MkdirTemp("", "tofu-fine-drift-*")
 	if err != nil {
 		return nil, fmt.Errorf("création répertoire temporaire: %w", err)
