@@ -156,9 +156,9 @@ export const argocdService = {
     }
   },
 
-  // Remplace intégralement les values Helm de l'Application, puis ArgoCD
-  // resynchronise. Le contenu envoyé écrase l'existant : l'appelant doit donc
-  // partir des values actuelles, exposées par getApplication.
+  // Met à jour les values Helm de l'Application, puis ArgoCD resynchronise.
+  // Le service fusionne le contenu envoyé avec les values existantes clé par
+  // clé : une clé absente de l'envoi est conservée, elle n'est pas effacée.
   updateApplicationValues: async (name: string, values: string): Promise<void> => {
     try {
       await apiClient.put(`/v1/k8s/argocd/applications/${encodeURIComponent(name)}/values`, { values })

@@ -922,6 +922,41 @@ func mergeYAMLMaps(base, override map[string]interface{}) map[string]interface{}
 // synchronisation pour appliquer le changement. Utilisé pour ajuster la configuration
 // d'un chart déjà déployé (ex: désactiver des caches memcached trop gourmands pour un
 // petit cluster) sans perdre les values déjà nécessaires (ex: bucketNames).
+// helmSourceOf retourne la source d'une Application qui porte les values Helm.
+//
+// Une Application est soit mono-source (« source »), soit multi-sources
+// (« sources »), jamais les deux. Kura génère la seconde forme pour combiner un
+// chart et un fichier de valeurs versionné : n'accepter que la première faisait
+// échouer toute modification de values sur « spec.source manquant ».
+//
+// Dans le cas multi-sources, on retient celle qui porte le chart, et non celle
+// qui ne sert qu'à référencer un dépôt de valeurs (reconnaissable à son « ref »
+// sans chart).
+func helmSourceOf(spec map[string]interface{}) (map[string]interface{}, error) {
+	if source, ok := spec["source"].(map[string]interface{}); ok {
+		return source, nil
+	}
+
+	sources, ok := spec["sources"].([]interface{})
+	if !ok || len(sources) == 0 {
+		return nil, fmt.Errorf("réponse ArgoCD invalide: ni spec.source ni spec.sources")
+	}
+	for _, raw := range sources {
+		source, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if chart, hasChart := source["chart"].(string); hasChart && chart != "" {
+			return source, nil
+		}
+	}
+	// Aucun chart : configuration Git multi-sources, la première fait foi.
+	if source, ok := sources[0].(map[string]interface{}); ok {
+		return source, nil
+	}
+	return nil, fmt.Errorf("réponse ArgoCD invalide: spec.sources illisible")
+}
+
 func (s *ArgoCDService) UpdateApplicationValues(ctx context.Context, name, valuesOverride string) error {
 	respBody, err := s.doRequest(ctx, http.MethodGet, "/api/v1/applications/"+name, nil)
 	if err != nil {
@@ -937,9 +972,9 @@ func (s *ArgoCDService) UpdateApplicationValues(ctx context.Context, name, value
 	if !ok {
 		return fmt.Errorf("réponse ArgoCD invalide: spec manquant")
 	}
-	source, ok := spec["source"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("réponse ArgoCD invalide: spec.source manquant")
+	source, err := helmSourceOf(spec)
+	if err != nil {
+		return err
 	}
 	helm, ok := source["helm"].(map[string]interface{})
 	if !ok {

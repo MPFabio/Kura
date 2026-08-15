@@ -337,6 +337,22 @@ export default function ArgoCDPage() {
     },
   })
 
+  // Changer d'Application doit repartir d'un état d'édition vierge : un
+  // brouillon laissé ouvert sur une Application s'affichait tel quel sur la
+  // suivante, et l'appliquer aurait écrasé ses values avec celles destinées à
+  // une autre.
+  const openDetail = (name: string) => {
+    setEditingValues(false)
+    setValuesDraft('')
+    setDetailApp(name)
+  }
+
+  const closeDetail = () => {
+    setEditingValues(false)
+    setValuesDraft('')
+    setDetailApp(null)
+  }
+
   const updateValuesMutation = useMutation({
     mutationFn: ({ name, values }: { name: string; values: string }) =>
       argocdService.updateApplicationValues(name, values),
@@ -358,7 +374,7 @@ export default function ArgoCDPage() {
       queryClient.invalidateQueries({ queryKey: ['argocd-applications'] })
       setSnackbar({ open: true, message: 'Application supprimée', severity: 'success' })
       setDeleteTarget(null)
-      setDetailApp(null)
+      closeDetail()
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.error || error?.message || 'Erreur inconnue'
@@ -605,7 +621,7 @@ export default function ArgoCDPage() {
                         key={app.name}
                         hover
                         sx={{ cursor: 'pointer' }}
-                        onClick={() => setDetailApp(app.name)}
+                        onClick={() => openDetail(app.name)}
                       >
                         <TableCell sx={{ fontWeight: 600 }}>{app.name}</TableCell>
                         <TableCell>{app.project}</TableCell>
@@ -654,7 +670,7 @@ export default function ArgoCDPage() {
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setDetailApp(app.name)
+                                openDetail(app.name)
                               }}
                             >
                               <HistoryIcon fontSize="small" />
@@ -1004,7 +1020,7 @@ export default function ArgoCDPage() {
       </Dialog>
 
       {/* Tiroir de détails / historique */}
-      <Drawer anchor="right" open={!!detailApp} onClose={() => setDetailApp(null)}>
+      <Drawer anchor="right" open={!!detailApp} onClose={closeDetail}>
         <Box sx={{ width: 420, p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="h6">{detailApp}</Typography>
@@ -1037,7 +1053,7 @@ export default function ArgoCDPage() {
                     size="small"
                     onClick={() => {
                       // Partir des values appliquées : la sauvegarde les
-                      // remplace intégralement.
+                      // fusionne clé par clé avec l'existant.
                       setValuesDraft(appDetail.helm_values ?? '')
                       setEditingValues(true)
                     }}
