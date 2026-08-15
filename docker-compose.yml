@@ -1,3 +1,28 @@
+# Déploiement de référence de Kura (poste de développement et démonstration).
+#
+# Dimensionnement mémoire
+# -----------------------
+# Chaque conteneur porte une limite, jamais une réservation : Compose n'applique
+# pas les réservations hors mode Swarm, et une limite sert à contenir un service
+# qui dérape, pas à lui garantir de la mémoire. Leur somme dépasse donc
+# délibérément la mémoire de la machine — c'est le principe du surengagement, et
+# ce n'est pas un défaut tant que chaque limite est calibrée pour son service.
+#
+# Ce qui compte est la marge de chacune, mesurée en exploitation :
+#
+#   terraform-service  1 Gio  — exécute tofu et les binaires de fournisseurs,
+#                               qui sont des programmes complets. À 128 Mio, le
+#                               noyau tuait le fournisseur en pleine détection
+#                               de dérive.
+#   tempo              384 Mio — conserve les traces en mémoire avant écriture ;
+#                               167 Mio observés, la marge la plus faible.
+#   kong               512 Mio — passerelle, pics de connexions.
+#   observabilité      256 Mio — Grafana, Loki, VictoriaMetrics.
+#   services Go        128 Mio — API sans état, 15 à 20 Mio observés.
+#
+# Après toute modification d'un service, vérifier sa marge réelle avec
+# `docker stats` plutôt que de reconduire un chiffre par habitude.
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -281,7 +306,12 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256m
+          # Tempo conserve les traces en mémoire avant de les écrire : sa
+          # consommation croît avec le volume tracé. Mesuré à 167 Mio en
+          # exploitation courante, soit 65 % de la limite précédente de 256 Mio
+          # — la marge la plus faible de la plateforme, et la seule susceptible
+          # d'atteindre son plafond lors d'un pic d'activité.
+          memory: 384m
     ports:
       - "3200:3200"
       - "4317:4317"
