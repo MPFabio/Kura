@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -497,6 +498,7 @@ type argoApplicationItem struct {
 			Server    string `json:"server"`
 			Namespace string `json:"namespace"`
 		} `json:"destination"`
+		IgnoreDifferences []interface{} `json:"ignoreDifferences"`
 	} `json:"spec"`
 	Status struct {
 		Sync struct {
@@ -582,6 +584,11 @@ func (item *argoApplicationItem) toArgoApplicationDetail() models.ArgoApplicatio
 		ArgoApplication: item.toArgoApplication(),
 		History:         make([]models.ArgoHistoryEntry, 0, len(item.Status.History)),
 		HelmValues:      item.helmValues(),
+	}
+	if len(item.Spec.IgnoreDifferences) > 0 {
+		if raw, err := yaml.Marshal(item.Spec.IgnoreDifferences); err == nil {
+			detail.IgnoreDifferences = string(raw)
+		}
 	}
 	for _, h := range item.Status.History {
 		deployedAt, _ := time.Parse(time.RFC3339, h.DeployedAt)
@@ -903,6 +910,53 @@ func (s *ArgoCDService) RefreshApplication(ctx context.Context, name string) err
 // UpdateApplicationValues remplace les values Helm d'une Application ArgoCD par
 // celles fournies (YAML), puis déclenche une synchronisation. Utilisé pour
 // ajuster la configuration d'un chart déjà déployé sans passer par kubectl.
+// UpdateIgnoreDifferences remplace les exceptions de comparaison d'une
+// Application, puis force une nouvelle comparaison.
+//
+// Certains écarts ne sont pas réconciliables : Kubernetes ajoute des valeurs
+// par défaut absentes du manifeste rendu (volumeMode d'un volumeClaimTemplate,
+// par exemple) et y écrit un statut. L'Application reste alors OutOfSync en
+// permanence, chaque synchronisation réussissant sans jamais faire disparaître
+// l'écart. Déclarer ces chemins comme ignorés est le mécanisme prévu par
+// ArgoCD ; sans lui, un signal permanent finit par masquer les vraies dérives.
+func (s *ArgoCDService) UpdateIgnoreDifferences(ctx context.Context, name, ignoreYAML string) error {
+	respBody, err := s.doRequest(ctx, http.MethodGet, "/api/v1/applications/"+name, nil)
+	if err != nil {
+		return err
+	}
+
+	var app map[string]interface{}
+	if err := json.Unmarshal(respBody, &app); err != nil {
+		return fmt.Errorf("réponse ArgoCD invalide: %w", err)
+	}
+	spec, ok := app["spec"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("réponse ArgoCD invalide: spec manquant")
+	}
+
+	trimmed := strings.TrimSpace(ignoreYAML)
+	if trimmed == "" {
+		delete(spec, "ignoreDifferences")
+	} else {
+		var entries []interface{}
+		if err := yaml.Unmarshal([]byte(trimmed), &entries); err != nil {
+			return fmt.Errorf("exceptions de comparaison invalides: %w", err)
+		}
+		if len(entries) == 0 {
+			delete(spec, "ignoreDifferences")
+		} else {
+			spec["ignoreDifferences"] = entries
+		}
+	}
+
+	if _, err := s.doRequest(ctx, http.MethodPut, "/api/v1/applications/"+name+"?validate=false", app); err != nil {
+		return err
+	}
+	// Sans nouvelle comparaison, l'Application reste affichée OutOfSync
+	// jusqu'au prochain passage périodique du contrôleur.
+	return s.RefreshApplication(ctx, name)
+}
+
 // helmSourceOf retourne la source d'une Application qui porte les values Helm.
 //
 // Une Application est soit mono-source (« source »), soit multi-sources

@@ -68,6 +68,17 @@ const emptyForm: CreateApplicationRequest = {
   create_branch_from: '',
 }
 
+// Écarts que Kubernetes fabrique lui-même sur les StatefulSets à
+// volumeClaimTemplates : il complète le volume avec sa valeur par défaut
+// (volumeMode) et y écrit un statut, deux champs absents du manifeste rendu par
+// Helm. L'Application reste alors OutOfSync en permanence sans qu'aucune
+// synchronisation puisse y remédier.
+const STATEFULSET_IGNORE_TEMPLATE = `- group: apps
+  kind: StatefulSet
+  jsonPointers:
+    - /spec/volumeClaimTemplates
+`
+
 const NEW_BRANCH_VALUE = '__new_branch__'
 
 function syncStatusColor(status: string): string {
@@ -186,6 +197,8 @@ export default function ArgoCDPage() {
   const [createdFromCatalog, setCreatedFromCatalog] = useState(false)
   const [editingValues, setEditingValues] = useState(false)
   const [valuesDraft, setValuesDraft] = useState('')
+  const [editingIgnore, setEditingIgnore] = useState(false)
+  const [ignoreDraft, setIgnoreDraft] = useState('')
   const [helmCatalogQuery, setHelmCatalogQuery] = useState('')
   const [helmCatalogTab, setHelmCatalogTab] = useState<'artifacthub' | 'registry'>('artifacthub')
   const [form, setForm] = useState<CreateApplicationRequest>(emptyForm)
@@ -342,15 +355,20 @@ export default function ArgoCDPage() {
   // suivante, et l'appliquer aurait écrasé ses values avec celles destinées à
   // une autre.
   const openDetail = (name: string) => {
-    setEditingValues(false)
-    setValuesDraft('')
+    resetDrafts()
     setDetailApp(name)
   }
 
   const closeDetail = () => {
+    resetDrafts()
+    setDetailApp(null)
+  }
+
+  const resetDrafts = () => {
     setEditingValues(false)
     setValuesDraft('')
-    setDetailApp(null)
+    setEditingIgnore(false)
+    setIgnoreDraft('')
   }
 
   const updateValuesMutation = useMutation({
@@ -365,6 +383,21 @@ export default function ArgoCDPage() {
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.error || error?.message || 'Erreur inconnue'
       setSnackbar({ open: true, message: `Erreur lors de la mise à jour des values : ${errorMessage}`, severity: 'error' })
+    },
+  })
+
+  const updateIgnoreMutation = useMutation({
+    mutationFn: ({ name, ignore }: { name: string; ignore: string }) =>
+      argocdService.updateIgnoreDifferences(name, ignore),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['argocd-applications'] })
+      queryClient.invalidateQueries({ queryKey: ['argocd-application-detail'] })
+      setEditingIgnore(false)
+      setSnackbar({ open: true, message: 'Exceptions de comparaison mises à jour', severity: 'success' })
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error || error?.message || 'Erreur inconnue'
+      setSnackbar({ open: true, message: `Erreur : ${errorMessage}`, severity: 'error' })
     },
   })
 
@@ -1097,6 +1130,65 @@ export default function ArgoCDPage() {
                   }}
                 >
                   {appDetail.helm_values?.trim() || 'Aucune value définie (valeurs par défaut du chart)'}
+                </Box>
+              )}
+
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <ModuleSubtitle>Différences ignorées</ModuleSubtitle>
+                {!editingIgnore && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setIgnoreDraft(appDetail.ignore_differences ?? '')
+                      setEditingIgnore(true)
+                    }}
+                  >
+                    Modifier
+                  </Button>
+                )}
+              </Box>
+              {editingIgnore ? (
+                <>
+                  <TextField
+                    multiline
+                    minRows={5}
+                    fullWidth
+                    value={ignoreDraft}
+                    onChange={(e) => setIgnoreDraft(e.target.value)}
+                    sx={{ mt: 1, '& textarea': { fontFamily: '"JetBrains Mono", monospace', fontSize: '0.72rem' } }}
+                  />
+                  <Button
+                    size="small"
+                    sx={{ mt: 1 }}
+                    onClick={() => setIgnoreDraft(STATEFULSET_IGNORE_TEMPLATE)}
+                  >
+                    Écarts connus des StatefulSets
+                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={updateIgnoreMutation.isPending}
+                      onClick={() => detailApp && updateIgnoreMutation.mutate({ name: detailApp, ignore: ignoreDraft })}
+                    >
+                      {updateIgnoreMutation.isPending ? 'Application...' : 'Appliquer'}
+                    </Button>
+                    <Button size="small" onClick={() => setEditingIgnore(false)}>Annuler</Button>
+                  </Box>
+                </>
+              ) : (
+                <Box
+                  component="pre"
+                  sx={{
+                    mt: 1, p: 1.5, borderRadius: '6px',
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${kuraColors.border0}`,
+                    fontFamily: '"JetBrains Mono", monospace', fontSize: '0.72rem',
+                    color: kuraColors.text1, overflowX: 'auto', maxHeight: 160, m: 0,
+                  }}
+                >
+                  {appDetail.ignore_differences?.trim() || 'Aucune exception : tout écart est signalé'}
                 </Box>
               )}
 

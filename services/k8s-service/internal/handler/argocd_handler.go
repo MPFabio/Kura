@@ -152,6 +152,25 @@ func (h *ArgoCDHandler) UpdateApplicationValues(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+// UpdateApplicationIgnoreDifferences remplace les exceptions de comparaison
+// d'une Application ArgoCD.
+func (h *ArgoCDHandler) UpdateApplicationIgnoreDifferences(c *gin.Context) {
+	name := c.Param("name")
+
+	var req models.UpdateIgnoreDifferencesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.UpdateIgnoreDifferences(c.Request.Context(), name, req.IgnoreDifferences); err != nil {
+		log.Printf("Erreur UpdateIgnoreDifferences: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 // RefreshApplication force le rafraîchissement de l'état d'une Application ArgoCD.
 func (h *ArgoCDHandler) RefreshApplication(c *gin.Context) {
 	name := c.Param("name")

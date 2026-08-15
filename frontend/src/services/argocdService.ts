@@ -23,6 +23,7 @@ export interface ArgoHistoryEntry {
 export interface ArgoApplicationDetail extends ArgoApplication {
   history: ArgoHistoryEntry[]
   helm_values?: string
+  ignore_differences?: string
 }
 
 export interface CreateApplicationRequest {
@@ -164,6 +165,19 @@ export const argocdService = {
       await apiClient.put(`/v1/k8s/argocd/applications/${encodeURIComponent(name)}/values`, { values })
     } catch (error) {
       console.error(`Erreur lors de la mise à jour des values de l'Application ${name}:`, error)
+      throw error
+    }
+  },
+
+  // Remplace les exceptions de comparaison (spec.ignoreDifferences) puis force
+  // une nouvelle comparaison. Un champ vide les retire toutes.
+  updateIgnoreDifferences: async (name: string, ignoreDifferences: string): Promise<void> => {
+    try {
+      await apiClient.put(`/v1/k8s/argocd/applications/${encodeURIComponent(name)}/ignore-differences`, {
+        ignore_differences: ignoreDifferences,
+      })
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour des exceptions de l'Application ${name}:`, error)
       throw error
     }
   },

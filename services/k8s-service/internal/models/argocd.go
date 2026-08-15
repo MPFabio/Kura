@@ -32,6 +32,9 @@ type ArgoApplicationDetail struct {
 	// l'écran d'édition partirait d'un champ vide et la sauvegarde écraserait
 	// une configuration que l'utilisateur n'a jamais vue.
 	HelmValues string `json:"helm_values,omitempty"`
+	// IgnoreDifferences expose les exceptions de comparaison déclarées, au
+	// format YAML, pour les mêmes raisons.
+	IgnoreDifferences string `json:"ignore_differences,omitempty"`
 }
 
 // CreateApplicationRequest représente une demande de création d'Application ArgoCD.
@@ -97,6 +100,14 @@ type RollbackRequest struct {
 // UpdateValuesRequest représente une demande de mise à jour des values Helm d'une Application.
 type UpdateValuesRequest struct {
 	Values string `json:"values"`
+}
+
+// UpdateIgnoreDifferencesRequest représente une demande de mise à jour des
+// exceptions de comparaison d'une Application.
+//
+// Le contenu est le YAML de spec.ignoreDifferences, tel qu'ArgoCD l'attend.
+type UpdateIgnoreDifferencesRequest struct {
+	IgnoreDifferences string `json:"ignore_differences"`
 }
 
 // ArgoCDStatus représente l'état d'installation et de disponibilité d'ArgoCD sur le cluster actif.
