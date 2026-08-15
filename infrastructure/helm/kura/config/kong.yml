@@ -18,16 +18,22 @@ upstreams:
     active:
       type: http
       http_path: /health
-      timeout: 2
+      timeout: 5
       concurrency: 1
       healthy:
         interval: 5
         successes: 1
       unhealthy:
         interval: 2
-        http_failures: 1
-        tcp_failures: 1
-        timeouts: 1
+        # Trois échecs consécutifs avant de retirer une instance du pool.
+        # Avec un seuil de 1, une seule réponse lente — un service Go sous
+        # charge, un pic d'entrées/sorties — suffisait à sortir le service et à
+        # renvoyer 503 aux utilisateurs, alors qu'il redevenait sain dans les
+        # trois secondes. Le délai passe aussi de 2 à 5 s : une sonde de survie
+        # doit constater une panne, pas mesurer la latence.
+        http_failures: 3
+        tcp_failures: 3
+        timeouts: 3
 
 - name: k8s-service-upstream
   targets:
@@ -36,16 +42,22 @@ upstreams:
     active:
       type: http
       http_path: /health
-      timeout: 2
+      timeout: 5
       concurrency: 1
       healthy:
         interval: 5
         successes: 1
       unhealthy:
         interval: 2
-        http_failures: 1
-        tcp_failures: 1
-        timeouts: 1
+        # Trois échecs consécutifs avant de retirer une instance du pool.
+        # Avec un seuil de 1, une seule réponse lente — un service Go sous
+        # charge, un pic d'entrées/sorties — suffisait à sortir le service et à
+        # renvoyer 503 aux utilisateurs, alors qu'il redevenait sain dans les
+        # trois secondes. Le délai passe aussi de 2 à 5 s : une sonde de survie
+        # doit constater une panne, pas mesurer la latence.
+        http_failures: 3
+        tcp_failures: 3
+        timeouts: 3
 
 - name: terraform-service-upstream
   targets:
@@ -54,16 +66,22 @@ upstreams:
     active:
       type: http
       http_path: /health
-      timeout: 2
+      timeout: 5
       concurrency: 1
       healthy:
         interval: 5
         successes: 1
       unhealthy:
         interval: 2
-        http_failures: 1
-        tcp_failures: 1
-        timeouts: 1
+        # Trois échecs consécutifs avant de retirer une instance du pool.
+        # Avec un seuil de 1, une seule réponse lente — un service Go sous
+        # charge, un pic d'entrées/sorties — suffisait à sortir le service et à
+        # renvoyer 503 aux utilisateurs, alors qu'il redevenait sain dans les
+        # trois secondes. Le délai passe aussi de 2 à 5 s : une sonde de survie
+        # doit constater une panne, pas mesurer la latence.
+        http_failures: 3
+        tcp_failures: 3
+        timeouts: 3
 
 - name: ansible-service-upstream
   targets:
@@ -72,16 +90,22 @@ upstreams:
     active:
       type: http
       http_path: /health
-      timeout: 2
+      timeout: 5
       concurrency: 1
       healthy:
         interval: 5
         successes: 1
       unhealthy:
         interval: 2
-        http_failures: 1
-        tcp_failures: 1
-        timeouts: 1
+        # Trois échecs consécutifs avant de retirer une instance du pool.
+        # Avec un seuil de 1, une seule réponse lente — un service Go sous
+        # charge, un pic d'entrées/sorties — suffisait à sortir le service et à
+        # renvoyer 503 aux utilisateurs, alors qu'il redevenait sain dans les
+        # trois secondes. Le délai passe aussi de 2 à 5 s : une sonde de survie
+        # doit constater une panne, pas mesurer la latence.
+        http_failures: 3
+        tcp_failures: 3
+        timeouts: 3
 
 - name: metrics-service-upstream
   targets:
@@ -90,16 +114,22 @@ upstreams:
     active:
       type: http
       http_path: /health
-      timeout: 2
+      timeout: 5
       concurrency: 1
       healthy:
         interval: 5
         successes: 1
       unhealthy:
         interval: 2
-        http_failures: 1
-        tcp_failures: 1
-        timeouts: 1
+        # Trois échecs consécutifs avant de retirer une instance du pool.
+        # Avec un seuil de 1, une seule réponse lente — un service Go sous
+        # charge, un pic d'entrées/sorties — suffisait à sortir le service et à
+        # renvoyer 503 aux utilisateurs, alors qu'il redevenait sain dans les
+        # trois secondes. Le délai passe aussi de 2 à 5 s : une sonde de survie
+        # doit constater une panne, pas mesurer la latence.
+        http_failures: 3
+        tcp_failures: 3
+        timeouts: 3
 
 - name: code-service-upstream
   targets:
@@ -108,16 +138,22 @@ upstreams:
     active:
       type: http
       http_path: /health
-      timeout: 2
+      timeout: 5
       concurrency: 1
       healthy:
         interval: 5
         successes: 1
       unhealthy:
         interval: 2
-        http_failures: 1
-        tcp_failures: 1
-        timeouts: 1
+        # Trois échecs consécutifs avant de retirer une instance du pool.
+        # Avec un seuil de 1, une seule réponse lente — un service Go sous
+        # charge, un pic d'entrées/sorties — suffisait à sortir le service et à
+        # renvoyer 503 aux utilisateurs, alors qu'il redevenait sain dans les
+        # trois secondes. Le délai passe aussi de 2 à 5 s : une sonde de survie
+        # doit constater une panne, pas mesurer la latence.
+        http_failures: 3
+        tcp_failures: 3
+        timeouts: 3
 
 - name: vault-service-upstream
   targets:
@@ -126,16 +162,22 @@ upstreams:
     active:
       type: http
       http_path: /health
-      timeout: 2
+      timeout: 5
       concurrency: 1
       healthy:
         interval: 5
         successes: 1
       unhealthy:
         interval: 2
-        http_failures: 1
-        tcp_failures: 1
-        timeouts: 1
+        # Trois échecs consécutifs avant de retirer une instance du pool.
+        # Avec un seuil de 1, une seule réponse lente — un service Go sous
+        # charge, un pic d'entrées/sorties — suffisait à sortir le service et à
+        # renvoyer 503 aux utilisateurs, alors qu'il redevenait sain dans les
+        # trois secondes. Le délai passe aussi de 2 à 5 s : une sonde de survie
+        # doit constater une panne, pas mesurer la latence.
+        http_failures: 3
+        tcp_failures: 3
+        timeouts: 3
 
 - name: pipeline-service-upstream
   targets:
@@ -144,16 +186,22 @@ upstreams:
     active:
       type: http
       http_path: /health
-      timeout: 2
+      timeout: 5
       concurrency: 1
       healthy:
         interval: 5
         successes: 1
       unhealthy:
         interval: 2
-        http_failures: 1
-        tcp_failures: 1
-        timeouts: 1
+        # Trois échecs consécutifs avant de retirer une instance du pool.
+        # Avec un seuil de 1, une seule réponse lente — un service Go sous
+        # charge, un pic d'entrées/sorties — suffisait à sortir le service et à
+        # renvoyer 503 aux utilisateurs, alors qu'il redevenait sain dans les
+        # trois secondes. Le délai passe aussi de 2 à 5 s : une sonde de survie
+        # doit constater une panne, pas mesurer la latence.
+        http_failures: 3
+        tcp_failures: 3
+        timeouts: 3
 
 services:
 - name: auth-service
