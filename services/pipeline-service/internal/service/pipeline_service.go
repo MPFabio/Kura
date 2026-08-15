@@ -152,7 +152,28 @@ func (s *PipelineService) UpsertRun(ctx context.Context, run *models.PipelineRun
 	listKey := keyRunsList + string(run.Provider) + ":" + run.Repository + ":" + run.Branch
 	aggKey := keyAggregated + string(run.Provider) + ":" + run.Repository + ":" + run.Branch
 
-	if isNew {
+	// L'index est reconstruit dès qu'il ne contient pas cette exécution, et non
+	// seulement pour les exécutions inconnues.
+	//
+	// Les deux clés portent la même durée de vie mais sont évincées
+	// indépendamment : l'index pouvait donc disparaître alors que les fiches
+	// subsistaient. La condition « nouvelle exécution » n'était alors jamais
+	// vraie, l'index n'était jamais reconstruit, et l'historique restait
+	// invisible quel que soit le nombre de synchronisations — une impasse dont
+	// l'utilisateur ne pouvait pas sortir.
+	indexed, err := s.cache.LRange(ctx, listKey, 0, -1)
+	if err != nil {
+		return err
+	}
+	alreadyIndexed := false
+	for _, id := range indexed {
+		if id == run.ID {
+			alreadyIndexed = true
+			break
+		}
+	}
+
+	if !alreadyIndexed {
 		if err := s.cache.RPush(ctx, listKey, run.ID); err != nil {
 			return err
 		}
