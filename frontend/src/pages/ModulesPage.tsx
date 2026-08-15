@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { Grid, Box, Chip, Typography } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -151,6 +151,21 @@ export default function ModulesPage() {
 
   const hasProject = !!currentProject?.id
   const statesCount = hasProject ? (terraformStatesData?.items?.length ?? 0) : null
+
+  // Nombre reel de derives : il faut interroger le resume de chaque etat, le
+  // drift_count n'etant pas porte par la liste. Sans cela la carte affichait
+  // toujours 0, y compris quand une derive etait detectee.
+  const driftSummaries = useQueries({
+    queries: (terraformStatesData?.items ?? []).map((st) => ({
+      queryKey: ['terraform-summary', st.id],
+      queryFn: () => terraformService.getStateSummary(st.id),
+      enabled: !!currentProject?.id,
+      staleTime: 60_000,
+    })),
+  })
+  const driftCount = hasProject
+    ? driftSummaries.reduce((total, q) => total + (q.data?.drift_count ?? 0), 0)
+    : null
   const clustersCount = hasProject ? (clustersData?.items?.length ?? 0) : null
   const ansibleJobsCount = ansibleJobsData?.items?.length ?? 0
   const ansibleInventoriesCount = ansibleInventoriesData?.items?.length ?? 0
@@ -212,7 +227,7 @@ export default function ModulesPage() {
       stats: [
         { label: 'États', value: formatStat(statesCount) },
         { label: 'Sources', value: formatStat(statesCount) },
-        { label: 'Drifts', value: '0' },
+        { label: 'Drifts', value: formatStat(driftCount) },
       ],
       features: [
         'Synchronisation S3, Azure, GCP',
