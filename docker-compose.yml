@@ -387,7 +387,15 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128m
+          # Ce service n'est pas seulement une API : il exécute `tofu` et les
+          # binaires de fournisseurs, qui sont des processus Go complets. Le
+          # fournisseur Google réclame à lui seul plusieurs centaines de Mo.
+          #
+          # À 128 Mo, le noyau tuait le fournisseur (« Memory cgroup out of
+          # memory ») et la détection de dérive échouait sur un « timeout while
+          # waiting for plugin to start » — un message qui désigne la
+          # conséquence et masque complètement la cause.
+          memory: 1024m
     ports:
       - "8082:8082"
     environment:

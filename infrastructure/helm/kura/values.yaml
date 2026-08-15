@@ -57,9 +57,15 @@ services:
   terraform-service:
     port: 8082
     replicas: 1
+    # Ce service exécute `tofu` et les binaires de fournisseurs, qui sont des
+    # processus Go complets et non de simples bibliothèques : le fournisseur
+    # Google réclame à lui seul plusieurs centaines de Mo. Une limite trop
+    # basse fait tuer le fournisseur par le noyau, et la détection de dérive
+    # échoue sur un « timeout while waiting for plugin to start » qui n'en dit
+    # rien.
     resources:
       requests: {cpu: 50m, memory: 128Mi}
-      limits: {memory: 512Mi}
+      limits: {memory: 1Gi}
   ansible-service:
     port: 8083
     replicas: 1
