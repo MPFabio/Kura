@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -232,13 +234,21 @@ func (h *TerraformHandler) GetResourceByAddress(c *gin.Context) {
 // `tofu plan -refresh-only` contre les fichiers .tf source récupérés depuis
 // Forgejo/Codeberg et le tfstate stocké (mode "fine" uniquement).
 func (h *TerraformHandler) DetectDrift(c *gin.Context) {
-	ctx := c.Request.Context()
 	id := c.Param("id")
 
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "id requis"})
 		return
 	}
+
+	// La détection dure plusieurs minutes (resynchronisation du tfstate, puis
+	// `tofu plan -refresh-only` qui interroge réellement le fournisseur). Le
+	// contexte de la requête est volontairement écarté : si l'onglet est fermé,
+	// rechargé, ou si un proxy coupe la connexion, le plan doit tout de même
+	// aller à son terme. Le résultat est persisté, donc l'interface le retrouve
+	// au prochain rafraîchissement même si cette réponse-ci n'atteint personne.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 15*time.Minute)
+	defer cancel()
 
 	// Récupérer la source associée à cet état (credentials + config Forgejo/Codeberg)
 	var credentialsJSON string

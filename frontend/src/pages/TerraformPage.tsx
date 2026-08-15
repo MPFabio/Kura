@@ -112,7 +112,7 @@ export default function TerraformPage() {
   const [selectedStateForSource, setSelectedStateForSource] = useState<string>('')
   const [createStateFromSource, setCreateStateFromSource] = useState(false)
   const [newStateName, setNewStateName] = useState('')
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning' }>({
     open: false,
     message: '',
     severity: 'success',
@@ -600,13 +600,29 @@ export default function TerraformPage() {
                       startIcon={<WarningIcon sx={{ fontSize: 14 }} />}
                       onClick={async () => {
                         setDetectingDrift(true)
+                        // La détection exécute un plan réel côté fournisseur :
+                        // compter en minutes, pas en secondes. Sans ce message,
+                        // le bouton semble figé sur « Analyse... ».
+                        setSnackbar({
+                          open: true,
+                          message: 'Analyse en cours : un plan est exécuté sur l\'infrastructure réelle, cela prend généralement une à trois minutes.',
+                          severity: 'info',
+                        })
                         try {
                           const result = await terraformService.detectDrift(state.id)
                           setDriftResults(result.items || [])
                           setSelectedState(state)
                           setDriftDialogOpen(true)
                         } catch {
-                          setSnackbar({ open: true, message: 'Erreur lors de la détection de drift', severity: 'error' })
+                          // Le plan continue côté serveur même si cette requête a
+                          // été coupée, et son résultat est persisté : on recharge
+                          // plutôt que de laisser croire à un échec sec.
+                          setSnackbar({
+                            open: true,
+                            message: 'La réponse n\'est pas parvenue jusqu\'ici. L\'analyse se poursuit côté serveur ; son résultat apparaîtra au prochain rafraîchissement.',
+                            severity: 'warning',
+                          })
+                          refetch()
                         } finally {
                           setDetectingDrift(false)
                         }
