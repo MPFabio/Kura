@@ -15,7 +15,7 @@ export interface TerraformState {
   last_checked?: string
   // Suivi de la détection de drift, exécutée en tâche de fond côté serveur.
   drift_status?: 'running' | 'done' | 'error'
-  drift_results?: unknown[]
+  drift_results?: TerraformDriftResult[]
   drift_started_at?: string
   drift_error?: string
 }

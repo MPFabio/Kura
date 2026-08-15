@@ -58,6 +58,17 @@ import CodeBlock from '../components/CodeBlock'
 import ModuleCard from '../components/ModuleCard'
 import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
+// countDrifted compte les ressources réellement en écart.
+//
+// Un résultat de détection porte une ligne par ressource analysée, y compris
+// celles déclarées conformes : compter le tableau entier annoncerait autant de
+// dérives que de ressources. Seuls « drifted » et « missing » sont des écarts,
+// « in_sync » et « unknown » n'en sont pas.
+function countDrifted(results?: TerraformDriftResult[]): number {
+  if (!results) return 0
+  return results.filter((r) => r.status === 'drifted' || r.status === 'missing').length
+}
+
 export default function TerraformPage() {
   const { currentProject } = useProject()
   const [activeTab, setActiveTab] = useState(0)
@@ -604,29 +615,36 @@ export default function TerraformPage() {
                       Échec de la dernière analyse : {state.drift_error}
                     </Typography>
                   )}
-                  {state.drift_status === 'done' && (
+                  {state.drift_status === 'done' && (() => {
+                    // drift_results contient une ligne par ressource analysée,
+                    // conforme ou non : compter ses éléments annoncerait autant
+                    // de dérives que de ressources.
+                    const analysees = state.drift_results?.length ?? 0
+                    const derives = countDrifted(state.drift_results)
+                    return (
                     <Typography
                       // Le détail du dernier plan reste consultable sans en
                       // relancer un : les résultats sont persistés avec l'état.
                       onClick={() => {
-                        setDriftResults((state.drift_results as TerraformDriftResult[]) ?? [])
+                        setDriftResults(state.drift_results ?? [])
                         setSelectedState(state)
                         setDriftDialogOpen(true)
                       }}
                       sx={{
                         fontSize: '0.75rem',
-                        color: (state.drift_results?.length ?? 0) > 0 ? kuraColors.warning : kuraColors.success,
+                        color: derives > 0 ? kuraColors.warning : kuraColors.success,
                         mb: 2,
                         cursor: 'pointer',
                         '&:hover': { textDecoration: 'underline' },
                       }}
                     >
-                      {(state.drift_results?.length ?? 0) > 0
-                        ? `${state.drift_results?.length} dérive(s) détectée(s)`
-                        : 'Conforme au code'}
+                      {derives > 0
+                        ? `${derives} dérive(s) sur ${analysees} ressource(s)`
+                        : `Conforme au code (${analysees} ressource(s))`}
                       {state.last_checked && ` — ${new Date(state.last_checked).toLocaleTimeString('fr-FR')}`}
                     </Typography>
-                  )}
+                    )
+                  })()}
 
                   {/* Actions */}
                   <Box sx={{ mt: 'auto', display: 'flex', gap: 1 }}>
