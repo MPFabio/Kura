@@ -31,6 +31,7 @@ import {
   AppBar,
   FormControlLabel,
   Switch,
+  Typography,
 } from '@mui/material'
 import {
   Delete as DeleteIcon,
@@ -43,7 +44,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProject } from '../contexts/ProjectContext'
 import { projectService } from '../services/projectService'
-import { k8sService } from '../services/k8sService'
+import { k8sService, K8sPersistentVolumeClaim } from '../services/k8sService'
 import { clusterService, KubernetesCluster, ClusterType } from '../services/clusterService'
 import { Deployment } from '../services/api'
 import ResourceDetailDialog from '../components/ResourceDetailDialog'
@@ -60,7 +61,7 @@ import ModuleButton from '../components/ModuleButton'
 import ModuleCard from '../components/ModuleCard'
 import { ModuleSubtitle, ModuleBodyText, ModuleSecondaryText, ModuleCaption } from '../components/ModuleText'
 
-type ResourceTab = 'clusters' | 'pods' | 'deployments' | 'services' | 'configmaps' | 'secrets' | 'nodes'
+type ResourceTab = 'clusters' | 'pods' | 'deployments' | 'services' | 'configmaps' | 'secrets' | 'nodes' | 'volumes'
 
 export default function K8sPage() {
   const { currentProject } = useProject()
@@ -89,6 +90,9 @@ export default function K8sPage() {
     namespace: string
     name: string
   }>({ open: false, namespace: '', name: '' })
+  // Volume dont la suppression est en attente de confirmation. L'opération est
+  // irréversible : les données du volume disparaissent avec lui.
+  const [volumeToDelete, setVolumeToDelete] = useState<K8sPersistentVolumeClaim | null>(null)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'warning' }>({
     open: false,
     message: '',
@@ -1138,6 +1142,104 @@ export default function K8sPage() {
     )
   }
 
+  const { data: volumesData, isLoading: volumesLoading, refetch: refetchVolumes } = useQuery({
+    queryKey: ['k8s-volumes'],
+    queryFn: () => k8sService.getPersistentVolumeClaims(),
+    enabled: activeTab === 'volumes',
+    retry: false,
+  })
+
+  const deleteVolumeMutation = useMutation({
+    mutationFn: ({ namespace, name }: { namespace: string; name: string }) =>
+      k8sService.deletePersistentVolumeClaim(namespace, name),
+    onSuccess: () => {
+      refetchVolumes()
+      setVolumeToDelete(null)
+      setSnackbar({ open: true, message: 'Volume supprimé', severity: 'success' })
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.error || error?.message || 'Erreur inconnue'
+      setVolumeToDelete(null)
+      setSnackbar({ open: true, message: `Suppression refusée : ${message}`, severity: 'error' })
+    },
+  })
+
+  const renderVolumesTable = () => {
+    if (volumesLoading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      )
+    }
+
+    const volumes = volumesData?.items ?? []
+    if (volumes.length === 0) {
+      return <Alert severity="info" sx={{ mt: 2 }}>Aucun volume persistant sur ce cluster.</Alert>
+    }
+
+    const orphans = volumes.filter((v) => v.orphaned)
+
+    return (
+      <Box sx={{ mt: 2 }}>
+        {orphans.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {orphans.length} volume(s) ne sont plus référencés par aucun pod ni StatefulSet. Ils
+            continuent d&apos;occuper du disque et de conserver leurs données.
+          </Alert>
+        )}
+        <TableContainer component={Paper} sx={{ bgcolor: 'transparent', backgroundImage: 'none' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Nom</TableCell>
+                <TableCell>Namespace</TableCell>
+                <TableCell>État</TableCell>
+                <TableCell>Taille</TableCell>
+                <TableCell>Classe</TableCell>
+                <TableCell>Rattachement</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {volumes.map((v) => (
+                <TableRow key={`${v.namespace}/${v.name}`}>
+                  <TableCell sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem' }}>{v.name}</TableCell>
+                  <TableCell>{v.namespace}</TableCell>
+                  <TableCell>{v.phase}</TableCell>
+                  <TableCell>{v.capacity || '-'}</TableCell>
+                  <TableCell>{v.storageClass || '-'}</TableCell>
+                  <TableCell>
+                    {v.orphaned ? (
+                      <Chip label="Abandonné" size="small" color="warning" variant="outlined" />
+                    ) : v.usedBy?.length ? (
+                      `monté par ${v.usedBy.join(', ')}`
+                    ) : (
+                      `revendiqué par ${v.claimedBy}`
+                    )}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title={v.orphaned ? 'Supprimer ce volume abandonné' : 'Volume encore utilisé'}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={!v.orphaned || deleteVolumeMutation.isPending}
+                          onClick={() => setVolumeToDelete(v)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+    )
+  }
+
   const renderSecretsTable = () => {
     if (!selectedNamespace) {
       return (
@@ -1449,7 +1551,7 @@ export default function K8sPage() {
     <Box>
       <ModuleTitle>Kubernetes</ModuleTitle>
 
-      {activeTab !== 'clusters' && activeTab !== 'nodes' && (
+      {activeTab !== 'clusters' && activeTab !== 'nodes' && activeTab !== 'volumes' && (
         <ModuleCard sx={{ mb: 4 }}>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, alignItems: { xs: 'stretch', md: 'center' } }}>
               <Box sx={{ flex: 1 }}>
@@ -1538,6 +1640,7 @@ export default function K8sPage() {
                 <Tab label="ConfigMaps" value="configmaps" />
                 <Tab label="Secrets" value="secrets" />
                 <Tab label="Nodes" value="nodes" />
+                <Tab label="Volumes" value="volumes" />
               </Tabs>
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -1571,7 +1674,37 @@ export default function K8sPage() {
           {activeTab === 'secrets' && renderSecretsTable()}
           {activeTab === 'clusters' && renderClustersTable()}
           {activeTab === 'nodes' && renderNodesTable()}
+          {activeTab === 'volumes' && renderVolumesTable()}
       </ModuleCard>
+
+      <Dialog open={!!volumeToDelete} onClose={() => setVolumeToDelete(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Supprimer ce volume ?</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Le volume <strong>{volumeToDelete?.name}</strong> du namespace{' '}
+            <strong>{volumeToDelete?.namespace}</strong> et les données qu&apos;il contient seront
+            définitivement perdus. Cette opération est irréversible.
+          </Typography>
+          <Alert severity="info">
+            Ce volume n&apos;est référencé par aucun pod ni StatefulSet. S&apos;il appartenait à une
+            application encore déclarée, elle en recréerait un vide à sa prochaine synchronisation.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVolumeToDelete(null)}>Annuler</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={deleteVolumeMutation.isPending}
+            onClick={() =>
+              volumeToDelete &&
+              deleteVolumeMutation.mutate({ namespace: volumeToDelete.namespace, name: volumeToDelete.name })
+            }
+          >
+            {deleteVolumeMutation.isPending ? 'Suppression...' : 'Supprimer définitivement'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <ResourceDetailDialog
         open={detailDialog.open}

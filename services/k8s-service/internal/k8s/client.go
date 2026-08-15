@@ -506,3 +506,32 @@ func (c *Client) ExecPod(ctx context.Context, namespace, name, container string,
 		Tty:               tty,
 	})
 }
+
+// ListPersistentVolumeClaims retourne les PVC d'un namespace, ou de tous les
+// namespaces si celui-ci est vide.
+func (c *Client) ListPersistentVolumeClaims(ctx context.Context, namespace string) ([]corev1.PersistentVolumeClaim, error) {
+	list, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// ListStatefulSets retourne les StatefulSets d'un namespace, ou de tous les
+// namespaces si celui-ci est vide.
+//
+// Nécessaire pour distinguer un volume réellement abandonné d'un volume qu'un
+// StatefulSet revendique encore : ce dernier conserve ses volumes lorsque ses
+// pods disparaissent, c'est même sa raison d'être.
+func (c *Client) ListStatefulSets(ctx context.Context, namespace string) ([]appsv1.StatefulSet, error) {
+	list, err := c.clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// DeletePersistentVolumeClaim supprime un PVC.
+func (c *Client) DeletePersistentVolumeClaim(ctx context.Context, namespace, name string) error {
+	return c.clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}

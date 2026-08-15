@@ -24,6 +24,9 @@ type K8sClient interface {
 	ListConfigMaps(ctx context.Context, namespace string) ([]corev1.ConfigMap, error)
 	ListSecrets(ctx context.Context, namespace string) ([]corev1.Secret, error)
 	ListNodes(ctx context.Context) ([]corev1.Node, error)
+	ListPersistentVolumeClaims(ctx context.Context, namespace string) ([]corev1.PersistentVolumeClaim, error)
+	ListStatefulSets(ctx context.Context, namespace string) ([]appsv1.StatefulSet, error)
+	DeletePersistentVolumeClaim(ctx context.Context, namespace, name string) error
 	GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error)
 	GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deployment, error)
 	GetService(ctx context.Context, namespace, name string) (*corev1.Service, error)
@@ -607,4 +610,106 @@ func (s *K8sService) GetPod(ctx context.Context, namespace, name string) (*corev
 // GetDeployment retourne les détails d'un deployment.
 func (s *K8sService) GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
 	return s.k8sClient.GetDeployment(ctx, namespace, name)
+}
+
+// PersistentVolumeClaimDTO décrit un volume persistant et son rattachement.
+type PersistentVolumeClaimDTO struct {
+	Name              string    `json:"name"`
+	Namespace         string    `json:"namespace"`
+	Phase             string    `json:"phase"`
+	Capacity          string    `json:"capacity,omitempty"`
+	StorageClass      string    `json:"storageClass,omitempty"`
+	CreationTimestamp time.Time `json:"creationTimestamp"`
+	// UsedBy liste les pods qui montent ce volume.
+	UsedBy []string `json:"usedBy,omitempty"`
+	// ClaimedBy nomme le StatefulSet qui revendique ce volume, le cas échéant.
+	ClaimedBy string `json:"claimedBy,omitempty"`
+	// Orphaned signale un volume que plus rien ne référence : ni pod, ni
+	// StatefulSet. Il continue d'occuper du disque et de conserver des données
+	// sans que rien ne le rappelle.
+	Orphaned bool `json:"orphaned"`
+}
+
+// ListPersistentVolumeClaims retourne les volumes persistants et détermine
+// lesquels ne sont plus rattachés à rien.
+//
+// Un volume est considéré abandonné s'il n'est monté par aucun pod et
+// revendiqué par aucun StatefulSet. Ce second critère est indispensable : un
+// StatefulSet conserve délibérément ses volumes quand ses pods disparaissent —
+// c'est ce qui permet de redémarrer sans perdre les données — et les compter
+// comme abandonnés conduirait à proposer la suppression de volumes en service.
+func (s *K8sService) ListPersistentVolumeClaims(ctx context.Context, namespace string) ([]PersistentVolumeClaimDTO, error) {
+	pvcs, err := s.k8sClient.ListPersistentVolumeClaims(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("liste des volumes: %w", err)
+	}
+
+	pods, err := s.k8sClient.ListPods(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("liste des pods: %w", err)
+	}
+	statefulSets, err := s.k8sClient.ListStatefulSets(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("liste des StatefulSets: %w", err)
+	}
+
+	// Volumes montés, indexés par "namespace/nom".
+	usedBy := map[string][]string{}
+	for _, pod := range pods {
+		for _, volume := range pod.Spec.Volumes {
+			if volume.PersistentVolumeClaim == nil {
+				continue
+			}
+			key := pod.Namespace + "/" + volume.PersistentVolumeClaim.ClaimName
+			usedBy[key] = append(usedBy[key], pod.Name)
+		}
+	}
+
+	// Volumes revendiqués par un StatefulSet. Kubernetes nomme les volumes
+	// engendrés par un volumeClaimTemplate « <template>-<statefulset>-<ordinal> » :
+	// on reconstitue ces noms pour toutes les répliques déclarées.
+	claimedBy := map[string]string{}
+	for _, sts := range statefulSets {
+		replicas := int32(1)
+		if sts.Spec.Replicas != nil {
+			replicas = *sts.Spec.Replicas
+		}
+		for _, tpl := range sts.Spec.VolumeClaimTemplates {
+			for i := int32(0); i < replicas; i++ {
+				name := fmt.Sprintf("%s-%s-%d", tpl.Name, sts.Name, i)
+				claimedBy[sts.Namespace+"/"+name] = sts.Name
+			}
+		}
+	}
+
+	result := make([]PersistentVolumeClaimDTO, 0, len(pvcs))
+	for _, pvc := range pvcs {
+		key := pvc.Namespace + "/" + pvc.Name
+
+		dto := PersistentVolumeClaimDTO{
+			Name:              pvc.Name,
+			Namespace:         pvc.Namespace,
+			Phase:             string(pvc.Status.Phase),
+			CreationTimestamp: pvc.CreationTimestamp.Time,
+			UsedBy:            usedBy[key],
+			ClaimedBy:         claimedBy[key],
+		}
+		if pvc.Spec.StorageClassName != nil {
+			dto.StorageClass = *pvc.Spec.StorageClassName
+		}
+		if capacity, ok := pvc.Status.Capacity["storage"]; ok {
+			dto.Capacity = capacity.String()
+		}
+		dto.Orphaned = len(dto.UsedBy) == 0 && dto.ClaimedBy == ""
+
+		result = append(result, dto)
+	}
+	return result, nil
+}
+
+// DeletePersistentVolumeClaim supprime un volume persistant.
+//
+// Opération irréversible : les données du volume sont perdues.
+func (s *K8sService) DeletePersistentVolumeClaim(ctx context.Context, namespace, name string) error {
+	return s.k8sClient.DeletePersistentVolumeClaim(ctx, namespace, name)
 }

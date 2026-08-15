@@ -203,6 +203,8 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 			k8sGroup.PATCH("/namespaces/:namespace/deployments/:name/env", k8sHandler.PatchDeploymentEnv)
 			k8sGroup.PATCH("/namespaces/:namespace/deployments/:name/resources", k8sHandler.PatchDeploymentResources)
 			k8sGroup.DELETE("/namespaces/:namespace/pods/:name", k8sHandler.DeletePod)
+			k8sGroup.GET("/persistentvolumeclaims", k8sHandler.ListPersistentVolumeClaims)
+			k8sGroup.DELETE("/namespaces/:namespace/persistentvolumeclaims/:name", k8sHandler.DeletePersistentVolumeClaim)
 			k8sGroup.DELETE("/namespaces/:namespace/deployments/:name", k8sHandler.DeleteDeployment)
 			k8sGroup.DELETE("/namespaces/:namespace/services/:name", k8sHandler.DeleteService)
 

@@ -12,6 +12,20 @@ import {
   Event,
 } from './api'
 
+export interface K8sPersistentVolumeClaim {
+  name: string
+  namespace: string
+  phase: string
+  capacity?: string
+  storageClass?: string
+  creationTimestamp: string
+  usedBy?: string[]
+  claimedBy?: string
+  // Volume que plus rien ne référence : ni pod, ni StatefulSet. Il occupe du
+  // disque et conserve des données sans que rien ne le rappelle.
+  orphaned: boolean
+}
+
 export const k8sService = {
   getNamespaces: async (): Promise<K8sNamespacesResponse> => {
     try {
@@ -96,6 +110,34 @@ export const k8sService = {
       return response.data
     } catch (error) {
       console.error(`Erreur lors de la récupération des ConfigMaps pour le namespace ${namespace}:`, error)
+      throw error
+    }
+  },
+
+  // Volumes persistants, tous namespaces confondus si aucun n'est précisé.
+  getPersistentVolumeClaims: async (namespace?: string): Promise<{ items: K8sPersistentVolumeClaim[] }> => {
+    try {
+      const response = await apiClient.get<{ items: K8sPersistentVolumeClaim[] }>(
+        '/v1/k8s/persistentvolumeclaims',
+        { params: namespace ? { namespace } : undefined }
+      )
+      return response.data?.items ? response.data : { items: [] }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des volumes:', error)
+      throw error
+    }
+  },
+
+  // Le serveur refuse la suppression d'un volume encore utilisé, sauf si force
+  // est demandé explicitement.
+  deletePersistentVolumeClaim: async (namespace: string, name: string, force = false): Promise<void> => {
+    try {
+      await apiClient.delete(
+        `/v1/k8s/namespaces/${encodeURIComponent(namespace)}/persistentvolumeclaims/${encodeURIComponent(name)}`,
+        { params: force ? { force: true } : undefined }
+      )
+    } catch (error) {
+      console.error(`Erreur lors de la suppression du volume ${namespace}/${name}:`, error)
       throw error
     }
   },

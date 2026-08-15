@@ -1044,3 +1044,70 @@ func (h *K8sHandler) GetEvents(c *gin.Context) {
 		"items": events,
 	})
 }
+
+// ListPersistentVolumeClaims retourne les volumes persistants, en signalant
+// ceux que plus rien ne référence.
+func (h *K8sHandler) ListPersistentVolumeClaims(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Query("namespace")
+
+	items, err := h.svc.ListPersistentVolumeClaims(ctx, namespace)
+	if err != nil {
+		log.Printf("Erreur ListPersistentVolumeClaims: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+// DeletePersistentVolumeClaim supprime un volume persistant abandonné.
+//
+// La suppression d'un volume encore monté ou revendiqué est refusée : elle
+// resterait bloquée tant qu'un pod le monte, et détruirait les données d'un
+// StatefulSet momentanément arrêté. Le paramètre force permet de passer outre
+// en connaissance de cause.
+func (h *K8sHandler) DeletePersistentVolumeClaim(c *gin.Context) {
+	if !h.checkService(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	force := c.Query("force") == "true"
+
+	if !force {
+		items, err := h.svc.ListPersistentVolumeClaims(ctx, namespace)
+		if err != nil {
+			log.Printf("Erreur ListPersistentVolumeClaims avant suppression: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		for _, pvc := range items {
+			if pvc.Name != name {
+				continue
+			}
+			if !pvc.Orphaned {
+				detail := "il est monté par " + strings.Join(pvc.UsedBy, ", ")
+				if pvc.ClaimedBy != "" {
+					detail = "il est revendiqué par le StatefulSet " + pvc.ClaimedBy
+				}
+				c.JSON(http.StatusConflict, gin.H{
+					"error": "ce volume est encore utilisé : " + detail,
+				})
+				return
+			}
+		}
+	}
+
+	if err := h.svc.DeletePersistentVolumeClaim(ctx, namespace, name); err != nil {
+		log.Printf("Erreur DeletePersistentVolumeClaim pour %s/%s: %v", namespace, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "volume supprimé"})
+}
