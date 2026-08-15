@@ -30,16 +30,28 @@ export default function LoginPage() {
       await login(email, password)
       navigate('/projects')
     } catch (err: any) {
-      let msg = 'Identifiants incorrects'
+      // Ne jamais présenter une panne comme un refus d'authentification :
+      // afficher « Identifiants incorrects » sur une erreur de configuration
+      // envoie l'utilisateur chercher un problème de mot de passe qui n'existe
+      // pas. Seule une réponse 401 du serveur autorise ce message.
+      let msg: string
       if (err.response) {
         const s = err.response.status
-        if (s === 502 || s === 503 || s === 504) {
+        if (s === 401) {
+          msg = 'Identifiants incorrects'
+        } else if (s === 502 || s === 503 || s === 504) {
           msg = 'Service temporairement indisponible. Réessayez dans quelques secondes.'
         } else {
-          msg = err.response.data?.error || err.response.data?.message || msg
+          msg = err.response.data?.error || err.response.data?.message || `Erreur du serveur (HTTP ${s})`
         }
       } else if (err.request) {
         msg = 'Impossible de joindre le serveur. Vérifiez votre connexion.'
+      } else {
+        // Exception levée avant tout envoi : URL d'API invalide, image
+        // construite sans ses paramètres, code défectueux. Le détail technique
+        // est affiché, faute de quoi la panne est indiscernable d'un mauvais
+        // mot de passe.
+        msg = `Erreur de l'application : ${err.message || 'cause inconnue'}`
       }
       setError(msg)
     } finally {

@@ -1,9 +1,34 @@
 import axios from 'axios'
 
-const baseURL =
+const rawBaseURL =
   typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL != null
     ? String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '')
     : ''
+
+// Garde-fou sur la valeur injectée à la compilation.
+//
+// Une image construite hors de docker compose peut recevoir une valeur
+// aberrante sans que rien ne le signale : un `--build-arg VITE_API_BASE_URL=/api`
+// lancé depuis Git Bash sous Windows arrive ainsi sous la forme
+// « C:\Program Files\Git\api », MSYS convertissant les chemins absolus. Toutes
+// les requêtes échouent alors avant même d'être émises, avec un « Unsupported
+// protocol » qu'aucun écran ne montre.
+//
+// On préfère repartir sur une base relative, qui fonctionne derrière le proxy,
+// plutôt que de servir une application inutilisable.
+function sanitizeBaseURL(value: string): string {
+  const looksLikeFilesystemPath = /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('\\\\')
+  if (looksLikeFilesystemPath) {
+    console.error(
+      `[Kura] VITE_API_BASE_URL invalide (« ${value} ») : cette image a été construite avec un argument corrompu. ` +
+        'Reconstruire avec `docker compose build frontend`. Repli sur une base relative.'
+    )
+    return ''
+  }
+  return value
+}
+
+const baseURL = sanitizeBaseURL(rawBaseURL)
 
 export const apiClient = axios.create({
   baseURL,
