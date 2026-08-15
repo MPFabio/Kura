@@ -22,9 +22,22 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      // Kura affiche l'état d'infrastructures qui bougent sans nous : une
+      // synchronisation ArgoCD, un pod qui redémarre, un pipeline qui se
+      // termine. Les données étaient considérées fraîches pendant 5 minutes et
+      // rien ne les rafraîchissait : l'écran restait figé jusqu'à ce que
+      // l'utilisateur clique, ce qui obligeait à un bouton sur chaque page.
+      refetchOnWindowFocus: true,
       retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 10 * 1000,
+      // 15 s plutôt que 5 : chaque page déclenche plusieurs requêtes, et un
+      // déploiement mono-machine encaisse mal une multiplication par trois du
+      // trafic de fond. Les vues qui suivent une opération en cours gardent
+      // leur propre intervalle, plus court.
+      refetchInterval: 15 * 1000,
+      // Onglet en arrière-plan : inutile d'interroger la plateforme pour un
+      // écran que personne ne regarde.
+      refetchIntervalInBackground: false,
     },
   },
 })

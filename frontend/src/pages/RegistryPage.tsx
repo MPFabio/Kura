@@ -71,6 +71,10 @@ export default function RegistryPage() {
     queryKey: ['registry-repositories'],
     queryFn: () => registryService.listRepositories(),
     retry: false,
+    // Chaque appel ouvre un port-forward vers le pod Zot du cluster : trop
+    // coûteux pour le rafraîchissement périodique global. Le contenu d'un
+    // registre change d'ailleurs au rythme des publications, pas des secondes.
+    refetchInterval: false,
   })
 
   const { data: repoDetail, isLoading: detailLoading } = useQuery({
@@ -78,6 +82,7 @@ export default function RegistryPage() {
     queryFn: () => registryService.getRepository(selectedRepo!.name),
     enabled: !!selectedRepo,
     retry: false,
+    refetchInterval: false,
   })
 
   return (

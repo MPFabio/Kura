@@ -121,6 +121,10 @@ export default function SettingsPage() {
     queryKey: ['project-mappings', selectedProjectId],
     queryFn: () => projectService.listMappings(selectedProjectId),
     enabled: !!selectedProjectId,
+    // Données de configuration : elles ne changent que lorsque l'utilisateur
+    // les modifie, et les mutations invalident déjà le cache. Le
+    // rafraîchissement périodique global n'aurait rien à y apporter.
+    refetchInterval: false,
   })
 
   const createMappingMutation = useMutation({
@@ -154,6 +158,10 @@ export default function SettingsPage() {
     queryKey: ['project-members', selectedProjectId],
     queryFn: () => projectService.getProjectMembers(selectedProjectId),
     enabled: !!selectedProjectId,
+    // Données de configuration : elles ne changent que lorsque l'utilisateur
+    // les modifie, et les mutations invalident déjà le cache. Le
+    // rafraîchissement périodique global n'aurait rien à y apporter.
+    refetchInterval: false,
   })
 
   const addMemberMutation = useMutation({
