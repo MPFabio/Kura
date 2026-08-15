@@ -39,7 +39,7 @@ spec:
           command:
             - sh
             - -c
-            - exec valkey-server --requirepass "$VALKEY_PASSWORD" --appendonly yes --dir /data
+            - exec valkey-server --requirepass "$VALKEY_PASSWORD" --appendonly yes --dir /data --maxmemory-policy volatile-lru
           {{- end }}
           {{- if eq $name "minio" }}
           args: ["server", "/data"]

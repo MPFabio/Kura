@@ -932,7 +932,12 @@ func (s *SyncService) saveSourceToCache(ctx context.Context, source *models.Stat
 	cacheKey := fmt.Sprintf("terraform:source:%s", source.ID)
 	sourceJSON, err := json.Marshal(source)
 	if err == nil {
-		_ = s.cache.Set(ctx, cacheKey, string(sourceJSON), 24*time.Hour)
+		// Une source est une configuration saisie par l'utilisateur, pas un
+		// resultat calculable : elle ne doit pas expirer. Avec une TTL de 24 h,
+		// elle disparaissait en laissant son identifiant dans
+		// terraform:sources:list (enregistree, elle, sans expiration), et la
+		// detection de drift cessait silencieusement le lendemain.
+		_ = s.cache.Set(ctx, cacheKey, string(sourceJSON), 0)
 	}
 
 	// Sauvegarder aussi la liste des IDs
