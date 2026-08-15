@@ -144,7 +144,9 @@ func (h *ArgoCDHandler) UpdateApplicationValues(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.UpdateApplicationValues(c.Request.Context(), name, req.Values); err != nil {
+	// Le jeton de l'utilisateur est nécessaire : la mise à jour passe par un
+	// commit dans le dépôt GitOps du projet, au nom de celui qui la demande.
+	if err := h.svc.UpdateApplicationValues(c.Request.Context(), c.GetHeader("Authorization"), name, req.Values); err != nil {
 		log.Printf("Erreur UpdateApplicationValues: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

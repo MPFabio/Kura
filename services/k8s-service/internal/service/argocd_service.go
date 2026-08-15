@@ -993,7 +993,7 @@ func helmSourceOf(spec map[string]interface{}) (map[string]interface{}, error) {
 	return nil, fmt.Errorf("réponse ArgoCD invalide: spec.sources illisible")
 }
 
-func (s *ArgoCDService) UpdateApplicationValues(ctx context.Context, name, valuesOverride string) error {
+func (s *ArgoCDService) UpdateApplicationValues(ctx context.Context, authToken, name, valuesOverride string) error {
 	respBody, err := s.doRequest(ctx, http.MethodGet, "/api/v1/applications/"+name, nil)
 	if err != nil {
 		return err
@@ -1011,6 +1011,23 @@ func (s *ArgoCDService) UpdateApplicationValues(ctx context.Context, name, value
 	source, err := helmSourceOf(spec)
 	if err != nil {
 		return err
+	}
+
+	// Quand l'Application lit ses values depuis le dépôt GitOps, c'est ce
+	// fichier qu'il faut modifier, et non les values en ligne de l'Application.
+	//
+	// Écrire en ligne fonctionnait en apparence — ArgoCD appliquait bien la
+	// nouvelle configuration — mais le dépôt ne reflétait plus l'état déployé :
+	// une resynchronisation depuis Git aurait rétabli les anciennes valeurs, et
+	// le principe voulant que Git fasse foi n'était plus tenu.
+	if valuesPath := gitOpsValuesPath(spec); valuesPath != "" {
+		branch := gitOpsValuesBranch(spec)
+		if err := s.commitValuesToGitOps(ctx, authToken, name, valuesPath, branch, valuesOverride); err != nil {
+			return err
+		}
+		// ArgoCD relira le fichier au prochain cycle ; on force la comparaison
+		// pour que l'interface ne reste pas sur un état périmé.
+		return s.RefreshApplication(ctx, name)
 	}
 	helm, ok := source["helm"].(map[string]interface{})
 	if !ok {
@@ -1204,4 +1221,85 @@ func equalJSON(a, b interface{}) bool {
 func escapeJSONPointer(key string) string {
 	key = strings.ReplaceAll(key, "~", "~0")
 	return strings.ReplaceAll(key, "/", "~1")
+}
+
+// gitOpsValuesPath retourne le chemin du fichier de values versionné référencé
+// par l'Application, ou une chaîne vide si elle n'en utilise pas.
+//
+// Les Applications engendrées par Kura déclarent « $values/apps/<nom>/values.yaml »,
+// où « $values » désigne la source Git portant le ref du même nom.
+func gitOpsValuesPath(spec map[string]interface{}) string {
+	sources, ok := spec["sources"].([]interface{})
+	if !ok {
+		return ""
+	}
+	for _, raw := range sources {
+		source, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		helm, ok := source["helm"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		valueFiles, ok := helm["valueFiles"].([]interface{})
+		if !ok {
+			continue
+		}
+		for _, entry := range valueFiles {
+			path, ok := entry.(string)
+			if !ok {
+				continue
+			}
+			if strings.HasPrefix(path, "$values/") {
+				return strings.TrimPrefix(path, "$values/")
+			}
+		}
+	}
+	return ""
+}
+
+// gitOpsValuesBranch retourne la branche du dépôt GitOps qui porte le fichier
+// de values, reconnaissable à son ref « values ».
+func gitOpsValuesBranch(spec map[string]interface{}) string {
+	sources, ok := spec["sources"].([]interface{})
+	if !ok {
+		return ""
+	}
+	for _, raw := range sources {
+		source, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if ref, _ := source["ref"].(string); ref != "values" {
+			continue
+		}
+		if revision, ok := source["targetRevision"].(string); ok {
+			return revision
+		}
+	}
+	return ""
+}
+
+// commitValuesToGitOps écrit les values dans le dépôt GitOps du projet actif.
+func (s *ArgoCDService) commitValuesToGitOps(ctx context.Context, authToken, appName, valuesPath, branch, values string) error {
+	_, _, projectID, err := s.activeClusterContext(ctx)
+	if err != nil {
+		return err
+	}
+	if branch == "" {
+		return fmt.Errorf("branche du dépôt GitOps introuvable pour l'Application %s", appName)
+	}
+
+	content := values
+	if strings.TrimSpace(content) == "" {
+		content = "# values Helm (vide)\n"
+	}
+
+	files := map[string]string{valuesPath: content}
+	message := fmt.Sprintf("argocd: mise à jour des values de %s", appName)
+	if err := s.codeClient.CommitGitOpsFiles(ctx, authToken, projectID, branch, "", files, message); err != nil {
+		return fmt.Errorf("commit GitOps des values de %s: %w", appName, err)
+	}
+	return nil
 }
