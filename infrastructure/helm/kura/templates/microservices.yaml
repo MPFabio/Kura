@@ -14,7 +14,11 @@ metadata:
     {{- include "kura.labels" $root | nindent 4 }}
     {{- include "kura.selectorLabels" $name | nindent 4 }}
 spec:
+  {{- /* Sous autoscaling, on omet replicas : sinon le Deployment et l'HPA se
+         contredisent et ArgoCD verrait une derive a chaque synchronisation. */}}
+  {{- if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
   replicas: {{ $svc.replicas | default 1 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "kura.selectorLabels" $name | nindent 6 }}

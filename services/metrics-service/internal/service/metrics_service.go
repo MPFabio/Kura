@@ -455,3 +455,70 @@ func (s *MetricsService) cache(ctx context.Context, key string, v any) {
 	}
 	s.redis.Set(ctx, key, b, s.cfg.CacheTTL)
 }
+
+// GetAlerts récupère les alertes actives depuis Alertmanager (API v2) et les
+// traduit dans la forme attendue par l'interface. Les alertes déjà résolues
+// sont exclues : la page n'affiche que ce qui demande une action.
+func (s *MetricsService) GetAlerts(ctx context.Context) ([]models.Alert, error) {
+	endpoint := fmt.Sprintf("%s/api/v2/alerts?active=true&silenced=false&inhibited=false", s.cfg.AlertmanagerURL)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Alertmanager injoignable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Alertmanager a retourné %d: %s", resp.StatusCode, string(body))
+	}
+
+	var raw []struct {
+		Labels      map[string]string `json:"labels"`
+		Annotations map[string]string `json:"annotations"`
+		StartsAt    time.Time         `json:"startsAt"`
+		Status      struct {
+			State string `json:"state"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, err
+	}
+
+	alerts := make([]models.Alert, 0, len(raw))
+	for _, a := range raw {
+		// Le nom du service porte l'étiquette "job" côté vmagent : c'est la
+		// même clé que dans les métriques et les journaux (cf. A3.1).
+		service := a.Labels["job"]
+		if service == "" {
+			service = a.Labels["service"]
+		}
+		alerts = append(alerts, models.Alert{
+			Name:        a.Labels["alertname"],
+			Severity:    a.Labels["severity"],
+			Service:     service,
+			Summary:     a.Annotations["summary"],
+			Description: a.Annotations["description"],
+			State:       a.Status.State,
+			StartsAt:    a.StartsAt,
+		})
+	}
+
+	// Les alertes critiques d'abord, puis les plus récentes.
+	sort.SliceStable(alerts, func(i, j int) bool {
+		if (alerts[i].Severity == "critical") != (alerts[j].Severity == "critical") {
+			return alerts[i].Severity == "critical"
+		}
+		return alerts[i].StartsAt.After(alerts[j].StartsAt)
+	})
+
+	return alerts, nil
+}

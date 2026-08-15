@@ -114,6 +114,7 @@ func setupRouter(h *handler.MetricsHandler, cfg *config.Config) *gin.Engine {
 			internal.GET("/health", h.GetHealth)
 			internal.GET("/services", h.GetServices)
 			internal.GET("/overview", h.GetOverview)
+			internal.GET("/alerts", h.GetAlerts)
 			internal.GET("/logs", h.GetLogs)
 			internal.GET("/logs/services", h.GetLogServices)
 			internal.GET("/traces", h.SearchTraces)

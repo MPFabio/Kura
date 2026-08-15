@@ -128,6 +128,26 @@ export default function AlertsPage() {
       })
     }
 
+    // Alertes reelles issues de la chaine de supervision (regles vmalert
+    // evaluees toutes les 15 s, routees par Alertmanager). Contrairement aux
+    // alertes derivees ci-dessus, elles portent la temporisation `for` des
+    // regles : un service qui redemarre ne les declenche pas.
+    try {
+      const supervised = await metricsService.getAlerts()
+      supervised.forEach((a) => {
+        const severity: KuraAlert['severity'] =
+          a.severity === 'critical' ? 'critical' : a.severity === 'warning' ? 'warning' : 'info'
+        result.push({
+          id: `am-${a.name}-${a.service || 'global'}`,
+          severity,
+          title: a.summary || a.name,
+          message: a.description || `${a.name}${a.service ? ` · ${a.service}` : ''}`,
+          source: 'Supervision',
+          timestamp: a.starts_at ? new Date(a.starts_at) : new Date(),
+        })
+      })
+    } catch { /* Alertmanager injoignable : on garde les alertes derivees */ }
+
     try {
       const runs = await pipelineService.getRuns({ limit: 20 })
       const recentRuns: PipelineRun[] = runs?.runs ?? []

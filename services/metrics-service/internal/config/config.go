@@ -17,6 +17,7 @@ type Config struct {
 	GrafanaURL         string
 	LokiURL            string
 	TempoURL           string
+	AlertmanagerURL    string
 	CacheTTL           time.Duration
 
 	// DeploymentMode vaut "saas" (par défaut) ou "self-hosted".
@@ -43,6 +44,7 @@ func Load() (*Config, error) {
 		GrafanaURL:         getEnv("GRAFANA_URL", "http://grafana:3000"),
 		LokiURL:            getEnv("LOKI_URL", "http://loki:3100"),
 		TempoURL:           getEnv("TEMPO_URL", "http://tempo:3200"),
+		AlertmanagerURL:    getEnv("ALERTMANAGER_URL", "http://alertmanager:9093"),
 
 		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "tempo:4317"),
 	}

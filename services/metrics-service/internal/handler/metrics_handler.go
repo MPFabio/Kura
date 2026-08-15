@@ -161,3 +161,15 @@ func (h *MetricsHandler) SetConfig(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "configuration mise à jour"})
 }
+
+// GetAlerts godoc
+// GET /api/v1/metrics/alerts
+// Retourne les alertes actuellement actives dans Alertmanager.
+func (h *MetricsHandler) GetAlerts(c *gin.Context) {
+	result, err := h.svc.GetAlerts(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": result})
+}

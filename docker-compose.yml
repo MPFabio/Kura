@@ -617,6 +617,7 @@ services:
       GRAFANA_URL: http://grafana:3000
       LOKI_URL: http://loki:3100
       TEMPO_URL: http://tempo:3200
+      ALERTMANAGER_URL: http://alertmanager:9093
       VALKEY_HOST: valkey
       VALKEY_PORT: "6379"
       VALKEY_PASSWORD: ${VALKEY_PASSWORD}

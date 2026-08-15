@@ -1,0 +1,68 @@
+{{- /*
+HorizontalPodAutoscaler pour les services dont .autoscaling.enabled vaut true.
+
+Seuils : la montée est déclenchée à 70 % d'utilisation CPU moyenne, en deçà du
+point où la latence se dégrade, pour que les nouveaux pods soient prêts avant
+la saturation. La mémoire sert de second déclencheur à 80 % : un service Go qui
+grimpe en mémoire sans charge CPU signale en général une accumulation de
+requêtes en attente.
+
+Le comportement est volontairement asymétrique. Montée : réaction en 60 s,
+jusqu'à doubler le nombre de pods, car un incident de charge coûte plus cher
+que quelques pods en trop. Descente : fenêtre de stabilisation de 5 minutes et
+un seul pod retiré à la fois, pour éviter l'oscillation sur un trafic en
+dents de scie (typique des rafales de synchronisation de drift).
+
+Prérequis : metrics-server doit être déployé sur le cluster, sinon l'HPA reste
+en <unknown> et ne déclenche rien.
+*/ -}}
+{{- $root := . }}
+{{- range $name, $svc := .Values.services }}
+{{- if and $svc.autoscaling $svc.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "kura.labels" $root | nindent 4 }}
+    {{- include "kura.selectorLabels" $name | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $svc.autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ $svc.autoscaling.maxReplicas | default 4 }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $svc.autoscaling.targetCPUUtilizationPercentage | default 70 }}
+    {{- if $svc.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $svc.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min
+{{- end }}
+{{- end }}

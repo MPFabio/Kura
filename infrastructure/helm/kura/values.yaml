@@ -18,6 +18,14 @@ services:
     resources:
       requests: {cpu: 50m, memory: 64Mi}
       limits: {memory: 256Mi}
+    # Chaque appel de la plateforme passe par la validation de token : c'est le
+    # service dont la charge suit le plus directement le nombre d'utilisateurs.
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
   code-service:
     port: 8088
     replicas: 1
@@ -30,6 +38,13 @@ services:
     resources:
       requests: {cpu: 50m, memory: 64Mi}
       limits: {memory: 256Mi}
+    # Interroge les API des clusters clients : la charge depend du nombre de
+    # clusters raccordes et des tableaux de bord ouverts simultanement.
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
   terraform-service:
     port: 8082
     replicas: 1
@@ -64,6 +79,13 @@ services:
     port: 80
     replicas: 2
     healthPath: /
+    # Service statique peu couteux, mais premier point de contact : on preserve
+    # le temps de reponse percu en absorbant les pics de connexion.
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 4
+      targetCPUUtilizationPercentage: 75
     resources:
       requests: {cpu: 25m, memory: 32Mi}
       limits: {memory: 128Mi}

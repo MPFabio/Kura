@@ -125,6 +125,16 @@ export const projectObservabilityService = {
   },
 }
 
+export interface Alert {
+  name: string
+  severity: string
+  service: string
+  summary: string
+  description: string
+  state: string
+  starts_at: string
+}
+
 export const metricsService = {
   getPlatformConfig: async (): Promise<PlatformConfig> => {
     const { data } = await apiClient.get<PlatformConfig>('/v1/metrics/platform-config')
@@ -134,6 +144,11 @@ export const metricsService = {
   getHealth: async (): Promise<ServiceHealth[]> => {
     const { data } = await apiClient.get<ServiceHealth[]>('/v1/metrics/health')
     return data
+  },
+
+  getAlerts: async (): Promise<Alert[]> => {
+    const { data } = await apiClient.get<{ items: Alert[] }>('/v1/metrics/alerts')
+    return data?.items ?? []
   },
 
   getServices: async (): Promise<ServiceMetric[]> => {

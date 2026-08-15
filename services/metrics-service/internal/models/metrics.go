@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // ServiceHealth représente l'état de santé d'un microservice Kura.
 type ServiceHealth struct {
 	Name       string  `json:"name"`
@@ -77,4 +79,18 @@ type PrometheusResponse struct {
 			Value  []interface{}     `json:"value"`
 		} `json:"result"`
 	} `json:"data"`
+}
+
+// Alert représente une alerte telle qu'exposée à l'interface : la forme
+// d'Alertmanager (labels/annotations libres) est aplatie sur les champs
+// réellement affichés, pour que le frontend n'ait pas à connaître ses
+// conventions internes.
+type Alert struct {
+	Name        string    `json:"name"`
+	Severity    string    `json:"severity"`
+	Service     string    `json:"service"`
+	Summary     string    `json:"summary"`
+	Description string    `json:"description"`
+	State       string    `json:"state"` // "firing" ou "suppressed"
+	StartsAt    time.Time `json:"starts_at"`
 }
