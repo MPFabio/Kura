@@ -37,7 +37,7 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	if encKey != "" {
 		encKeyMasked = "***"
 	}
-	forgejoToken := h.cfgStore.GetOrFallback(ctx, "forgejo_token", "")
+	forgejoToken := h.cfgStore.GetSharedOrFallback(ctx, "forgejo_token", "")
 	forgejoTokenMasked := ""
 	if forgejoToken != "" {
 		forgejoTokenMasked = "***"
@@ -126,7 +126,7 @@ func (h *ConfigHandler) SetConfig(c *gin.Context) {
 		return
 	}
 	ctx := context.Background()
-	if err := h.cfgStore.SetMany(ctx, kv); err != nil {
+	if err := h.cfgStore.SetManyShared(ctx, kv); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

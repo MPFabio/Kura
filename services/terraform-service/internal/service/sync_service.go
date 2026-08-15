@@ -670,7 +670,7 @@ func (s *SyncService) syncFromGCP(ctx context.Context, source *models.StateSourc
 			if credentialsJSON != "" {
 				envCreds["GOOGLE_CREDENTIALS"] = credentialsJSON
 			}
-			forgejoToken := s.cfgStore.GetOrFallback(ctx, "forgejo_token", "")
+			forgejoToken := s.cfgStore.GetSharedOrFallback(ctx, "forgejo_token", "")
 
 			// Effectuer la détection de drift (une erreur ne fait pas échouer la synchronisation)
 			if _, driftErr := s.terraformService.DetectDriftFine(ctx, stateFile.ID, &sourceCopy, forgejoToken, envCreds); driftErr != nil {
@@ -813,7 +813,7 @@ func (s *SyncService) DecryptCredentials(source *models.StateSource) error {
 
 // GetForgejoToken retourne le token Forgejo/Codeberg configuré pour le drift fine.
 func (s *SyncService) GetForgejoToken(ctx context.Context) string {
-	return s.cfgStore.GetOrFallback(ctx, "forgejo_token", "")
+	return s.cfgStore.GetSharedOrFallback(ctx, "forgejo_token", "")
 }
 
 // decryptCredentials déchiffre les credentials.

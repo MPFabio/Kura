@@ -183,7 +183,7 @@ type PipelineConfig struct {
 
 // GetConfig retourne la config (sans tokens)
 func (s *PipelineService) GetConfig(ctx context.Context) (*PipelineConfig, error) {
-	all, err := s.cfgStore.GetAll(ctx)
+	all, err := s.cfgStore.GetAllShared(ctx)
 	if err != nil {
 		all = map[string]string{}
 	}
@@ -280,7 +280,7 @@ func (s *PipelineService) SetConfig(ctx context.Context, token string, repos []s
 	if len(kv) == 0 {
 		return nil
 	}
-	return s.cfgStore.SetMany(ctx, kv)
+	return s.cfgStore.SetManyShared(ctx, kv)
 }
 
 // SetForgejoConfig enregistre URL, token et/ou repos Forgejo (depuis l'UI) dans Postgres via configstore.
@@ -302,12 +302,12 @@ func (s *PipelineService) SetForgejoConfig(ctx context.Context, url, token strin
 	if len(kv) == 0 {
 		return nil
 	}
-	return s.cfgStore.SetMany(ctx, kv)
+	return s.cfgStore.SetManyShared(ctx, kv)
 }
 
 // getGitHubConfig retourne token et repos (Postgres prioritaire sur env vars)
 func (s *PipelineService) getGitHubConfig(ctx context.Context) (token string, repos []string) {
-	all, _ := s.cfgStore.GetAll(ctx)
+	all, _ := s.cfgStore.GetAllShared(ctx)
 
 	token = all["github_token"]
 	if token == "" {
@@ -325,7 +325,7 @@ func (s *PipelineService) getGitHubConfig(ctx context.Context) (token string, re
 
 // getForgejoConfig retourne URL, token et repos Forgejo (Postgres prioritaire sur env vars)
 func (s *PipelineService) getForgejoConfig(ctx context.Context) (baseURL, token string, repos []string) {
-	all, _ := s.cfgStore.GetAll(ctx)
+	all, _ := s.cfgStore.GetAllShared(ctx)
 
 	baseURL = all["forgejo_url"]
 	if baseURL == "" {

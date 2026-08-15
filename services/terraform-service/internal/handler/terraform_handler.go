@@ -290,7 +290,7 @@ func (h *TerraformHandler) DetectDrift(c *gin.Context) {
 		return
 	}
 
-	forgejoToken := h.cfgStore.GetOrFallback(ctx, "forgejo_token", "")
+	forgejoToken := h.cfgStore.GetSharedOrFallback(ctx, "forgejo_token", "")
 	envCreds := map[string]string{}
 	if providerType == "gcp" && credentialsJSON != "" {
 		envCreds["GOOGLE_CREDENTIALS"] = credentialsJSON

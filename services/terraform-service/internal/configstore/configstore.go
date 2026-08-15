@@ -148,3 +148,104 @@ func (c *Client) GetOrFallback(ctx context.Context, key, fallback string) string
 	}
 	return val
 }
+
+// SharedNamespace est le namespace de configuration commun aux modules qui
+// parlent au même Forgejo/Codeberg (identifiants forgejo_url et forgejo_token).
+//
+// Sans lui, chaque module lisait ces clés dans son propre namespace
+// ("pipeline", "terraform", "code") : l'utilisateur devait saisir le même
+// jeton jusqu'à trois fois, et l'oubli se manifestait par un « 401 token is
+// required » sur un jeton pourtant valide, ce qui n'oriente pas vers la cause.
+const SharedNamespace = "forgejo"
+
+// shared retourne un client sur le namespace partagé, en réutilisant le même
+// transport HTTP.
+func (c *Client) shared() *Client {
+	return &Client{
+		authServiceURL: c.authServiceURL,
+		service:        SharedNamespace,
+		httpClient:     c.httpClient,
+	}
+}
+
+// GetShared lit une clé dans le namespace partagé, puis retombe sur le
+// namespace du service appelant.
+//
+// Le repli préserve les installations où le jeton n'a été saisi que dans un
+// module : elles continuent de fonctionner sans ressaisie, et la valeur
+// remonte dans le namespace partagé à la prochaine écriture.
+func (c *Client) GetShared(ctx context.Context, key string) (string, error) {
+	if value, err := c.shared().Get(ctx, key); err == nil && value != "" {
+		return value, nil
+	}
+	return c.Get(ctx, key)
+}
+
+// SetShared écrit une clé dans le namespace partagé, afin qu'elle soit visible
+// de tous les modules quel que soit celui depuis lequel elle a été saisie.
+func (c *Client) SetShared(ctx context.Context, key, value string) error {
+	return c.shared().Set(ctx, key, value)
+}
+
+// sharedForgejoKeys énumère les clés hébergées dans le namespace partagé.
+var sharedForgejoKeys = map[string]bool{
+	"forgejo_url":   true,
+	"forgejo_token": true,
+}
+
+// GetAllShared retourne les clés du service, complétées par celles du
+// namespace partagé, qui priment quand elles sont renseignées.
+func (c *Client) GetAllShared(ctx context.Context) (map[string]string, error) {
+	all, err := c.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if all == nil {
+		all = map[string]string{}
+	}
+	shared, err := c.shared().GetAll(ctx)
+	if err != nil {
+		// Le namespace partagé peut ne pas exister sur une installation
+		// antérieure : on se contente alors des clés du service.
+		return all, nil
+	}
+	for k, v := range shared {
+		if v != "" {
+			all[k] = v
+		}
+	}
+	return all, nil
+}
+
+// SetManyShared écrit les identifiants Forgejo dans le namespace partagé et
+// les autres clés dans celui du service, pour qu'un jeton saisi depuis
+// n'importe quel module soit visible de tous.
+func (c *Client) SetManyShared(ctx context.Context, kv map[string]string) error {
+	local := map[string]string{}
+	shared := map[string]string{}
+	for k, v := range kv {
+		if sharedForgejoKeys[k] {
+			shared[k] = v
+		} else {
+			local[k] = v
+		}
+	}
+	if len(shared) > 0 {
+		if err := c.shared().SetMany(ctx, shared); err != nil {
+			return err
+		}
+	}
+	if len(local) > 0 {
+		return c.SetMany(ctx, local)
+	}
+	return nil
+}
+
+// GetSharedOrFallback lit une clé dans le namespace partagé, puis dans celui
+// du service, et retourne fallback si aucune valeur n'est trouvée.
+func (c *Client) GetSharedOrFallback(ctx context.Context, key, fallback string) string {
+	if value, err := c.GetShared(ctx, key); err == nil && value != "" {
+		return value
+	}
+	return fallback
+}

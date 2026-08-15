@@ -50,14 +50,14 @@ func (s *CodeService) githubClient(ctx context.Context) (*client.GitHubClient, e
 
 // forgejoClient construit un client Forgejo/Codeberg avec l'URL et le token configurés.
 func (s *CodeService) forgejoClient(ctx context.Context) (*client.ForgejoClient, error) {
-	baseURL, err := s.cfgStore.Get(ctx, "forgejo_url")
+	baseURL, err := s.cfgStore.GetShared(ctx, "forgejo_url")
 	if err != nil {
 		return nil, fmt.Errorf("lecture de l'URL Forgejo: %w", err)
 	}
 	if baseURL == "" {
 		baseURL = "https://codeberg.org"
 	}
-	token, err := s.cfgStore.Get(ctx, "forgejo_token")
+	token, err := s.cfgStore.GetShared(ctx, "forgejo_token")
 	if err != nil {
 		return nil, fmt.Errorf("lecture du token Forgejo: %w", err)
 	}
