@@ -110,6 +110,19 @@ type UpdateIgnoreDifferencesRequest struct {
 	IgnoreDifferences string `json:"ignore_differences"`
 }
 
+// ArgoResourceDiff décrit les écarts réels d'une ressource entre l'état déclaré
+// et l'état présent sur le cluster.
+//
+// Les chemins sont des pointeurs JSON directement utilisables dans
+// spec.ignoreDifferences, ce qui évite à l'utilisateur d'avoir à les deviner.
+type ArgoResourceDiff struct {
+	Group     string   `json:"group"`
+	Kind      string   `json:"kind"`
+	Name      string   `json:"name"`
+	Namespace string   `json:"namespace"`
+	Pointers  []string `json:"pointers"`
+}
+
 // ArgoCDStatus représente l'état d'installation et de disponibilité d'ArgoCD sur le cluster actif.
 type ArgoCDStatus struct {
 	Installed   bool   `json:"installed"`

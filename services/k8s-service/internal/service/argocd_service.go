@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -1064,4 +1065,143 @@ func (s *ArgoCDService) RollbackApplication(ctx context.Context, name string, id
 func (s *ArgoCDService) DeleteApplication(ctx context.Context, name string) error {
 	_, err := s.doRequest(ctx, http.MethodDelete, "/api/v1/applications/"+name+"?cascade=true", map[string]interface{}{})
 	return err
+}
+
+// GetApplicationDiff retourne, pour chaque ressource en écart, les chemins qui
+// diffèrent réellement entre l'état déclaré et l'état présent sur le cluster.
+//
+// ArgoCD expose ces deux états ; les comparer permet de proposer des exceptions
+// exactes plutôt qu'un modèle générique. Un modèle qui « ressemble » au bon
+// résultat est pire qu'aucune aide : il masque des écarts que l'utilisateur
+// n'a jamais vus, ou en laisse passer d'autres.
+func (s *ArgoCDService) GetApplicationDiff(ctx context.Context, name string) ([]models.ArgoResourceDiff, error) {
+	respBody, err := s.doRequest(ctx, http.MethodGet, "/api/v1/applications/"+name+"/managed-resources", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var payload struct {
+		Items []struct {
+			Group     string `json:"group"`
+			Kind      string `json:"kind"`
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+			// États sérialisés en JSON par ArgoCD. NormalizedLiveState est
+			// l'état réel après application des normalisations d'ArgoCD :
+			// c'est lui qui sert de base à la comparaison affichée.
+			TargetState         string `json:"targetState"`
+			NormalizedLiveState string `json:"normalizedLiveState"`
+			LiveState           string `json:"liveState"`
+			// PredictedLiveState est ce que deviendrait l'objet réel après
+			// application de l'état déclaré. C'est cette valeur, et non l'état
+			// déclaré brut, qu'ArgoCD compare au réel : comparer directement au
+			// manifeste rendu ferait apparaître toutes les valeurs par défaut
+			// complétées par Kubernetes, y compris sur des ressources qu'ArgoCD
+			// juge parfaitement synchronisées.
+			PredictedLiveState string `json:"predictedLiveState"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(respBody, &payload); err != nil {
+		return nil, fmt.Errorf("réponse ArgoCD invalide: %w", err)
+	}
+
+	diffs := make([]models.ArgoResourceDiff, 0)
+	for _, item := range payload.Items {
+		live := item.NormalizedLiveState
+		if live == "" {
+			live = item.LiveState
+		}
+		predicted := item.PredictedLiveState
+		if live == "" || predicted == "" {
+			// Ressource seulement déclarée, ou seulement présente : ce n'est
+			// pas un écart de champ, et aucune exception ne s'y applique.
+			continue
+		}
+
+		var target, actual map[string]interface{}
+		if err := json.Unmarshal([]byte(predicted), &target); err != nil {
+			continue
+		}
+		if err := json.Unmarshal([]byte(live), &actual); err != nil {
+			continue
+		}
+
+		pointers := diffPointers("", target, actual)
+		if len(pointers) == 0 {
+			continue
+		}
+		diffs = append(diffs, models.ArgoResourceDiff{
+			Group:     item.Group,
+			Kind:      item.Kind,
+			Name:      item.Name,
+			Namespace: item.Namespace,
+			Pointers:  pointers,
+		})
+	}
+	return diffs, nil
+}
+
+// ignoredTopLevelFields énumère les champs qu'ArgoCD ne compare pas : les
+// signaler produirait des exceptions inutiles.
+var ignoredTopLevelFields = map[string]bool{
+	"status":     true,
+	"metadata":   true,
+	"apiVersion": true,
+	"kind":       true,
+}
+
+// diffPointers compare l'état déclaré et l'état réel, et retourne les pointeurs
+// JSON des emplacements qui divergent.
+//
+// La descente s'arrête au premier niveau divergent : ignorer /spec/template
+// suffit, il est inutile — et illisible — d'énumérer chacune de ses feuilles.
+func diffPointers(prefix string, target, actual map[string]interface{}) []string {
+	var pointers []string
+
+	for key, actualValue := range actual {
+		if prefix == "" && ignoredTopLevelFields[key] {
+			continue
+		}
+		pointer := prefix + "/" + escapeJSONPointer(key)
+
+		targetValue, present := target[key]
+		if !present {
+			// Champ ajouté par le cluster : c'est le cas typique des valeurs
+			// par défaut complétées par l'API.
+			pointers = append(pointers, pointer)
+			continue
+		}
+
+		targetMap, targetIsMap := targetValue.(map[string]interface{})
+		actualMap, actualIsMap := actualValue.(map[string]interface{})
+		if targetIsMap && actualIsMap {
+			pointers = append(pointers, diffPointers(pointer, targetMap, actualMap)...)
+			continue
+		}
+
+		if !equalJSON(targetValue, actualValue) {
+			pointers = append(pointers, pointer)
+		}
+	}
+
+	sort.Strings(pointers)
+	return pointers
+}
+
+// equalJSON compare deux valeurs issues de JSON par leur sérialisation, ce qui
+// couvre les tableaux et les types imbriqués sans réflexion manuelle.
+func equalJSON(a, b interface{}) bool {
+	rawA, errA := json.Marshal(a)
+	rawB, errB := json.Marshal(b)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(rawA) == string(rawB)
+}
+
+// escapeJSONPointer échappe les caractères réservés des pointeurs JSON
+// (RFC 6901) : « ~ » devient « ~0 » et « / » devient « ~1 ».
+func escapeJSONPointer(key string) string {
+	key = strings.ReplaceAll(key, "~", "~0")
+	return strings.ReplaceAll(key, "/", "~1")
 }

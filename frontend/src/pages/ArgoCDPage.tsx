@@ -46,7 +46,7 @@ import ModuleCard from '../components/ModuleCard'
 import HelmIcon from '../components/icons/HelmIcon'
 import ZotIcon from '../components/icons/ZotIcon'
 import { ModuleSubtitle, ModuleSecondaryText } from '../components/ModuleText'
-import { argocdService, ArgoApplication, CreateApplicationRequest, GitOpsInfo, HelmChartSummary } from '../services/argocdService'
+import { argocdService, ArgoApplication, ArgoResourceDiff, CreateApplicationRequest, GitOpsInfo, HelmChartSummary } from '../services/argocdService'
 import { registryService } from '../services/registryService'
 import { kuraColors } from '../theme'
 
@@ -68,16 +68,27 @@ const emptyForm: CreateApplicationRequest = {
   create_branch_from: '',
 }
 
-// Écarts que Kubernetes fabrique lui-même sur les StatefulSets à
-// volumeClaimTemplates : il complète le volume avec sa valeur par défaut
-// (volumeMode) et y écrit un statut, deux champs absents du manifeste rendu par
-// Helm. L'Application reste alors OutOfSync en permanence sans qu'aucune
-// synchronisation puisse y remédier.
-const STATEFULSET_IGNORE_TEMPLATE = `- group: apps
-  kind: StatefulSet
-  jsonPointers:
-    - /spec/volumeClaimTemplates
-`
+// buildIgnoreYAML transforme les écarts réellement constatés en exceptions de
+// comparaison.
+//
+// Un modèle générique était une fausse aide : il proposait des chemins qui ne
+// correspondaient pas forcément à l'écart en cours, masquant potentiellement
+// autre chose que ce que l'utilisateur croyait taire. Les chemins produits ici
+// viennent de la comparaison d'ArgoCD elle-même.
+function buildIgnoreYAML(diffs: ArgoResourceDiff[]): string {
+  return diffs
+    .map((d) => {
+      const lines = [
+        `- group: ${d.group || '""'}`,
+        `  kind: ${d.kind}`,
+        `  name: ${d.name}`,
+        '  jsonPointers:',
+        ...d.pointers.map((p) => `    - ${p}`),
+      ]
+      return lines.join('\n')
+    })
+    .join('\n')
+}
 
 const NEW_BRANCH_VALUE = '__new_branch__'
 
@@ -208,7 +219,7 @@ export default function ArgoCDPage() {
   const [formNewBranchName, setFormNewBranchName] = useState('')
   const [detailApp, setDetailApp] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning' }>({
     open: false,
     message: '',
     severity: 'success',
@@ -383,6 +394,34 @@ export default function ArgoCDPage() {
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.error || error?.message || 'Erreur inconnue'
       setSnackbar({ open: true, message: `Erreur lors de la mise à jour des values : ${errorMessage}`, severity: 'error' })
+    },
+  })
+
+  const analyzeDiffMutation = useMutation({
+    mutationFn: (name: string) => argocdService.getApplicationDiff(name),
+    onSuccess: (data) => {
+      const diffs = data.items ?? []
+      if (diffs.length === 0) {
+        // Ne rien écrire : proposer une exception là où aucun écart n'existe
+        // reviendrait à faire taire un signal qui ne s'est jamais déclenché.
+        setSnackbar({
+          open: true,
+          message: "Aucun écart constaté : cette application n'a besoin d'aucune exception.",
+          severity: 'success',
+        })
+        return
+      }
+      setIgnoreDraft(buildIgnoreYAML(diffs))
+      const total = diffs.reduce((n, d) => n + d.pointers.length, 0)
+      setSnackbar({
+        open: true,
+        message: `${total} écart(s) sur ${diffs.length} ressource(s). Vérifiez chaque chemin avant d'appliquer.`,
+        severity: 'info',
+      })
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error || error?.message || 'Erreur inconnue'
+      setSnackbar({ open: true, message: `Erreur lors de l'analyse : ${errorMessage}`, severity: 'error' })
     },
   })
 
@@ -1161,9 +1200,10 @@ export default function ArgoCDPage() {
                   <Button
                     size="small"
                     sx={{ mt: 1 }}
-                    onClick={() => setIgnoreDraft(STATEFULSET_IGNORE_TEMPLATE)}
+                    disabled={analyzeDiffMutation.isPending}
+                    onClick={() => detailApp && analyzeDiffMutation.mutate(detailApp)}
                   >
-                    Écarts connus des StatefulSets
+                    {analyzeDiffMutation.isPending ? 'Analyse...' : 'Analyser les écarts réels'}
                   </Button>
                   <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                     <Button

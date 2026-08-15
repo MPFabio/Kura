@@ -171,6 +171,21 @@ func (h *ArgoCDHandler) UpdateApplicationIgnoreDifferences(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+// GetApplicationDiff retourne les écarts réels entre l'état déclaré et l'état
+// présent sur le cluster, sous forme de pointeurs JSON réutilisables tels quels
+// dans les exceptions de comparaison.
+func (h *ArgoCDHandler) GetApplicationDiff(c *gin.Context) {
+	name := c.Param("name")
+
+	diffs, err := h.svc.GetApplicationDiff(c.Request.Context(), name)
+	if err != nil {
+		log.Printf("Erreur GetApplicationDiff: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": diffs})
+}
+
 // RefreshApplication force le rafraîchissement de l'état d'une Application ArgoCD.
 func (h *ArgoCDHandler) RefreshApplication(c *gin.Context) {
 	name := c.Param("name")

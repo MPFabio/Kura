@@ -20,6 +20,14 @@ export interface ArgoHistoryEntry {
   source: string
 }
 
+export interface ArgoResourceDiff {
+  group: string
+  kind: string
+  name: string
+  namespace: string
+  pointers: string[]
+}
+
 export interface ArgoApplicationDetail extends ArgoApplication {
   history: ArgoHistoryEntry[]
   helm_values?: string
@@ -165,6 +173,20 @@ export const argocdService = {
       await apiClient.put(`/v1/k8s/argocd/applications/${encodeURIComponent(name)}/values`, { values })
     } catch (error) {
       console.error(`Erreur lors de la mise à jour des values de l'Application ${name}:`, error)
+      throw error
+    }
+  },
+
+  // Écarts réellement constatés par ArgoCD entre l'état déclaré et l'état du
+  // cluster, ressource par ressource, sous forme de pointeurs JSON.
+  getApplicationDiff: async (name: string): Promise<{ items: ArgoResourceDiff[] }> => {
+    try {
+      const response = await apiClient.get<{ items: ArgoResourceDiff[] }>(
+        `/v1/k8s/argocd/applications/${encodeURIComponent(name)}/diff`
+      )
+      return response.data
+    } catch (error) {
+      console.error(`Erreur lors du calcul des écarts de l'Application ${name}:`, error)
       throw error
     }
   },

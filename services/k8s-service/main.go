@@ -233,6 +233,7 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 				argocdGroup.POST("/applications/:name/rollback", argocdHandler.RollbackApplication)
 				argocdGroup.PUT("/applications/:name/values", argocdHandler.UpdateApplicationValues)
 				argocdGroup.PUT("/applications/:name/ignore-differences", argocdHandler.UpdateApplicationIgnoreDifferences)
+				argocdGroup.GET("/applications/:name/diff", argocdHandler.GetApplicationDiff)
 				argocdGroup.DELETE("/applications/:name", argocdHandler.DeleteApplication)
 				argocdGroup.GET("/helm-catalog", argocdHandler.SearchHelmCharts)
 				argocdGroup.GET("/gitops/branches", argocdHandler.GetGitOpsBranches)
