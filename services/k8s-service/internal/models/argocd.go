@@ -79,8 +79,15 @@ type HelmChartSummary struct {
 }
 
 // RollbackRequest représente une demande de rollback vers une entrée d'historique donnée.
+//
+// Le champ n'est volontairement pas marqué « required » : ArgoCD numérote son
+// historique à partir de zéro, et cette contrainte traite la valeur nulle
+// comme une absence. Revenir au tout premier déploiement échouait donc sur
+// « Field validation for 'ID' failed on the 'required' tag », alors que
+// l'identifiant était parfaitement valide. Un identifiant négatif, lui, est
+// refusé côté handler.
 type RollbackRequest struct {
-	ID int64 `json:"id" binding:"required"`
+	ID int64 `json:"id"`
 }
 
 // UpdateValuesRequest représente une demande de mise à jour des values Helm d'une Application.

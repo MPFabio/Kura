@@ -180,6 +180,10 @@ export default function ArgoCDPage() {
   const queryClient = useQueryClient()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [helmCatalogOpen, setHelmCatalogOpen] = useState(false)
+  // Retenir que le formulaire a été ouvert depuis le catalogue : l'abandonner
+  // doit ramener à la liste des charts, pas à la page du module, sans quoi il
+  // faut rouvrir le catalogue et refaire sa recherche à chaque hésitation.
+  const [createdFromCatalog, setCreatedFromCatalog] = useState(false)
   const [helmCatalogQuery, setHelmCatalogQuery] = useState('')
   const [helmCatalogTab, setHelmCatalogTab] = useState<'artifacthub' | 'registry'>('artifacthub')
   const [form, setForm] = useState<CreateApplicationRequest>(emptyForm)
@@ -278,6 +282,9 @@ export default function ArgoCDPage() {
       queryClient.invalidateQueries({ queryKey: ['argocd-applications'] })
       queryClient.invalidateQueries({ queryKey: ['argocd-gitops-info'] })
       setCreateDialogOpen(false)
+      // L'application est créée : revenir au catalogue n'aurait pas de sens,
+      // l'utilisateur veut en voir l'état.
+      setCreatedFromCatalog(false)
       setForm(emptyForm)
       setFormNewBranchName('')
       setSnackbar({ open: true, message: 'Application créée avec succès', severity: 'success' })
@@ -375,7 +382,18 @@ export default function ArgoCDPage() {
     })
     setFormNewBranchName('')
     setHelmCatalogOpen(false)
+    setCreatedFromCatalog(true)
     setCreateDialogOpen(true)
+  }
+
+  // Abandon du formulaire : rendre la main là d'où l'on vient.
+  const closeCreateDialog = () => {
+    setCreateDialogOpen(false)
+    createMutation.reset()
+    if (createdFromCatalog) {
+      setCreatedFromCatalog(false)
+      setHelmCatalogOpen(true)
+    }
   }
 
   const handleSelectRegistryChart = (entry: { name: string; latest: { name: string } }) => {
@@ -391,6 +409,7 @@ export default function ArgoCDPage() {
     })
     setFormNewBranchName('')
     setHelmCatalogOpen(false)
+    setCreatedFromCatalog(true)
     setCreateDialogOpen(true)
   }
 
@@ -653,7 +672,7 @@ export default function ArgoCDPage() {
       )}
 
       {/* Dialog de création d'une Application */}
-      <Dialog open={createDialogOpen} onClose={() => { setCreateDialogOpen(false); createMutation.reset() }} maxWidth="sm" fullWidth>
+      <Dialog open={createDialogOpen} onClose={closeCreateDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           {form.source_type === 'helm' ? 'Nouvelle Application ArgoCD — Chart Helm' : 'Nouvelle Application ArgoCD'}
         </DialogTitle>
@@ -811,7 +830,7 @@ export default function ArgoCDPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setCreateDialogOpen(false); createMutation.reset() }}>Annuler</Button>
+          <Button onClick={closeCreateDialog}>Annuler</Button>
           <Button
             variant="contained"
             onClick={handleCreate}

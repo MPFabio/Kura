@@ -190,6 +190,10 @@ func (h *ArgoCDHandler) RollbackApplication(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if req.ID < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "identifiant d'historique invalide"})
+		return
+	}
 
 	if err := h.svc.RollbackApplication(c.Request.Context(), name, req.ID); err != nil {
 		log.Printf("Erreur RollbackApplication: %v", err)

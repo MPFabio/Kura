@@ -475,6 +475,18 @@ type argoApplicationItem struct {
 			Path           string `json:"path"`
 			TargetRevision string `json:"targetRevision"`
 		} `json:"source"`
+		// Kura génère des Applications multi-sources (le chart d'un côté, le
+		// fichier de valeurs versionné de l'autre). ArgoCD renseigne alors
+		// « sources » et laisse « source » vide : ne lire que ce dernier
+		// affichait un dépôt, un chemin et une révision vides pour toutes les
+		// applications créées depuis le catalogue.
+		Sources []struct {
+			RepoURL        string `json:"repoURL"`
+			Path           string `json:"path"`
+			Chart          string `json:"chart"`
+			TargetRevision string `json:"targetRevision"`
+			Ref            string `json:"ref"`
+		} `json:"sources"`
 		Destination struct {
 			Server    string `json:"server"`
 			Namespace string `json:"namespace"`
@@ -499,17 +511,46 @@ type argoApplicationItem struct {
 	} `json:"status"`
 }
 
+// effectiveSource retourne la source à afficher.
+//
+// Une Application est soit mono-source (« source »), soit multi-sources
+// (« sources »), jamais les deux. Dans le second cas, on retient la source qui
+// porte le contenu déployé — le chart ou le chemin — et non celle qui ne sert
+// qu'à référencer un fichier de valeurs, reconnaissable à son « ref ».
+func (item *argoApplicationItem) effectiveSource() (repoURL, path, targetRevision string) {
+	if item.Spec.Source.RepoURL != "" {
+		return item.Spec.Source.RepoURL, item.Spec.Source.Path, item.Spec.Source.TargetRevision
+	}
+	for _, src := range item.Spec.Sources {
+		if src.Ref != "" && src.Chart == "" {
+			continue
+		}
+		p := src.Path
+		if src.Chart != "" {
+			p = src.Chart
+		}
+		return src.RepoURL, p, src.TargetRevision
+	}
+	// Aucune source exploitable : renvoyer la première plutôt que rien.
+	if len(item.Spec.Sources) > 0 {
+		src := item.Spec.Sources[0]
+		return src.RepoURL, src.Path, src.TargetRevision
+	}
+	return "", "", ""
+}
+
 // toArgoApplication convertit la réponse brute de l'API ArgoCD en modèle ModulOps.
 func (item *argoApplicationItem) toArgoApplication() models.ArgoApplication {
+	repoURL, path, targetRevision := item.effectiveSource()
 	return models.ArgoApplication{
 		Name:           item.Metadata.Name,
 		Namespace:      item.Spec.Destination.Namespace,
 		Project:        item.Spec.Project,
 		SyncStatus:     item.Status.Sync.Status,
 		HealthStatus:   item.Status.Health.Status,
-		RepoURL:        item.Spec.Source.RepoURL,
-		Path:           item.Spec.Source.Path,
-		TargetRevision: item.Spec.Source.TargetRevision,
+		RepoURL:        repoURL,
+		Path:           path,
+		TargetRevision: targetRevision,
 		DestNamespace:  item.Spec.Destination.Namespace,
 		DestServer:     item.Spec.Destination.Server,
 	}
