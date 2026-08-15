@@ -243,6 +243,18 @@ func (s *TerraformService) GetStateSummary(ctx context.Context, id string) (*mod
 	return summary, nil
 }
 
+// États possibles d'une détection de drift lancée en tâche de fond.
+const (
+	driftStatusRunning = "running"
+	driftStatusDone    = "done"
+	driftStatusError   = "error"
+)
+
+// driftMaxDuration borne la durée d'une détection. Au-delà, une détection
+// encore marquée "running" est tenue pour perdue (redémarrage du service en
+// plein plan) et une nouvelle peut être lancée.
+const driftMaxDuration = 15 * time.Minute
+
 // DetectDriftFine détecte les dérives en exécutant `tofu plan -refresh-only`
 // contre les fichiers .tf source récupérés depuis Forgejo/Codeberg et le tfstate stocké.
 // Retourne une erreur si la source n'a pas de dépôt Forgejo/Codeberg configuré.
@@ -313,7 +325,11 @@ func (s *TerraformService) DetectDriftFine(ctx context.Context, stateFileID stri
 func (s *TerraformService) persistDriftResults(ctx context.Context, stateFile *models.StateFile, results []*models.DriftResult) {
 	stateFile.DriftResults = results
 	stateFile.LastChecked = time.Now()
+	s.persistStateFile(ctx, stateFile)
+}
 
+// persistStateFile écrit l'état en cache et en mémoire.
+func (s *TerraformService) persistStateFile(ctx context.Context, stateFile *models.StateFile) {
 	stateTTL := 30 * 24 * time.Hour
 	stateJSON, err := json.Marshal(stateFile)
 	if err == nil {
@@ -411,4 +427,43 @@ func (s *TerraformService) GetResourceByAddress(ctx context.Context, stateFileID
 	}
 
 	return s.parser.GetResourceByAddress(stateFile.State, address)
+}
+
+// MarkDriftRunning signale qu'une détection démarre, afin que l'interface
+// puisse afficher l'avancement sans maintenir de requête ouverte.
+//
+// Retourne false si une détection est déjà en cours pour cet état : les plans
+// étant sérialisés, en empiler plusieurs ne ferait qu'allonger l'attente.
+func (s *TerraformService) MarkDriftRunning(ctx context.Context, stateFileID string) (bool, error) {
+	stateFile, err := s.GetStateFile(ctx, stateFileID)
+	if err != nil {
+		return false, err
+	}
+	// Une détection démarrée il y a plus longtemps que le plafond d'exécution
+	// est considérée comme perdue (redémarrage du service en cours de plan),
+	// sans quoi l'état resterait bloqué sur "running" indéfiniment.
+	if stateFile.DriftStatus == driftStatusRunning && time.Since(stateFile.DriftStartedAt) < driftMaxDuration {
+		return false, nil
+	}
+	stateFile.DriftStatus = driftStatusRunning
+	stateFile.DriftStartedAt = time.Now()
+	stateFile.DriftError = ""
+	s.persistStateFile(ctx, stateFile)
+	return true, nil
+}
+
+// MarkDriftFinished enregistre l'issue d'une détection lancée en tâche de fond.
+func (s *TerraformService) MarkDriftFinished(ctx context.Context, stateFileID string, runErr error) {
+	stateFile, err := s.GetStateFile(ctx, stateFileID)
+	if err != nil {
+		return
+	}
+	if runErr != nil {
+		stateFile.DriftStatus = driftStatusError
+		stateFile.DriftError = runErr.Error()
+	} else {
+		stateFile.DriftStatus = driftStatusDone
+		stateFile.DriftError = ""
+	}
+	s.persistStateFile(ctx, stateFile)
 }

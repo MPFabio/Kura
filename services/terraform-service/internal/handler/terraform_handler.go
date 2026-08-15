@@ -230,6 +230,12 @@ func (h *TerraformHandler) GetResourceByAddress(c *gin.Context) {
 	c.JSON(http.StatusOK, resource)
 }
 
+// driftBackgroundTimeout borne la durée d'une détection lancée en tâche de
+// fond. Doit rester cohérent avec driftMaxDuration côté service, qui décide au
+// bout de combien de temps une détection encore marquée « en cours » est
+// considérée comme perdue.
+const driftBackgroundTimeout = 15 * time.Minute
+
 // DetectDrift détecte les dérives pour un état en exécutant
 // `tofu plan -refresh-only` contre les fichiers .tf source récupérés depuis
 // Forgejo/Codeberg et le tfstate stocké (mode "fine" uniquement).
@@ -241,13 +247,11 @@ func (h *TerraformHandler) DetectDrift(c *gin.Context) {
 		return
 	}
 
-	// La détection dure plusieurs minutes (resynchronisation du tfstate, puis
-	// `tofu plan -refresh-only` qui interroge réellement le fournisseur). Le
-	// contexte de la requête est volontairement écarté : si l'onglet est fermé,
-	// rechargé, ou si un proxy coupe la connexion, le plan doit tout de même
-	// aller à son terme. Le résultat est persisté, donc l'interface le retrouve
-	// au prochain rafraîchissement même si cette réponse-ci n'atteint personne.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 15*time.Minute)
+	// Contexte de préparation : lecture de la source et resynchronisation du
+	// tfstate. Détaché de la requête pour qu'une déconnexion du client ne
+	// laisse pas la resynchronisation à moitié faite, mais borné court — c'est
+	// le plan, lancé ensuite en tâche de fond, qui prend du temps.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 2*time.Minute)
 	defer cancel()
 
 	// Récupérer la source associée à cet état (credentials + config Forgejo/Codeberg)
@@ -296,14 +300,42 @@ func (h *TerraformHandler) DetectDrift(c *gin.Context) {
 		envCreds["GOOGLE_CREDENTIALS"] = credentialsJSON
 	}
 
-	results, err := h.svc.DetectDriftFine(ctx, id, source, forgejoToken, envCreds)
+	started, err := h.svc.MarkDriftRunning(ctx, id)
 	if err != nil {
-		log.Printf("Erreur DetectDriftFine pour id %s: %v", id, err)
+		log.Printf("Erreur MarkDriftRunning pour id %s: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if !started {
+		c.JSON(http.StatusAccepted, gin.H{
+			"status":  "running",
+			"message": "une détection est déjà en cours pour cet état",
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"items": results})
+	// La détection part en tâche de fond et la réponse est immédiate. Attendre
+	// la fin du plan dans la requête revenait à parier qu'aucun intermédiaire
+	// ne coupe pendant plusieurs minutes : le pari était perdu à chaque fois,
+	// le proxy fermant la connexion au bout de cinq minutes alors que le plan
+	// aboutissait côté serveur.
+	go func() {
+		// Contexte indépendant : celui du handler est annulé dès la réponse
+		// envoyée, ce qui tuerait le plan avant même qu'il ne commence.
+		bg, cancel := context.WithTimeout(context.Background(), driftBackgroundTimeout)
+		defer cancel()
+
+		_, runErr := h.svc.DetectDriftFine(bg, id, source, forgejoToken, envCreds)
+		if runErr != nil {
+			log.Printf("Erreur DetectDriftFine pour id %s: %v", id, runErr)
+		}
+		h.svc.MarkDriftFinished(bg, id, runErr)
+	}()
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"status":  "running",
+		"message": "détection lancée : le résultat apparaîtra dès que le plan sera terminé",
+	})
 }
 
 // DeleteStateFile supprime un fichier d'état.

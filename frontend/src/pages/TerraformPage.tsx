@@ -68,7 +68,6 @@ export default function TerraformPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const [driftResults, setDriftResults] = useState<any[]>([])
   const [driftDialogOpen, setDriftDialogOpen] = useState(false)
-  const [detectingDrift, setDetectingDrift] = useState(false)
   const [selectedResource, setSelectedResource] = useState<any>(null)
   const [resourceDialogOpen, setResourceDialogOpen] = useState(false)
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
@@ -590,6 +589,45 @@ export default function TerraformPage() {
                     {new Date(state.uploaded_at).toLocaleString('fr-FR')}
                   </Typography>
 
+                  {/* Résultat de la dernière détection : c'est ici qu'aboutit
+                      l'analyse lancée en tâche de fond. */}
+                  {state.drift_status === 'running' && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                      <CircularProgress size={12} sx={{ color: kuraColors.warning }} />
+                      <Typography sx={{ fontSize: '0.75rem', color: kuraColors.warning }}>
+                        Analyse de l&apos;infrastructure en cours...
+                      </Typography>
+                    </Box>
+                  )}
+                  {state.drift_status === 'error' && (
+                    <Typography sx={{ fontSize: '0.75rem', color: kuraColors.error, mb: 2 }}>
+                      Échec de la dernière analyse : {state.drift_error}
+                    </Typography>
+                  )}
+                  {state.drift_status === 'done' && (
+                    <Typography
+                      // Le détail du dernier plan reste consultable sans en
+                      // relancer un : les résultats sont persistés avec l'état.
+                      onClick={() => {
+                        setDriftResults((state.drift_results as TerraformDriftResult[]) ?? [])
+                        setSelectedState(state)
+                        setDriftDialogOpen(true)
+                      }}
+                      sx={{
+                        fontSize: '0.75rem',
+                        color: (state.drift_results?.length ?? 0) > 0 ? kuraColors.warning : kuraColors.success,
+                        mb: 2,
+                        cursor: 'pointer',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      {(state.drift_results?.length ?? 0) > 0
+                        ? `${state.drift_results?.length} dérive(s) détectée(s)`
+                        : 'Conforme au code'}
+                      {state.last_checked && ` — ${new Date(state.last_checked).toLocaleTimeString('fr-FR')}`}
+                    </Typography>
+                  )}
+
                   {/* Actions */}
                   <Box sx={{ mt: 'auto', display: 'flex', gap: 1 }}>
                     <Button size="small" variant="outlined" onClick={() => handleViewDetails(state)} sx={{ flex: 1 }}>
@@ -599,38 +637,30 @@ export default function TerraformPage() {
                       size="small" variant="outlined"
                       startIcon={<WarningIcon sx={{ fontSize: 14 }} />}
                       onClick={async () => {
-                        setDetectingDrift(true)
-                        // La détection exécute un plan réel côté fournisseur :
-                        // compter en minutes, pas en secondes. Sans ce message,
-                        // le bouton semble figé sur « Analyse... ».
-                        setSnackbar({
-                          open: true,
-                          message: 'Analyse en cours : un plan est exécuté sur l\'infrastructure réelle, cela prend généralement une à trois minutes.',
-                          severity: 'info',
-                        })
+                        // Le serveur accuse réception et exécute le plan en
+                        // tâche de fond : la réponse est immédiate, et l'état
+                        // de la carte suit ensuite l'avancement au fil des
+                        // rafraîchissements automatiques.
                         try {
-                          const result = await terraformService.detectDrift(state.id)
-                          setDriftResults(result.items || [])
-                          setSelectedState(state)
-                          setDriftDialogOpen(true)
-                        } catch {
-                          // Le plan continue côté serveur même si cette requête a
-                          // été coupée, et son résultat est persisté : on recharge
-                          // plutôt que de laisser croire à un échec sec.
+                          await terraformService.detectDrift(state.id)
                           setSnackbar({
                             open: true,
-                            message: 'La réponse n\'est pas parvenue jusqu\'ici. L\'analyse se poursuit côté serveur ; son résultat apparaîtra au prochain rafraîchissement.',
-                            severity: 'warning',
+                            message: 'Analyse lancée. Un plan est exécuté sur l\'infrastructure réelle : le résultat s\'affichera ici dès qu\'il sera prêt.',
+                            severity: 'info',
                           })
-                          refetch()
-                        } finally {
-                          setDetectingDrift(false)
+                        } catch {
+                          setSnackbar({
+                            open: true,
+                            message: 'Impossible de lancer l\'analyse.',
+                            severity: 'error',
+                          })
                         }
+                        refetch()
                       }}
-                      disabled={detectingDrift}
+                      disabled={state.drift_status === 'running'}
                       sx={{ flex: 1, borderColor: kuraColors.warning, color: kuraColors.warning, '&:hover': { bgcolor: kuraColors.warningBg, borderColor: kuraColors.warning } }}
                     >
-                      {detectingDrift ? 'Analyse...' : 'Drift'}
+                      {state.drift_status === 'running' ? 'Analyse en cours...' : 'Drift'}
                     </Button>
                   </Box>
                 </Box>

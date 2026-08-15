@@ -62,6 +62,14 @@ type StateFile struct {
 	UploadedAt   time.Time       `json:"uploaded_at"`
 	LastChecked  time.Time       `json:"last_checked,omitempty"`
 	DriftResults []*DriftResult  `json:"drift_results,omitempty"` // Résultats de détection de drift
+
+	// Suivi de la détection en cours. Un plan de rafraîchissement interroge le
+	// fournisseur ressource par ressource et dure des minutes : il est exécuté
+	// en tâche de fond, et l'interface suit son avancement par ces champs
+	// plutôt qu'en maintenant une requête HTTP ouverte.
+	DriftStatus    string    `json:"drift_status,omitempty"` // "running", "done", "error"
+	DriftStartedAt time.Time `json:"drift_started_at,omitempty"`
+	DriftError     string    `json:"drift_error,omitempty"`
 }
 
 // DriftResult représente un résultat de détection de drift.
