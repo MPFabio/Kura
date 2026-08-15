@@ -900,28 +900,9 @@ func (s *ArgoCDService) RefreshApplication(ctx context.Context, name string) err
 	return err
 }
 
-// mergeYAMLMaps fusionne récursivement override dans base (override est prioritaire).
-func mergeYAMLMaps(base, override map[string]interface{}) map[string]interface{} {
-	if base == nil {
-		base = map[string]interface{}{}
-	}
-	for k, v := range override {
-		if overrideMap, ok := v.(map[string]interface{}); ok {
-			if baseMap, ok := base[k].(map[string]interface{}); ok {
-				base[k] = mergeYAMLMaps(baseMap, overrideMap)
-				continue
-			}
-		}
-		base[k] = v
-	}
-	return base
-}
-
-// UpdateApplicationValues fusionne les values Helm fournies (YAML) dans les values
-// existantes de spec.source.helm.values d'une Application ArgoCD, puis déclenche une
-// synchronisation pour appliquer le changement. Utilisé pour ajuster la configuration
-// d'un chart déjà déployé (ex: désactiver des caches memcached trop gourmands pour un
-// petit cluster) sans perdre les values déjà nécessaires (ex: bucketNames).
+// UpdateApplicationValues remplace les values Helm d'une Application ArgoCD par
+// celles fournies (YAML), puis déclenche une synchronisation. Utilisé pour
+// ajuster la configuration d'un chart déjà déployé sans passer par kubectl.
 // helmSourceOf retourne la source d'une Application qui porte les values Helm.
 //
 // Une Application est soit mono-source (« source »), soit multi-sources
@@ -981,25 +962,28 @@ func (s *ArgoCDService) UpdateApplicationValues(ctx context.Context, name, value
 		helm = map[string]interface{}{}
 	}
 
-	var currentValues map[string]interface{}
-	if existing, ok := helm["values"].(string); ok && existing != "" {
-		if err := yaml.Unmarshal([]byte(existing), &currentValues); err != nil {
-			return fmt.Errorf("values Helm existantes invalides: %w", err)
-		}
-	}
-
-	var override map[string]interface{}
-	if err := yaml.Unmarshal([]byte(valuesOverride), &override); err != nil {
+	// Les values fournies remplacent les précédentes, elles ne s'y ajoutent pas.
+	//
+	// La fusion clé par clé rendait toute suppression impossible : une clé
+	// posée par erreur — ou devenue inutile — ne pouvait plus être retirée
+	// depuis l'interface, puisque son absence de l'envoi était interprétée
+	// comme « ne pas y toucher ». L'écran d'édition part des values courantes,
+	// donc ce que l'utilisateur voit est bien ce qui sera appliqué.
+	var replacement map[string]interface{}
+	if err := yaml.Unmarshal([]byte(valuesOverride), &replacement); err != nil {
 		return fmt.Errorf("values Helm fournies invalides: %w", err)
 	}
 
-	merged := mergeYAMLMaps(currentValues, override)
-	mergedBytes, err := yaml.Marshal(merged)
-	if err != nil {
-		return fmt.Errorf("sérialisation des values fusionnées: %w", err)
+	if len(replacement) == 0 {
+		// Values vidées : retirer la clé plutôt que d'écrire « null ».
+		delete(helm, "values")
+	} else {
+		replacementBytes, err := yaml.Marshal(replacement)
+		if err != nil {
+			return fmt.Errorf("sérialisation des values: %w", err)
+		}
+		helm["values"] = string(replacementBytes)
 	}
-
-	helm["values"] = string(mergedBytes)
 	source["helm"] = helm
 
 	if _, err := s.doRequest(ctx, http.MethodPut, "/api/v1/applications/"+name+"?validate=false", map[string]interface{}{

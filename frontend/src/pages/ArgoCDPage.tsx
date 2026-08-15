@@ -1052,8 +1052,8 @@ export default function ArgoCDPage() {
                   <Button
                     size="small"
                     onClick={() => {
-                      // Partir des values appliquées : la sauvegarde les
-                      // fusionne clé par clé avec l'existant.
+                      // Partir des values appliquées : ce que l'utilisateur
+                      // voit dans le champ est exactement ce qui sera appliqué.
                       setValuesDraft(appDetail.helm_values ?? '')
                       setEditingValues(true)
                     }}
