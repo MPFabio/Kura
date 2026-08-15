@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -174,6 +175,10 @@ type PipelineConfig struct {
 	ForgejoURL    string   `json:"forgejo_url"`
 	ForgejoRepos  []string `json:"forgejo_repos"`
 	ForgejoLinked bool     `json:"forgejo_linked"` // true si token Forgejo + URL + au moins 1 repo
+	// ForgejoStatus distingue « configuration renseignée » de « connexion
+	// vérifiée » : "not_configured", "connected" ou "error".
+	ForgejoStatus string `json:"forgejo_status"`
+	ForgejoError  string `json:"forgejo_error,omitempty"`
 }
 
 // GetConfig retourne la config (sans tokens)
@@ -205,13 +210,58 @@ func (s *PipelineService) GetConfig(ctx context.Context) (*PipelineConfig, error
 	}
 	forgejoTokenSet := all["forgejo_token"] != "" || s.cfg.ForgejoToken != ""
 
+	configured := forgejoTokenSet && forgejoURL != "" && len(forgejoRepos) > 0
+
+	status, verifyErr := "not_configured", ""
+	if configured {
+		token := all["forgejo_token"]
+		if token == "" {
+			token = s.cfg.ForgejoToken
+		}
+		if err := s.verifyForgejo(ctx, forgejoURL, token, forgejoRepos[0]); err != nil {
+			status, verifyErr = "error", err.Error()
+		} else {
+			status = "connected"
+		}
+	}
+
 	return &PipelineConfig{
-		GitHubRepos:   repos,
-		Linked:        tokenSet && len(repos) > 0,
-		ForgejoURL:    forgejoURL,
-		ForgejoRepos:  forgejoRepos,
-		ForgejoLinked: forgejoTokenSet && forgejoURL != "" && len(forgejoRepos) > 0,
+		GitHubRepos:  repos,
+		Linked:       tokenSet && len(repos) > 0,
+		ForgejoURL:   forgejoURL,
+		ForgejoRepos: forgejoRepos,
+		// « Connecté » n'est affiché que si l'accès au dépôt a réellement été
+		// vérifié : un token révoqué ne doit pas laisser un badge vert.
+		ForgejoLinked: status == "connected",
+		ForgejoStatus: status,
+		ForgejoError:  verifyErr,
 	}, nil
+}
+
+// verifyForgejo teste l'accès au premier dépôt configuré. Le résultat est mis
+// en cache 60 s : la page de configuration est rechargée souvent, et il n'y a
+// pas de raison d'interroger l'instance distante à chaque affichage.
+func (s *PipelineService) verifyForgejo(ctx context.Context, baseURL, token, repo string) error {
+	cacheKey := fmt.Sprintf("pipeline:forgejo:verify:%s:%s", baseURL, repo)
+	if cached, err := s.cache.Get(ctx, cacheKey); err == nil && cached != "" {
+		if cached == "ok" {
+			return nil
+		}
+		return errors.New(cached)
+	}
+
+	parts := strings.SplitN(repo, "/", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("format de dépôt attendu owner/repo, reçu %q", repo)
+	}
+
+	err := client.NewForgejoAPIClient(baseURL, token).CheckRepoAccess(parts[0], parts[1])
+	payload := "ok"
+	if err != nil {
+		payload = err.Error()
+	}
+	_ = s.cache.Set(ctx, cacheKey, payload, 60*time.Second)
+	return err
 }
 
 // SetConfig enregistre token et/ou repos (depuis l'UI) dans Postgres via configstore.

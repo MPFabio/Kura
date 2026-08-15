@@ -444,13 +444,28 @@ export default function PipelinePage() {
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 Connecter Forgejo (self-hosted ou Codeberg)
               </Typography>
-              {config?.forgejo_linked && (
+              {/* Le badge reflete une verification reelle de l'acces au depot,
+                  pas la simple presence des champs de configuration. */}
+              {config?.forgejo_status === 'connected' && (
                 <Chip
                   size="small"
                   label="Connecté"
                   sx={{
                     border: `1px solid ${jellyfishColors.successSoft}`,
                     color: jellyfishColors.successSoft,
+                    backgroundColor: 'transparent',
+                    fontWeight: 600,
+                  }}
+                />
+              )}
+              {config?.forgejo_status === 'error' && (
+                <Chip
+                  size="small"
+                  label="Injoignable"
+                  title={config?.forgejo_error}
+                  sx={{
+                    border: `1px solid ${jellyfishColors.magenta}`,
+                    color: jellyfishColors.magenta,
                     backgroundColor: 'transparent',
                     fontWeight: 600,
                   }}

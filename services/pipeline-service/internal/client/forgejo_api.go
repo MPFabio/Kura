@@ -192,3 +192,36 @@ func isTerminalForgejoStatus(status string) bool {
 		return false
 	}
 }
+
+// CheckRepoAccess vérifie que le token donne effectivement accès au dépôt.
+// Appel volontairement léger (métadonnées du dépôt, pas la liste des runs) :
+// il sert à distinguer « configuration renseignée » de « connexion vérifiée ».
+func (c *ForgejoAPIClient) CheckRepoAccess(owner, repo string) error {
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s", c.baseURL, owner, repo)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", "token "+c.token)
+	}
+
+	// Court : la vérification est faite au chargement de la page de configuration.
+	client := &http.Client{Timeout: 8 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("instance injoignable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return fmt.Errorf("token refusé (HTTP %d)", resp.StatusCode)
+	case http.StatusNotFound:
+		return fmt.Errorf("dépôt %s/%s introuvable ou inaccessible avec ce token", owner, repo)
+	default:
+		return fmt.Errorf("réponse inattendue: HTTP %d", resp.StatusCode)
+	}
+}

@@ -78,6 +78,8 @@ export interface PipelineConfig {
   forgejo_url?: string
   forgejo_repos?: string[]
   forgejo_linked?: boolean
+  forgejo_status?: 'not_configured' | 'connected' | 'error'
+  forgejo_error?: string
 }
 
 // Intercepteur auth pour pipelineClient (copie le token si on utilise l'URL directe)
