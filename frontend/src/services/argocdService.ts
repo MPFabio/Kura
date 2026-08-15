@@ -22,6 +22,7 @@ export interface ArgoHistoryEntry {
 
 export interface ArgoApplicationDetail extends ArgoApplication {
   history: ArgoHistoryEntry[]
+  helm_values?: string
 }
 
 export interface CreateApplicationRequest {
@@ -151,6 +152,18 @@ export const argocdService = {
       await apiClient.post(`/v1/k8s/argocd/applications/${encodeURIComponent(name)}/refresh`)
     } catch (error) {
       console.error(`Erreur lors du rafraîchissement de l'Application ${name}:`, error)
+      throw error
+    }
+  },
+
+  // Remplace intégralement les values Helm de l'Application, puis ArgoCD
+  // resynchronise. Le contenu envoyé écrase l'existant : l'appelant doit donc
+  // partir des values actuelles, exposées par getApplication.
+  updateApplicationValues: async (name: string, values: string): Promise<void> => {
+    try {
+      await apiClient.put(`/v1/k8s/argocd/applications/${encodeURIComponent(name)}/values`, { values })
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour des values de l'Application ${name}:`, error)
       throw error
     }
   },

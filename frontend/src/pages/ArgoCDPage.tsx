@@ -184,6 +184,8 @@ export default function ArgoCDPage() {
   // doit ramener à la liste des charts, pas à la page du module, sans quoi il
   // faut rouvrir le catalogue et refaire sa recherche à chaque hésitation.
   const [createdFromCatalog, setCreatedFromCatalog] = useState(false)
+  const [editingValues, setEditingValues] = useState(false)
+  const [valuesDraft, setValuesDraft] = useState('')
   const [helmCatalogQuery, setHelmCatalogQuery] = useState('')
   const [helmCatalogTab, setHelmCatalogTab] = useState<'artifacthub' | 'registry'>('artifacthub')
   const [form, setForm] = useState<CreateApplicationRequest>(emptyForm)
@@ -332,6 +334,21 @@ export default function ArgoCDPage() {
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.error || error?.message || 'Erreur inconnue'
       setSnackbar({ open: true, message: `Erreur lors du rollback : ${errorMessage}`, severity: 'error' })
+    },
+  })
+
+  const updateValuesMutation = useMutation({
+    mutationFn: ({ name, values }: { name: string; values: string }) =>
+      argocdService.updateApplicationValues(name, values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['argocd-applications'] })
+      queryClient.invalidateQueries({ queryKey: ['argocd-application-detail'] })
+      setEditingValues(false)
+      setSnackbar({ open: true, message: 'Values mises à jour, synchronisation en cours', severity: 'success' })
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error || error?.message || 'Erreur inconnue'
+      setSnackbar({ open: true, message: `Erreur lors de la mise à jour des values : ${errorMessage}`, severity: 'error' })
     },
   })
 
@@ -1011,6 +1028,61 @@ export default function ArgoCDPage() {
               <ModuleSecondaryText>Chemin : {appDetail.path}</ModuleSecondaryText>
               <ModuleSecondaryText>Révision : {appDetail.target_revision}</ModuleSecondaryText>
               <ModuleSecondaryText>Namespace : {appDetail.dest_namespace}</ModuleSecondaryText>
+
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <ModuleSubtitle>Values Helm</ModuleSubtitle>
+                {!editingValues && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      // Partir des values appliquées : la sauvegarde les
+                      // remplace intégralement.
+                      setValuesDraft(appDetail.helm_values ?? '')
+                      setEditingValues(true)
+                    }}
+                  >
+                    Modifier
+                  </Button>
+                )}
+              </Box>
+              {editingValues ? (
+                <>
+                  <TextField
+                    multiline
+                    minRows={6}
+                    fullWidth
+                    value={valuesDraft}
+                    onChange={(e) => setValuesDraft(e.target.value)}
+                    placeholder={"storageClass:\n  defaultClass: true"}
+                    sx={{ mt: 1, '& textarea': { fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem' } }}
+                  />
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={updateValuesMutation.isPending}
+                      onClick={() => detailApp && updateValuesMutation.mutate({ name: detailApp, values: valuesDraft })}
+                    >
+                      {updateValuesMutation.isPending ? 'Application...' : 'Appliquer'}
+                    </Button>
+                    <Button size="small" onClick={() => setEditingValues(false)}>Annuler</Button>
+                  </Box>
+                </>
+              ) : (
+                <Box
+                  component="pre"
+                  sx={{
+                    mt: 1, p: 1.5, borderRadius: '6px',
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${kuraColors.border0}`,
+                    fontFamily: '"JetBrains Mono", monospace', fontSize: '0.72rem',
+                    color: kuraColors.text1, overflowX: 'auto', maxHeight: 200, m: 0,
+                  }}
+                >
+                  {appDetail.helm_values?.trim() || 'Aucune value définie (valeurs par défaut du chart)'}
+                </Box>
+              )}
 
               <Divider sx={{ my: 2 }} />
               <ModuleSubtitle>Historique des déploiements</ModuleSubtitle>

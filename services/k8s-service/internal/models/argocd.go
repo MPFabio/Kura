@@ -28,6 +28,10 @@ type ArgoHistoryEntry struct {
 type ArgoApplicationDetail struct {
 	ArgoApplication
 	History []ArgoHistoryEntry `json:"history"`
+	// HelmValues expose les values actuellement appliquées. Sans elles,
+	// l'écran d'édition partirait d'un champ vide et la sauvegarde écraserait
+	// une configuration que l'utilisateur n'a jamais vue.
+	HelmValues string `json:"helm_values,omitempty"`
 }
 
 // CreateApplicationRequest représente une demande de création d'Application ArgoCD.

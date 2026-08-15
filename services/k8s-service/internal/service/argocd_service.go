@@ -474,6 +474,9 @@ type argoApplicationItem struct {
 			RepoURL        string `json:"repoURL"`
 			Path           string `json:"path"`
 			TargetRevision string `json:"targetRevision"`
+			Helm           struct {
+				Values string `json:"values"`
+			} `json:"helm"`
 		} `json:"source"`
 		// Kura génère des Applications multi-sources (le chart d'un côté, le
 		// fichier de valeurs versionné de l'autre). ArgoCD renseigne alors
@@ -486,6 +489,9 @@ type argoApplicationItem struct {
 			Chart          string `json:"chart"`
 			TargetRevision string `json:"targetRevision"`
 			Ref            string `json:"ref"`
+			Helm           struct {
+				Values string `json:"values"`
+			} `json:"helm"`
 		} `json:"sources"`
 		Destination struct {
 			Server    string `json:"server"`
@@ -539,6 +545,20 @@ func (item *argoApplicationItem) effectiveSource() (repoURL, path, targetRevisio
 	return "", "", ""
 }
 
+// helmValues retourne les values Helm appliquées, que l'Application soit
+// mono-source ou multi-sources.
+func (item *argoApplicationItem) helmValues() string {
+	if item.Spec.Source.Helm.Values != "" {
+		return item.Spec.Source.Helm.Values
+	}
+	for _, src := range item.Spec.Sources {
+		if src.Helm.Values != "" {
+			return src.Helm.Values
+		}
+	}
+	return ""
+}
+
 // toArgoApplication convertit la réponse brute de l'API ArgoCD en modèle ModulOps.
 func (item *argoApplicationItem) toArgoApplication() models.ArgoApplication {
 	repoURL, path, targetRevision := item.effectiveSource()
@@ -561,6 +581,7 @@ func (item *argoApplicationItem) toArgoApplicationDetail() models.ArgoApplicatio
 	detail := models.ArgoApplicationDetail{
 		ArgoApplication: item.toArgoApplication(),
 		History:         make([]models.ArgoHistoryEntry, 0, len(item.Status.History)),
+		HelmValues:      item.helmValues(),
 	}
 	for _, h := range item.Status.History {
 		deployedAt, _ := time.Parse(time.RFC3339, h.DeployedAt)
