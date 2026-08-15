@@ -26,6 +26,7 @@ import { pipelineService } from '../services/pipelineService'
 import { k8sService } from '../services/k8sService'
 import { projectService } from '../services/projectService'
 import { registryService } from '../services/registryService'
+import { metricsService } from '../services/metricsService'
 import ZotIcon from '../components/icons/ZotIcon'
 import { kuraColors } from '../theme'
 
@@ -56,6 +57,14 @@ export default function ModulesPage() {
     queryKey: ['terraform-states', currentProject?.id],
     queryFn: () => terraformService.getStates(currentProject!.id),
     enabled: !!currentProject?.id,
+  })
+
+  // Santé des microservices Kura, pour la carte Observabilité : le compte
+  // doit suivre la liste réelle des services supervisés, pas une constante.
+  const { data: platformHealthData } = useQuery({
+    queryKey: ['modules-platform-health'],
+    queryFn: () => metricsService.getHealth(),
+    refetchInterval: 30000,
   })
 
   const { data: clustersData } = useQuery({
@@ -367,7 +376,7 @@ export default function ModulesPage() {
       subtitle: 'VictoriaMetrics · Loki · Tempo · Grafana',
       description: 'Observabilité complète de votre infrastructure : métriques temps réel, logs centralisés, traces distribuées et dashboards Grafana.',
       stats: [
-        { label: 'Services', value: '6' },
+        { label: 'Services', value: String(platformHealthData?.length ?? 0) },
         { label: 'Alertes', value: '0' },
         { label: 'Dashboard', value: 'Grafana' },
       ],
