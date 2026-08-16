@@ -312,9 +312,9 @@ export default function VaultPage() {
               liste alors qu'il désigne le point de montage. La racine n'est
               plus cliquable quand on s'y trouve déjà, un lien sans effet
               donnant à penser que l'interface ne répond pas. */}
-          <Breadcrumbs sx={{ mb: 2 }} aria-label="Chemin dans le coffre">
+          <Breadcrumbs sx={{ mb: 2 }} aria-label="Path dans le coffre">
             <Typography component="span" sx={{ fontSize: '0.8125rem', color: kuraColors.text2, mr: 0.5 }}>
-              Chemin :
+              Path :
             </Typography>
             {currentPath ? (
               <Link
@@ -465,7 +465,7 @@ export default function VaultPage() {
         <DialogTitle>Nouveau secret</DialogTitle>
         <DialogContent>
           <TextField
-            label="Chemin du secret"
+            label="Path du secret"
             placeholder="ex: api-keys/stripe"
             value={newSecretPath}
             onChange={(e) => setNewSecretPath(e.target.value)}
