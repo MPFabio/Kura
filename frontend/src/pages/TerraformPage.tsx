@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { kuraColors } from '../theme'
+import DriftDetailDialog from '../components/DriftDetailDialog'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
@@ -79,6 +80,9 @@ export default function TerraformPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const [driftResults, setDriftResults] = useState<any[]>([])
   const [driftDialogOpen, setDriftDialogOpen] = useState(false)
+  // Dérive dont on compare les valeurs, dans une vue dédiée : la colonne du
+  // tableau ne peut pas afficher une clé SSH ou une empreinte lisiblement.
+  const [inspectedDrift, setInspectedDrift] = useState<TerraformDriftResult | null>(null)
   const [selectedResource, setSelectedResource] = useState<any>(null)
   const [resourceDialogOpen, setResourceDialogOpen] = useState(false)
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
@@ -856,8 +860,15 @@ export default function TerraformPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {driftResults.map((result: TerraformDriftResult, idx: number) => (
-                      <TableRow key={idx}>
+                    {driftResults.map((result: TerraformDriftResult, idx: number) => {
+                      const hasDetail = (result.differences?.length ?? 0) > 0
+                      return (
+                      <TableRow
+                        key={idx}
+                        hover={hasDetail}
+                        onClick={() => hasDetail && setInspectedDrift(result)}
+                        sx={{ cursor: hasDetail ? 'pointer' : 'default' }}
+                      >
                         <TableCell>
                           <ModuleBodyText sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                             {result.resource_address}
@@ -916,16 +927,29 @@ export default function TerraformPage() {
                               <ModuleCaption sx={{ color: 'error.main', fontWeight: 'bold' }}>
                                 {result.differences.length} différence(s) détectée(s)
                               </ModuleCaption>
+                              {/* Aperçu volontairement court : les valeurs
+                                  d'un plan (clés SSH, empreintes) sont trop
+                                  longues pour cette colonne. Le détail complet
+                                  s'ouvre au clic. */}
                               {result.differences.slice(0, 3).map((diff, diffIdx) => (
                                 <ModuleCaption key={diffIdx} sx={{ display: 'block', fontFamily: '"JetBrains Mono", monospace', fontSize: '0.7rem' }}>
-                                  • {diff.attribute}: attendu {JSON.stringify(diff.expected)}, actuel {JSON.stringify(diff.actual)}
+                                  • {diff.attribute}
                                 </ModuleCaption>
                               ))}
+                              {result.differences.length > 3 && (
+                                <ModuleCaption sx={{ display: 'block', fontSize: '0.7rem', color: kuraColors.text2 }}>
+                                  et {result.differences.length - 3} autre(s)
+                                </ModuleCaption>
+                              )}
+                              <ModuleCaption sx={{ display: 'block', fontSize: '0.7rem', color: kuraColors.info, mt: 0.5 }}>
+                                Cliquer pour comparer les valeurs
+                              </ModuleCaption>
                             </Box>
                           )}
                         </TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -940,6 +964,8 @@ export default function TerraformPage() {
           <Button onClick={() => setDriftDialogOpen(false)}>Fermer</Button>
         </DialogActions>
       </Dialog>
+
+      <DriftDetailDialog result={inspectedDrift} onClose={() => setInspectedDrift(null)} />
 
       {/* Dialog de détails d'une ressource OpenTofu */}
       <Dialog 
