@@ -49,7 +49,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          # Aligné sur la directive go des modules (1.25). Une version
+          # inférieure fonctionne — Go télécharge alors automatiquement la
+          # chaîne requise — mais elle est retéléchargée à chaque exécution,
+          # et la version affichée ici cesse de décrire ce qui compile
+          # réellement le code.
+          go-version: '1.25'
           cache-dependency-path: services/${{ matrix.service }}/go.sum
 
       - name: Build ${{ matrix.service }}
