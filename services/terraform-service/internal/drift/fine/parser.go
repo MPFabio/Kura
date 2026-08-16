@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,6 +61,9 @@ func ParsePlan(plan *tfjson.Plan, stateResources []models.Resource, now time.Tim
 
 		case actions.Update() || actions.Replace():
 			differences := diffValues(rc.Type, rc.Change.Before, rc.Change.After, "")
+			// Le plan indique les attributs que le fournisseur juge sensibles :
+			// leurs valeurs ne doivent pas être restituées telles quelles.
+			maskSensitiveDifferences(differences, rc.Change.BeforeSensitive, rc.Change.AfterSensitive)
 			status := "drifted"
 			if len(differences) == 0 {
 				status = "in_sync"
@@ -319,4 +323,124 @@ func isNullOrEmpty(v interface{}) bool {
 	default:
 		return false
 	}
+}
+
+// maskedValue remplace la valeur d'un attribut sensible.
+const maskedValue = "(valeur masquée)"
+
+// sensitiveNameMarkers repère les attributs dont le nom trahit un secret.
+//
+// Filet de sécurité indépendant du marquage du fournisseur : tous ne déclarent
+// pas correctement leurs attributs sensibles, et un état Terraform contient
+// couramment des mots de passe engendrés, des clés de comptes de service ou des
+// jetons d'API en clair.
+var sensitiveNameMarkers = []string{
+	"password", "secret", "token", "private_key", "credentials",
+	"passphrase", "certificate_key", "client_secret", "api_key",
+}
+
+// maskSensitiveDifferences masque les valeurs des attributs sensibles.
+//
+// Un plan indique quels attributs le fournisseur considère comme sensibles
+// (before_sensitive / after_sensitive) ; Terraform lui-même affiche alors
+// « (sensitive value) » plutôt que le contenu. Restituer ces valeurs dans une
+// interface web les exposerait à quiconque peut consulter la détection de
+// dérive, et les ferait entrer dans les journaux du navigateur.
+func maskSensitiveDifferences(diffs []DriftDifferenceList, beforeSensitive, afterSensitive interface{}) {
+	for i := range diffs {
+		attribute := diffs[i].Attribute
+		if isSensitiveByName(attribute) {
+			diffs[i].Expected = maskedValue
+			diffs[i].Actual = maskedValue
+			continue
+		}
+		if isSensitivePath(beforeSensitive, attribute) {
+			diffs[i].Expected = maskedValue
+		}
+		if isSensitivePath(afterSensitive, attribute) {
+			diffs[i].Actual = maskedValue
+		}
+	}
+}
+
+// isSensitiveByName indique si le nom d'un attribut désigne un secret.
+func isSensitiveByName(attribute string) bool {
+	lowered := strings.ToLower(attribute)
+	for _, marker := range sensitiveNameMarkers {
+		if strings.Contains(lowered, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// isSensitivePath parcourt la structure de marquage d'un plan pour déterminer
+// si le chemin d'un attribut y est signalé comme sensible.
+//
+// Cette structure reproduit la forme de la valeur : un objet pour les
+// attributs imbriqués, un tableau pour les listes, et « true » aux feuilles
+// sensibles. Un marquage posé sur un niveau intermédiaire vaut pour tout ce
+// qu'il contient.
+func isSensitivePath(sensitive interface{}, path string) bool {
+	current := sensitive
+	for _, segment := range splitAttributePath(path) {
+		if marked, ok := current.(bool); ok {
+			return marked
+		}
+		switch node := current.(type) {
+		case map[string]interface{}:
+			next, ok := node[segment.key]
+			if !ok {
+				return false
+			}
+			current = next
+		case []interface{}:
+			if segment.index < 0 || segment.index >= len(node) {
+				return false
+			}
+			current = node[segment.index]
+		default:
+			return false
+		}
+	}
+	marked, ok := current.(bool)
+	return ok && marked
+}
+
+// pathSegment est un élément du chemin d'un attribut : une clé d'objet, ou un
+// indice de liste lorsque index est positif.
+type pathSegment struct {
+	key   string
+	index int
+}
+
+// splitAttributePath décompose « network_interface[0].access_config[0].nat_ip »
+// en segments successifs.
+func splitAttributePath(path string) []pathSegment {
+	var segments []pathSegment
+	for _, part := range strings.Split(path, ".") {
+		if part == "" {
+			continue
+		}
+		name := part
+		var indices []int
+		for {
+			open := strings.Index(name, "[")
+			if open < 0 || !strings.HasSuffix(name, "]") {
+				break
+			}
+			raw := name[open+1 : len(name)-1]
+			index, err := strconv.Atoi(raw)
+			if err != nil {
+				break
+			}
+			indices = append(indices, index)
+			name = name[:open]
+		}
+		segments = append(segments, pathSegment{key: name, index: -1})
+		for _, index := range indices {
+			segments = append(segments, pathSegment{index: index})
+		}
+	}
+	return segments
 }
