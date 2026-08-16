@@ -245,6 +245,7 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 			registryGroup := k8sGroup.Group("/registry")
 			{
 				registryGroup.GET("/repositories", registryHandler.ListRepositories)
+				registryGroup.GET("/image", registryHandler.GetImage)
 				registryGroup.GET("/repositories/*name", registryHandler.GetRepository)
 			}
 

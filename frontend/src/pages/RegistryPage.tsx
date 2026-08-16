@@ -29,6 +29,7 @@ import ModuleTitle from '../components/ModuleTitle'
 import ModuleCard from '../components/ModuleCard'
 import { ModuleSubtitle, ModuleSecondaryText } from '../components/ModuleText'
 import { registryService, RegistryRepository } from '../services/registryService'
+import ImageDetailDialog from '../components/ImageDetailDialog'
 import { kuraColors } from '../theme'
 
 function getRegistryErrorMessage(error: unknown): { severity: 'info' | 'error'; message: string } {
@@ -76,6 +77,11 @@ export default function RegistryPage() {
     // registre change d'ailleurs au rythme des publications, pas des secondes.
     refetchInterval: false,
   })
+
+  // Tag dont on inspecte le contenu. Un registre ne conserve pas les sources :
+  // ce que l'on peut montrer est la configuration d'exécution et l'historique
+  // de construction, ce qu'inspecte un audit d'image.
+  const [inspectedTag, setInspectedTag] = useState<string | null>(null)
 
   const { data: repoDetail, isLoading: detailLoading } = useQuery({
     queryKey: ['registry-repository', selectedRepo?.name],
@@ -167,7 +173,12 @@ export default function RegistryPage() {
                 </TableHead>
                 <TableBody>
                   {repoDetail!.tags.map((tag) => (
-                    <TableRow key={tag.name}>
+                    <TableRow
+                      key={tag.name}
+                      hover
+                      onClick={() => tag.type !== 'helm-chart' && setInspectedTag(tag.name)}
+                      sx={{ cursor: tag.type === 'helm-chart' ? 'default' : 'pointer' }}
+                    >
                       <TableCell sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{tag.name}</TableCell>
                       <TableCell>
                         <Chip
@@ -207,6 +218,14 @@ export default function RegistryPage() {
           <Button onClick={() => setSelectedRepo(null)}>Fermer</Button>
         </DialogActions>
       </Dialog>
+
+      {selectedRepo && (
+        <ImageDetailDialog
+          repository={selectedRepo.name}
+          tag={inspectedTag}
+          onClose={() => setInspectedTag(null)}
+        />
+      )}
     </Box>
   )
 }

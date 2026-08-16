@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -97,10 +98,34 @@ type ociManifest struct {
 	MediaType string `json:"mediaType"`
 	Config    struct {
 		MediaType string `json:"mediaType"`
+		// Digest désigne le blob de configuration, qui porte l'historique des
+		// instructions et les paramètres d'exécution de l'image.
+		Digest string `json:"digest"`
 	} `json:"config"`
 	Layers []struct {
-		Size int64 `json:"size"`
+		Size   int64  `json:"size"`
+		Digest string `json:"digest"`
 	} `json:"layers"`
+}
+
+// ociImageConfig est le blob de configuration d'une image OCI.
+type ociImageConfig struct {
+	Architecture string `json:"architecture"`
+	OS           string `json:"os"`
+	Created      string `json:"created"`
+	Config       struct {
+		Entrypoint   []string            `json:"Entrypoint"`
+		Cmd          []string            `json:"Cmd"`
+		WorkingDir   string              `json:"WorkingDir"`
+		Env          []string            `json:"Env"`
+		Labels       map[string]string   `json:"Labels"`
+		ExposedPorts map[string]struct{} `json:"ExposedPorts"`
+	} `json:"config"`
+	History []struct {
+		Created    string `json:"created"`
+		CreatedBy  string `json:"created_by"`
+		EmptyLayer bool   `json:"empty_layer"`
+	} `json:"history"`
 }
 
 // ListRepositories liste les dépôts disponibles dans le registre, avec leur nombre de tags.
@@ -265,4 +290,87 @@ func (s *RegistryService) getJSON(ctx context.Context, baseURL, path string, out
 	}
 
 	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// GetImageDetail retourne le contenu d'une image : sa configuration
+// d'exécution et l'historique des instructions ayant produit ses couches.
+//
+// Le Dockerfile n'est volontairement pas mentionné : un registre OCI ne
+// conserve pas les sources, seulement le résultat de la construction. Ce que
+// l'on peut restituer est ce qu'inspecte un audit d'image — d'où vient chaque
+// couche, ce que le conteneur exécutera, et sous quelle identité.
+func (s *RegistryService) GetImageDetail(ctx context.Context, repo, tag string) (*models.RegistryImageDetail, error) {
+	proxy, err := s.openSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer proxy.Stop()
+
+	baseURL := proxy.BaseURL()
+
+	manifest, digest, err := s.getManifest(ctx, baseURL, repo, tag)
+	if err != nil {
+		return nil, err
+	}
+	if manifest.Config.Digest == "" {
+		return nil, fmt.Errorf("cette image ne référence aucune configuration")
+	}
+
+	var config ociImageConfig
+	if err := s.getJSON(ctx, baseURL, fmt.Sprintf("/v2/%s/blobs/%s", repo, manifest.Config.Digest), &config); err != nil {
+		return nil, fmt.Errorf("lecture de la configuration de l'image: %w", err)
+	}
+
+	detail := &models.RegistryImageDetail{
+		Repository:   repo,
+		Tag:          tag,
+		Digest:       digest,
+		Architecture: config.Architecture,
+		OS:           config.OS,
+		CreatedAt:    config.Created,
+		Entrypoint:   config.Config.Entrypoint,
+		Cmd:          config.Config.Cmd,
+		WorkingDir:   config.Config.WorkingDir,
+		Env:          config.Config.Env,
+		Labels:       config.Config.Labels,
+	}
+	for port := range config.Config.ExposedPorts {
+		detail.ExposedPorts = append(detail.ExposedPorts, port)
+	}
+	sort.Strings(detail.ExposedPorts)
+
+	// L'historique décrit toutes les étapes de construction, y compris celles
+	// qui ne produisent aucune couche (ENV, LABEL, EXPOSE). Les tailles, elles,
+	// ne concernent que les couches réelles : on les associe dans l'ordre.
+	layerIndex := 0
+	for _, entry := range config.History {
+		layer := models.RegistryImageLayer{
+			Instruction: cleanBuildInstruction(entry.CreatedBy),
+			CreatedAt:   entry.Created,
+			Empty:       entry.EmptyLayer,
+		}
+		if !entry.EmptyLayer && layerIndex < len(manifest.Layers) {
+			layer.SizeBytes = manifest.Layers[layerIndex].Size
+			detail.TotalBytes += layer.SizeBytes
+			layerIndex++
+		}
+		detail.Layers = append(detail.Layers, layer)
+	}
+
+	return detail, nil
+}
+
+// cleanBuildInstruction rend lisible la commande enregistrée par le
+// constructeur.
+//
+// BuildKit préfixe les instructions de « /bin/sh -c #(nop) » pour les étapes
+// sans couche, et de « /bin/sh -c » pour les RUN : afficher ces préfixes
+// noierait l'instruction utile.
+func cleanBuildInstruction(raw string) string {
+	instruction := strings.TrimSpace(raw)
+	instruction = strings.TrimPrefix(instruction, "/bin/sh -c #(nop) ")
+	if strings.HasPrefix(instruction, "/bin/sh -c ") {
+		instruction = "RUN " + strings.TrimPrefix(instruction, "/bin/sh -c ")
+	}
+	return strings.TrimSpace(instruction)
 }
