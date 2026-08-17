@@ -149,7 +149,9 @@ services:
       - "9090:8428"
     command:
       - '--storageDataPath=/victoria-metrics-data'
-      - '--retentionPeriod=15d'
+      # 32 jours : l'error budget est mensuel, une retention de 15 j ne permet
+      # pas de le calculer.
+      - '--retentionPeriod=32d'
       - '--httpListenAddr=:8428'
     volumes:
       - victoriametrics-data:/victoria-metrics-data
