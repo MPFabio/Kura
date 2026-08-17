@@ -129,3 +129,15 @@ func (c *Client) GetOrFallback(ctx context.Context, key, fallback string) string
 	}
 	return val
 }
+
+// SharedNamespace regroupe les identifiants communs a plusieurs modules.
+const SharedNamespace = "forgejo"
+
+// GetShared lit une cle dans le namespace partage, puis dans celui du service.
+func (c *Client) GetShared(ctx context.Context, key string) (string, error) {
+	shared := &Client{authServiceURL: c.authServiceURL, service: SharedNamespace, httpClient: c.httpClient}
+	if value, err := shared.Get(ctx, key); err == nil && value != "" {
+		return value, nil
+	}
+	return c.Get(ctx, key)
+}

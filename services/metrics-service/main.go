@@ -53,7 +53,10 @@ func main() {
 	svc := service.New(cfg, rdb)
 	h := handler.New(svc)
 
-	router := setupRouter(h, cfg)
+	incidentSvc := service.NewIncidentService(cfg.AuthServiceURL)
+	incidentHandler := handler.NewIncidentHandler(incidentSvc)
+
+	router := setupRouter(h, incidentHandler, cfg)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.ServerPort,
@@ -81,7 +84,7 @@ func main() {
 	log.Println("Metrics-service arrêté")
 }
 
-func setupRouter(h *handler.MetricsHandler, cfg *config.Config) *gin.Engine {
+func setupRouter(h *handler.MetricsHandler, incidentHandler *handler.IncidentHandler, cfg *config.Config) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -102,6 +105,11 @@ func setupRouter(h *handler.MetricsHandler, cfg *config.Config) *gin.Engine {
 
 	v1 := router.Group("/api/v1")
 	metrics := v1.Group("/metrics")
+	// Webhook Alertmanager : hors du groupe authentifie, Alertmanager ne
+	// presente pas de jeton. La route n'est pas routee par Kong, elle reste
+	// donc inaccessible depuis l'exterieur.
+	router.POST("/internal/alerts/webhook", incidentHandler.AlertWebhook)
+
 	metrics.Use(authz.Middleware(cfg.AuthServiceURL, "metrics"))
 	{
 		// platform-config est toujours accessible : il indique au frontend si
