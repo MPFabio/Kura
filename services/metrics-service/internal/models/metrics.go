@@ -9,6 +9,10 @@ type ServiceHealth struct {
 	Up         bool    `json:"up"`
 	Goroutines float64 `json:"goroutines"`
 	MemoryMB   float64 `json:"memory_mb"`
+	// DownSince porte l'instant de la derniere collecte reussie, deduit des
+	// series conservees par VictoriaMetrics. Vide quand le service est en
+	// ligne, ou quand aucune collecte ne remonte sur la fenetre interrogee.
+	DownSince string `json:"down_since,omitempty"`
 }
 
 // ServiceMetric représente les métriques détaillées d'un service.

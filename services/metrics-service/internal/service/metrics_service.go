@@ -113,16 +113,27 @@ func (s *MetricsService) GetHealth(ctx context.Context) ([]models.ServiceHealth,
 	goroutinesMap, _ := s.queryPrometheus(ctx, "go_goroutines")
 	memMap, _ := s.queryPrometheus(ctx, "process_resident_memory_bytes")
 
+	// Horodatage de la derniere collecte ou le service repondait. Le health
+	// check ne renvoie qu'un etat courant : c'est la serie conservee par
+	// VictoriaMetrics qui porte l'instant de la bascule.
+	dernierUp, _ := s.queryPrometheus(ctx, "max_over_time(timestamp(up == 1)[24h:15s])")
+
 	var result []models.ServiceHealth
 	for _, svc := range knownServices {
 		up := s.checkHealth(ctx, svc.healthURL)
-		result = append(result, models.ServiceHealth{
+		sante := models.ServiceHealth{
 			Name:       svc.name,
 			Job:        svc.job,
 			Up:         up,
 			Goroutines: goroutinesMap[svc.job],
 			MemoryMB:   memMap[svc.job] / 1024 / 1024,
-		})
+		}
+		if !up {
+			if instant, ok := dernierUp[svc.job]; ok && instant > 0 {
+				sante.DownSince = time.Unix(int64(instant), 0).UTC().Format(time.RFC3339)
+			}
+		}
+		result = append(result, sante)
 	}
 
 	s.cache(ctx, cacheKey, result)

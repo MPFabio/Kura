@@ -25,7 +25,10 @@ interface KuraAlert {
   title: string
   message: string
   source: string
-  timestamp: Date
+  // Absent quand la source ne fournit pas d'horodatage : le health check
+  // renvoie un etat, pas l'instant ou le service est tombe. Afficher l'heure
+  // du rafraichissement a cet endroit reviendrait a inventer une detection.
+  timestamp?: Date
 }
 
 const severityConfig = {
@@ -102,7 +105,7 @@ export default function AlertsPage() {
             title: `Service hors ligne — ${svc.name}`,
             message: `${svc.job} ne répond plus à son health check`,
             source: 'Observabilité',
-            timestamp: new Date(),
+            timestamp: svc.down_since ? new Date(svc.down_since) : undefined,
           })
         })
 
@@ -113,7 +116,6 @@ export default function AlertsPage() {
             title: 'Tous les services opérationnels',
             message: `${up.length} service${up.length > 1 ? 's' : ''} actif${up.length > 1 ? 's' : ''}`,
             source: 'Observabilité',
-            timestamp: new Date(),
           })
         }
       }
@@ -124,7 +126,6 @@ export default function AlertsPage() {
         title: 'Observabilité indisponible',
         message: 'Le metrics-service ne répond pas',
         source: 'Monitoring',
-        timestamp: new Date(),
       })
     }
 
@@ -143,7 +144,7 @@ export default function AlertsPage() {
           title: a.summary || a.name,
           message: a.description || `${a.name}${a.service ? ` · ${a.service}` : ''}`,
           source: 'Supervision',
-          timestamp: a.starts_at ? new Date(a.starts_at) : new Date(),
+          timestamp: a.starts_at ? new Date(a.starts_at) : undefined,
         })
       })
     } catch { /* Alertmanager injoignable : on garde les alertes derivees */ }
@@ -171,7 +172,7 @@ export default function AlertsPage() {
           title: `Pipeline en échec — ${r.workflow_name}`,
           message: `${r.repository} · ${r.branch}`,
           source: 'Pipelines',
-          timestamp: r.started_at ? new Date(r.started_at) : new Date(),
+          timestamp: r.started_at ? new Date(r.started_at) : undefined,
         })
       })
     } catch { /* Pipeline service indisponible */ }
@@ -250,7 +251,7 @@ export default function AlertsPage() {
                     />
                   </TableCell>
                   <TableCell sx={{ color: kuraColors.text2, fontFamily: '"JetBrains Mono", monospace', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                    {alert.timestamp.toLocaleTimeString('fr-FR')}
+                    {alert.timestamp ? alert.timestamp.toLocaleTimeString('fr-FR') : '—'}
                   </TableCell>
                 </TableRow>
               ))}

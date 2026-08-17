@@ -6,6 +6,8 @@ export interface ServiceHealth {
   up: boolean
   goroutines: number
   memory_mb: number
+  // Derniere collecte reussie, renseigne uniquement quand le service est tombe.
+  down_since?: string
 }
 
 export interface ServiceMetric {

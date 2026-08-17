@@ -9,6 +9,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+	// Base des fuseaux horaires embarquee dans le binaire : l'image d'execution
+	// est minimale et ne fournit pas /usr/share/zoneinfo.
+	_ "time/tzdata"
 
 	"github.com/modulops/metrics-service/internal/configstore"
 )
@@ -200,10 +203,19 @@ func redigerIssue(payload *AlertmanagerPayload, actives []AlertmanagerAlert) (st
 	}
 	sort.Strings(services)
 
+	// Les conteneurs tournent en UTC, l'exploitation raisonne en heure locale.
+	// Un ticket qui n'affiche pas la meme heure que la console d'alertes est
+	// inexploitable pour reconstituer une chronologie.
+	fuseau, err := time.LoadLocation("Europe/Paris")
+	if err != nil {
+		fuseau = time.UTC
+	}
+
 	detection := premiere.StartsAt
 	if detection.IsZero() {
 		detection = time.Now()
 	}
+	detection = detection.In(fuseau)
 
 	var b strings.Builder
 	b.WriteString("## Détection\n\n")
@@ -225,7 +237,7 @@ func redigerIssue(payload *AlertmanagerPayload, actives []AlertmanagerAlert) (st
 		if description == "" {
 			description = a.Annotations["summary"]
 		}
-		fmt.Fprintf(&b, "- %s : %s\n", a.StartsAt.Format("15h04"), description)
+		fmt.Fprintf(&b, "- %s : %s\n", a.StartsAt.In(fuseau).Format("15h04"), description)
 	}
 	b.WriteString("\n## Impact utilisateurs\n\nÀ compléter par l'intervenant.\n\n")
 	b.WriteString("## Actions engagées\n\nÀ compléter par l'intervenant.\n")
