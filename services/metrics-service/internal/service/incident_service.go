@@ -66,8 +66,13 @@ func (s *IncidentService) HandleAlert(ctx context.Context, payload *Alertmanager
 	if err != nil || depot == "" {
 		return "", fmt.Errorf("depot des incidents non configure (cle incident_repository)")
 	}
-	token, err := s.cfgStore.GetShared(ctx, "forgejo_token")
-	if err != nil || token == "" {
+	// Jeton dedie : la creation d'issues demande write:issue, que le jeton de
+	// lecture des modules n'a pas. Repli sur forgejo_token si non configure.
+	token, _ := s.cfgStore.GetShared(ctx, "incident_token")
+	if token == "" {
+		token, _ = s.cfgStore.GetShared(ctx, "forgejo_token")
+	}
+	if token == "" {
 		return "", fmt.Errorf("jeton Forgejo absent")
 	}
 	baseURL, _ := s.cfgStore.GetShared(ctx, "forgejo_url")
