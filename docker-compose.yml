@@ -196,6 +196,8 @@ services:
       - '--remoteRead.url=http://victoriametrics:8428'
       - '--notifier.url=http://alertmanager:9093'
       - '--rule=/etc/vmalert/alert_rules.yml'
+      # Sert l'interface derriere le proxy nginx /vmalert.
+      - '--http.pathPrefix=/vmalert'
       - '--evaluationInterval=15s'
     volumes:
       - ./infrastructure/docker/alert_rules.yml:/etc/vmalert/alert_rules.yml:ro
