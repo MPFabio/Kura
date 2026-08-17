@@ -24,6 +24,22 @@
 # `docker stats` plutôt que de reconduire un chiffre par habitude.
 
 services:
+  # Un volume Docker est cree appartenant a root, alors que le processus
+  # d'archivage de PostgreSQL tourne sous l'utilisateur postgres (uid 70 sur
+  # l'image Alpine). Sans cette initialisation, archive_command echoue en
+  # boucle sur une permission refusee, et PostgreSQL conserve ses WAL sans
+  # jamais les liberer.
+  wal-archive-init:
+    image: postgres:15-alpine
+    container_name: kura-wal-archive-init
+    user: root
+    command: chown 70:70 /wal-archive
+    volumes:
+      - wal-archive:/wal-archive
+    restart: "no"
+    networks:
+      - kura-network
+
   postgres:
     image: postgres:15-alpine
     container_name: kura-postgres
@@ -37,13 +53,62 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "127.0.0.1:5432:5432"
+    # archive_mode exige un redemarrage, il n'est pas rechargeable a chaud.
+    # archive_command refuse d'ecraser un segment deja archive : sans ce test,
+    # un rejeu d'archivage corromprait silencieusement la serie de WAL.
+    # wal_level=replica est le minimum pour l'archivage ; il autorise aussi la
+    # replication en cas de bascule vers un socle a haute disponibilite.
+    command: >
+      postgres
+      -c wal_level=replica
+      -c archive_mode=on
+      -c archive_command='test ! -f /wal-archive/%f && cp %p /wal-archive/%f'
+      -c archive_timeout=300
+      -c max_wal_senders=3
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - wal-archive:/wal-archive
+    depends_on:
+      wal-archive-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kura"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - kura-network
+
+  postgres-backup:
+    build:
+      context: ./infrastructure/docker/postgres-backup
+      dockerfile: Dockerfile
+    container_name: kura-postgres-backup
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kura}
+      POSTGRES_USER: ${POSTGRES_USER:-kura}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      # PGDATA en lecture seule : la sauvegarde lit, elle n'ecrit jamais dans
+      # le repertoire de la base.
+      - postgres-data:/pgdata:ro
+      # En ecriture, contrairement a PGDATA : ce conteneur purge les segments
+      # deja deposes sur le stockage objet. Sans purge, le volume croit sans
+      # limite et sature le disque de la machine.
+      - wal-archive:/wal-archive
+      - postgres-backup-travail:/travail
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    restart: unless-stopped
     networks:
       - kura-network
 
@@ -397,10 +462,17 @@ services:
     networks:
       - kura-network
 
-  # Backend S3-compatible pour le tfstate Terraform (optionnel : si TERRAFORM_STATE_BACKEND=s3, le service y persiste les états)
+  # Stockage objet : destination des sauvegardes PostgreSQL, et backend S3 du
+  # tfstate quand TERRAFORM_STATE_BACKEND=s3. Il n'est plus optionnel depuis
+  # qu'il porte les sauvegardes : une sauvegarde qui ne quitte pas la machine
+  # ne protege de rien.
   minio:
     image: minio/minio:RELEASE.2024-01-16T16-07-38Z
     container_name: kura-minio
+    deploy:
+      resources:
+        limits:
+          memory: 256m
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -410,8 +482,14 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data
-    profiles:
-      - tfstate  # Démarrage optionnel : docker compose --profile tfstate up
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - kura-network
 
   terraform-service:
     build:
@@ -783,6 +861,8 @@ services:
 
 volumes:
   postgres-data:
+  wal-archive:
+  postgres-backup-travail:
   victoriametrics-data:
   grafana-data:
   valkey-data:
