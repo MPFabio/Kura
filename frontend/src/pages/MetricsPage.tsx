@@ -21,8 +21,10 @@ import {
   Collapse,
   ToggleButtonGroup,
   ToggleButton,
+  Button,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ModuleCard from '../components/ModuleCard'
@@ -301,13 +303,24 @@ function MetricsTab({ scope }: { scope: ObservabilityScope }) {
           <ModuleSubtitle>
             {scope === 'project' ? 'Dashboard Grafana — Projet' : 'Dashboard Grafana — Kura Platform Overview'}
           </ModuleSubtitle>
+          <Button
+            size="small"
+            endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
+            href={scope === 'project' ? PROJECT_GRAFANA_DASHBOARD_URL : GRAFANA_DASHBOARD_URL}
+            target="_blank"
+            rel="noopener"
+            sx={{ ml: 'auto' }}
+          >
+            Plein écran
+          </Button>
         </Box>
+        {/* Hauteur calee sur la fenetre : a 600 px fixes, le dashboard etait
+            consulte a travers une glissiere. */}
         <iframe
           src={scope === 'project' ? PROJECT_GRAFANA_DASHBOARD_URL : GRAFANA_DASHBOARD_URL}
           title={scope === 'project' ? 'Grafana du projet' : 'Kura Grafana Dashboard'}
           width="100%"
-          height="600"
-          style={{ border: 'none', display: 'block' }}
+          style={{ border: 'none', display: 'block', height: 'calc(100vh - 220px)', minHeight: 600 }}
           sandbox="allow-scripts allow-same-origin allow-forms"
         />
       </ModuleCard>
