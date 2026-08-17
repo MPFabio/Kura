@@ -9,20 +9,20 @@ import (
 	"github.com/modulops/metrics-service/internal/service"
 )
 
-// IncidentHandler recoit les webhooks d'Alertmanager.
+// IncidentHandler reçoit les webhooks d'Alertmanager.
 type IncidentHandler struct {
 	svc *service.IncidentService
 }
 
-// NewIncidentHandler cree le handler.
+// NewIncidentHandler crée le handler.
 func NewIncidentHandler(svc *service.IncidentService) *IncidentHandler {
 	return &IncidentHandler{svc: svc}
 }
 
-// AlertWebhook ouvre une issue d'incident a partir d'une alerte.
+// AlertWebhook ouvre une issue d'incident à partir d'une alerte.
 //
-// La route n'est pas exposee par Kong : Alertmanager appelle le service
-// directement sur le reseau interne.
+// La route n'est pas exposée par Kong : Alertmanager appelle le service
+// directement sur le réseau interne.
 func (h *IncidentHandler) AlertWebhook(c *gin.Context) {
 	var payload service.AlertmanagerPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {

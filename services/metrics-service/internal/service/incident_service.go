@@ -13,7 +13,7 @@ import (
 	"github.com/modulops/metrics-service/internal/configstore"
 )
 
-// AlertmanagerPayload est le corps envoye par Alertmanager a un receiver de
+// AlertmanagerPayload est le corps envoyé par Alertmanager à un receiver de
 // type webhook.
 type AlertmanagerPayload struct {
 	Status      string              `json:"status"`
@@ -22,7 +22,7 @@ type AlertmanagerPayload struct {
 	Alerts      []AlertmanagerAlert `json:"alerts"`
 }
 
-// AlertmanagerAlert decrit une alerte du lot.
+// AlertmanagerAlert décrit une alerte du lot.
 type AlertmanagerAlert struct {
 	Status      string            `json:"status"`
 	Labels      map[string]string `json:"labels"`
@@ -30,13 +30,13 @@ type AlertmanagerAlert struct {
 	StartsAt    time.Time         `json:"startsAt"`
 }
 
-// IncidentService ouvre une issue Forgejo a la reception d'une alerte.
+// IncidentService ouvre une issue Forgejo à la réception d'une alerte.
 type IncidentService struct {
 	cfgStore   *configstore.Client
 	httpClient *http.Client
 }
 
-// NewIncidentService cree le service.
+// NewIncidentService crée le service.
 func NewIncidentService(authServiceURL string) *IncidentService {
 	return &IncidentService{
 		cfgStore:   configstore.New(authServiceURL, "metrics"),
@@ -46,8 +46,8 @@ func NewIncidentService(authServiceURL string) *IncidentService {
 
 // HandleAlert ouvre une issue pour un lot d'alertes actives.
 //
-// Les alertes resolues sont ignorees : Alertmanager rappelle le lot a la
-// resolution, ouvrir une issue a ce moment creerait un doublon sans objet.
+// Les alertes résolues sont ignorées : Alertmanager rappelle le lot à la
+// résolution, ouvrir une issue à ce moment créerait un doublon sans objet.
 func (s *IncidentService) HandleAlert(ctx context.Context, payload *AlertmanagerPayload) (string, error) {
 	if payload.Status == "resolved" {
 		return "", nil
@@ -64,10 +64,10 @@ func (s *IncidentService) HandleAlert(ctx context.Context, payload *Alertmanager
 
 	depot, err := s.cfgStore.GetShared(ctx, "incident_repository")
 	if err != nil || depot == "" {
-		return "", fmt.Errorf("depot des incidents non configure (cle incident_repository)")
+		return "", fmt.Errorf("dépôt des incidents non configuré (clé incident_repository)")
 	}
-	// Jeton dedie : la creation d'issues demande write:issue, que le jeton de
-	// lecture des modules n'a pas. Repli sur forgejo_token si non configure.
+	// Jeton dédié : la création d'issues demande write:issue, que le jeton de
+	// lecture des modules n'a pas. Repli sur forgejo_token si non configuré.
 	token, _ := s.cfgStore.GetShared(ctx, "incident_token")
 	if token == "" {
 		token, _ = s.cfgStore.GetShared(ctx, "forgejo_token")
@@ -106,7 +106,7 @@ func (s *IncidentService) HandleAlert(ctx context.Context, payload *Alertmanager
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("creation de l'issue refusee (HTTP %d)", resp.StatusCode)
+		return "", fmt.Errorf("création de l'issue refusée (HTTP %d)", resp.StatusCode)
 	}
 
 	var cree struct {
@@ -121,10 +121,10 @@ func (s *IncidentService) HandleAlert(ctx context.Context, payload *Alertmanager
 	return cree.URL, nil
 }
 
-// poserEtiquettes applique incident et a-qualifier a l'issue creee.
+// poserEtiquettes applique incident et a-qualifier à l'issue créée.
 //
-// Les etiquettes sont posees dans un second appel : l'API attend des
-// identifiants numeriques, qu'il faut resoudre depuis leurs noms.
+// Les étiquettes sont posées dans un second appel : l'API attend des
+// identifiants numériques, qu'il faut résoudre depuis leurs noms.
 func (s *IncidentService) poserEtiquettes(ctx context.Context, baseURL, depot, token string, numero int) {
 	voulues := map[string]bool{"incident": true, "a-qualifier": true}
 
@@ -172,7 +172,7 @@ func (s *IncidentService) poserEtiquettes(ctx context.Context, baseURL, depot, t
 	}
 }
 
-// redigerIssue produit le titre et le corps a partir du gabarit d'incident.
+// redigerIssue produit le titre et le corps à partir du gabarit d'incident.
 func redigerIssue(payload *AlertmanagerPayload, actives []AlertmanagerAlert) (string, string) {
 	premiere := actives[0]
 	nom := premiere.Labels["alertname"]
@@ -206,18 +206,18 @@ func redigerIssue(payload *AlertmanagerPayload, actives []AlertmanagerAlert) (st
 	}
 
 	var b strings.Builder
-	b.WriteString("## Detection\n\n")
-	fmt.Fprintf(&b, "%s, alerte `%s` levee par vmalert.\n\n", detection.Format("02/01/2006 15h04"), nom)
+	b.WriteString("## Détection\n\n")
+	fmt.Fprintf(&b, "%s, alerte `%s` levée par vmalert.\n\n", detection.Format("02/01/2006 15h04"), nom)
 
-	b.WriteString("## Perimetre touche\n\n")
+	b.WriteString("## Périmètre touché\n\n")
 	if len(services) > 0 {
 		fmt.Fprintf(&b, "%s\n\n", strings.Join(services, ", "))
 	} else {
-		b.WriteString("A preciser.\n\n")
+		b.WriteString("À préciser.\n\n")
 	}
 
-	b.WriteString("## Severite proposee\n\n")
-	fmt.Fprintf(&b, "%s (a confirmer a la qualification)\n\n", severite)
+	b.WriteString("## Sévérité proposée\n\n")
+	fmt.Fprintf(&b, "%s (à confirmer à la qualification)\n\n", severite)
 
 	b.WriteString("## Chronologie\n\n")
 	for _, a := range actives {
@@ -227,8 +227,8 @@ func redigerIssue(payload *AlertmanagerPayload, actives []AlertmanagerAlert) (st
 		}
 		fmt.Fprintf(&b, "- %s : %s\n", a.StartsAt.Format("15h04"), description)
 	}
-	b.WriteString("\n## Impact utilisateurs\n\nA completer par l'intervenant.\n\n")
-	b.WriteString("## Actions engagees\n\nA completer par l'intervenant.\n")
+	b.WriteString("\n## Impact utilisateurs\n\nÀ compléter par l'intervenant.\n\n")
+	b.WriteString("## Actions engagées\n\nÀ compléter par l'intervenant.\n")
 
 	return titre, b.String()
 }
