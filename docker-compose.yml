@@ -257,7 +257,10 @@ services:
       - "8880:8880"
     command:
       - '--datasource.url=http://victoriametrics:8428'
-      - '--remoteWrite.url=http://victoriametrics:8428/api/v1/write'
+      # vmalert ajoute lui-meme le chemin /api/v1/write : le fournir ici
+      # produisait /api/v1/write/api/v1/write, refuse en 400, et les series
+      # ALERTS n'etaient jamais persistees.
+      - '--remoteWrite.url=http://victoriametrics:8428'
       - '--remoteRead.url=http://victoriametrics:8428'
       - '--notifier.url=http://alertmanager:9093'
       - '--rule=/etc/vmalert/alert_rules.yml'

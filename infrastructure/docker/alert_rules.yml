@@ -9,3 +9,73 @@ groups:
         annotations:
           summary: "Service {{ $labels.job }} indisponible"
           description: "La cible {{ $labels.instance }} (job {{ $labels.job }}) est injoignable depuis plus de 2 minutes."
+
+  # Les seuils reprennent ceux du tableau d'indicateurs : un avertissement
+  # place la derive dans la file de revue, une alerte critique declenche la
+  # procedure d'incident et ouvre un ticket. L'ecart entre les deux fenetres
+  # est voulu : l'avertissement observe plus longtemps pour eviter le bruit,
+  # le critique reagit plus vite parce qu'il engage une intervention.
+  - name: kura-latence
+    rules:
+      - alert: LatenceElevee
+        expr: histogram_quantile(0.95, sum by (le) (rate(kong_upstream_latency_ms_bucket[10m]))) > 150
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence P95 au-dessus du seuil d'avertissement"
+          description: "La latence P95 mesuree par la passerelle depasse 150 ms sur 10 minutes, pour un SLO fixe a 200 ms."
+
+      - alert: LatenceCritique
+        expr: histogram_quantile(0.95, sum by (le) (rate(kong_upstream_latency_ms_bucket[5m]))) > 200
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SLO de latence perce"
+          description: "La latence P95 depasse le SLO de 200 ms sur 5 minutes."
+
+  - name: kura-erreurs
+    rules:
+      # clamp_min protege la division quand aucune requete n'a ete servie sur
+      # la fenetre : sans lui, une plateforme au repos produirait une valeur
+      # indefinie plutot qu'un taux nul.
+      - alert: TauxErreursEleve
+        expr: 100 * sum(rate(kong_http_requests_total{code=~"5.."}[10m])) / clamp_min(sum(rate(kong_http_requests_total[10m])), 0.001) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taux d'erreurs 5xx au-dessus du seuil d'avertissement"
+          description: "Plus de 0,5 % des reponses servies par la passerelle sont en erreur serveur sur 10 minutes."
+
+      - alert: TauxErreursCritique
+        expr: 100 * sum(rate(kong_http_requests_total{code=~"5.."}[5m])) / clamp_min(sum(rate(kong_http_requests_total[5m])), 0.001) > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taux d'erreurs 5xx critique"
+          description: "Plus de 2 % des reponses servies par la passerelle sont en erreur serveur sur 5 minutes."
+
+  - name: kura-error-budget
+    rules:
+      # Le budget est un ratio sur 30 jours rapporte a l'enveloppe de 1 %
+      # toleree par le SLO de disponibilite : 100 % signifie enveloppe epuisee.
+      - alert: ErrorBudgetEntame
+        expr: 100 * sum(increase(kong_http_requests_total{code=~"5.."}[30d])) / clamp_min(sum(increase(kong_http_requests_total[30d])), 1) / 0.01 > 50
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Plus de la moitie de l'error budget consommee"
+          description: "Les deploiements a risque attendent la fenetre suivante, conformement a la politique de gel."
+
+      - alert: ErrorBudgetEpuise
+        expr: 100 * sum(increase(kong_http_requests_total{code=~"5.."}[30d])) / clamp_min(sum(increase(kong_http_requests_total[30d])), 1) / 0.01 > 80
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error budget epuise a plus de 80 %"
+          description: "Seuls les correctifs se deploient : la stabilite prime sur les evolutions jusqu'a reconstitution du budget."
