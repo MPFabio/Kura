@@ -77,7 +77,7 @@
     },
     {
       "id": 12,
-      "title": "Error budget consomme (30 j)",
+      "title": "Error budget consommé (30 j)",
       "type": "gauge",
       "description": "Part du budget d'erreur depensee sous un SLO de 99 %. Calcule sur les requetes servies et non sur l'etat des processus : un redeploiement de quelques secondes ne fait echouer aucune requete.",
       "gridPos": { "h": 4, "w": 5, "x": 10, "y": 0 },
@@ -178,7 +178,7 @@
     },
     {
       "id": 7,
-      "title": "Disponibilite par service",
+      "title": "Disponibilité par service",
       "type": "state-timeline",
       "description": "Frise d'etats plutot qu'un graphe : huit series binaires a la meme valeur se superposent et n'affichent qu'une seule ligne.",
       "gridPos": { "h": 7, "w": 24, "x": 0, "y": 4 },
@@ -230,7 +230,7 @@
     },
     {
       "id": 14,
-      "title": "Requetes par code de statut",
+      "title": "Requêtes par code de statut",
       "type": "timeseries",
       "description": "Trafic par code : le volume donne l'echelle a laquelle lire le taux d'erreurs.",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 11 },
@@ -271,7 +271,7 @@
     },
     {
       "id": 6,
-      "title": "Memoire RSS par service",
+      "title": "Mémoire RSS par service",
       "type": "timeseries",
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 19 },
       "options": {
