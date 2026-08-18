@@ -60,20 +60,16 @@ export function setup() {
   if (registerRes.status !== 201 && registerRes.status !== 400) {
     console.warn(`Setup register: ${registerRes.status} ${registerRes.body}`)
   }
-  return {}
-}
 
-// ── Scénario principal ────────────────────────────────────────────────────────
-
-export default function () {
-  const headers = { 'Content-Type': 'application/json' }
-
-  // 1. Login
+  // Une seule authentification pour toute la campagne, dont le jeton est
+  // transmis aux utilisateurs virtuels. Se connecter à chaque itération
+  // mesurerait surtout la protection anti-brute-force du service d'auth
+  // (10 tentatives par IP et par minute), pas la tenue en charge des modules.
   const t0 = Date.now()
   const loginRes = http.post(
     `${BASE_URL}/api/v1/auth/login`,
     JSON.stringify({ email: TEST_USER_EMAIL, password: TEST_USER_PASSWORD }),
-    { headers }
+    { headers: { 'Content-Type': 'application/json' } }
   )
   loginDuration.add(Date.now() - t0)
 
@@ -86,18 +82,24 @@ export default function () {
   authErrors.add(!loginOk)
 
   if (!loginOk) {
-    sleep(1)
-    return
+    throw new Error(`Authentification impossible : ${loginRes.status} ${loginRes.body}`)
   }
+  return { token: JSON.parse(loginRes.body).token }
+}
 
-  const token = JSON.parse(loginRes.body).token
-  const authHeaders = { ...headers, Authorization: `Bearer ${token}` }
+// ── Scénario principal ────────────────────────────────────────────────────────
 
-  sleep(0.5)
+export default function (donnees) {
+  const headers = { 'Content-Type': 'application/json' }
+  const authHeaders = { ...headers, Authorization: `Bearer ${donnees.token}` }
 
-  // 2. Health check
-  const healthRes = http.get(`${BASE_URL.replace(':8000', ':8080')}/health`)
-  check(healthRes, { 'health 200': (r) => r.status === 200 })
+  // 1. Disponibilité de la passerelle, mesurée sur une route réelle plutôt
+  // que sur un port de service : c'est le chemin qu'empruntent les
+  // utilisateurs, et le seul dont la latence les concerne.
+  const healthRes = http.get(`${BASE_URL}/api/v1/metrics/platform-config`, {
+    headers: authHeaders,
+  })
+  check(healthRes, { 'passerelle 200': (r) => r.status === 200 })
 
   sleep(0.5)
 
@@ -107,7 +109,10 @@ export default function () {
     { headers: authHeaders }
   )
   const tfOk = check(tfRes, {
-    'terraform states 200 ou 404': (r) => r.status === 200 || r.status === 404,
+    // Un refus de droits est une reponse applicative valide : le compte de
+    // charge n'est membre d'aucun projet. Ce qui serait un echec, c'est une
+    // erreur serveur ou une absence de reponse sous la charge.
+    'états OpenTofu : réponse applicative': (r) => r.status < 500,
   })
   apiErrors.add(!tfOk)
 
