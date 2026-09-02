@@ -266,6 +266,27 @@ func copyTree(src, dst string) (bool, error) {
 		return false, fmt.Errorf("%s n'est pas un répertoire", src)
 	}
 
+	if err := os.MkdirAll(dst, 0o700); err != nil {
+		return false, err
+	}
+
+	// Accès scopés à src et dst : toute opération ci-dessous porte sur un
+	// chemin relatif (rel) résolu par le Root lui-même, qui refuse de sortir
+	// du répertoire même via un lien symbolique substitué entre le parcours
+	// et l'ouverture (TOCTOU) — gosec G122 sur un os.Open/os.OpenFile classique
+	// dans un callback WalkDir.
+	srcRoot, err := os.OpenRoot(src)
+	if err != nil {
+		return false, err
+	}
+	defer srcRoot.Close()
+
+	dstRoot, err := os.OpenRoot(dst)
+	if err != nil {
+		return false, err
+	}
+	defer dstRoot.Close()
+
 	empty := true
 	err = filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -278,10 +299,9 @@ func copyTree(src, dst string) (bool, error) {
 		if rel == "." {
 			return nil
 		}
-		target := filepath.Join(dst, rel)
 
 		if d.IsDir() {
-			return os.MkdirAll(target, 0o700)
+			return dstRoot.Mkdir(rel, 0o700)
 		}
 		// Les liens symboliques du cache ne sont pas suivis : tofu n'en crée
 		// pas, et les recopier à l'aveugle ferait sortir du répertoire.
@@ -293,16 +313,13 @@ func copyTree(src, dst string) (bool, error) {
 		if err != nil {
 			return err
 		}
-		in, err := os.Open(path)
+		in, err := srcRoot.Open(rel)
 		if err != nil {
 			return err
 		}
 		defer in.Close()
 
-		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
-			return err
-		}
-		out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, entryInfo.Mode().Perm())
+		out, err := dstRoot.OpenFile(rel, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, entryInfo.Mode().Perm())
 		if err != nil {
 			return err
 		}
