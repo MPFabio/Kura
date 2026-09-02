@@ -161,6 +161,43 @@ spec:
     - port: {{ $spec.port }}
       targetPort: main
 {{- end }}
+---
+{{- /*
+vmagent découvre ses cibles via l'API Kubernetes : il lui faut le droit de
+lister les pods. Role local et non ClusterRole, la découverte étant restreinte
+au namespace de la plateforme (voir config/vmagent-scrape.yml).
+*/}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vmagent
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vmagent
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods, services, endpoints]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vmagent
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vmagent
+subjects:
+  - kind: ServiceAccount
+    name: vmagent
 {{- range $comp := list "vmagent" "vmalert" "alertmanager" }}
 {{- $spec := index $obs $comp }}
 ---
@@ -182,6 +219,9 @@ spec:
         {{- include "kura.labels" $root | nindent 8 }}
         {{- include "kura.selectorLabels" $comp | nindent 8 }}
     spec:
+      {{- if eq $comp "vmagent" }}
+      serviceAccountName: vmagent
+      {{- end }}
       containers:
         - name: {{ $comp }}
           image: {{ $spec.image }}

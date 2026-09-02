@@ -24,6 +24,14 @@ spec:
       {{- include "kura.selectorLabels" $name | nindent 6 }}
   template:
     metadata:
+      {{- /* Le frontend sert des fichiers statiques et n'expose pas de
+             métriques : il est le seul à ne pas être annoté. */}}
+      {{- if ne $svc.metrics false }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ $svc.port | quote }}
+        prometheus.io/path: {{ $svc.metricsPath | default "/metrics" }}
+      {{- end }}
       labels:
         {{- include "kura.labels" $root | nindent 8 }}
         {{- include "kura.selectorLabels" $name | nindent 8 }}
