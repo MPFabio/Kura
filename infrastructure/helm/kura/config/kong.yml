@@ -372,6 +372,7 @@ plugins:
     - Content-Type
     - Date
     - Authorization
+    - X-Project-ID
     exposed_headers:
     - X-Auth-Token
     credentials: true
