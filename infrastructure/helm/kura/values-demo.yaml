@@ -1,0 +1,15 @@
+# Surcharge pour le cluster de démonstration (kuro-k0s), à passer avec -f.
+#
+# Le chart vise par défaut le registre interne du client, qui n'existe que chez
+# lui. Ici les images viennent du registre public alimenté par la chaîne
+# d'intégration, et l'étiquette suit la branche déployée.
+global:
+  imageRegistry: ghcr.io/mpfabio
+  imageTag: feat-helm-cnpg-scaling
+
+# Cluster mono-nœud : l'anti-affinité de CloudNativePG répartit les instances
+# sur des machines distinctes, les réplicas supplémentaires resteraient donc en
+# attente indéfiniment. La valeur par défaut du chart (3) reste la bonne pour un
+# client.
+postgres:
+  instances: 1

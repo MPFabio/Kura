@@ -327,6 +327,25 @@ spec:
         - name: positions
           emptyDir: {}
 ---
+{{- /*
+Le frontend interroge vmalert pour afficher l'état des alertes. Nginx résout
+ses hôtes amont au démarrage : sans ce Service, il refuse de démarrer.
+vmagent n'en a pas besoin, personne ne l'appelle.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: vmalert
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+    {{- include "kura.selectorLabels" "vmalert" | nindent 4 }}
+spec:
+  selector:
+    {{- include "kura.selectorLabels" "vmalert" | nindent 4 }}
+  ports:
+    - port: 8880
+      targetPort: 8880
+---
 apiVersion: v1
 kind: Service
 metadata:

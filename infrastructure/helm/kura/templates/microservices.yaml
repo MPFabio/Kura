@@ -36,6 +36,12 @@ spec:
         {{- include "kura.labels" $root | nindent 8 }}
         {{- include "kura.selectorLabels" $name | nindent 8 }}
     spec:
+      # Kubernetes injecte, par compatibilité avec les liens Docker, une
+      # variable <SERVICE>_PORT au format tcp://ip:port pour chaque Service du
+      # namespace. Elle écrase la variable de configuration homonyme des
+      # services (CODE_SERVICE_PORT, METRICS_SERVICE_PORT...), qui attendent un
+      # simple numéro de port.
+      enableServiceLinks: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
