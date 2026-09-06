@@ -38,6 +38,7 @@ spec:
         {{- include "kura.labels" . | nindent 8 }}
         {{- include "kura.selectorLabels" "kong" | nindent 8 }}
     spec:
+      enableServiceLinks: false
       containers:
         - name: kong
           image: {{ .Values.kong.image }}

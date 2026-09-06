@@ -5,7 +5,7 @@
 # d'intégration, et l'étiquette suit la branche déployée.
 global:
   imageRegistry: ghcr.io/mpfabio
-  imageTag: feat-helm-cnpg-scaling
+  imageTag: sha-052a584
 
 # Cluster mono-nœud : l'anti-affinité de CloudNativePG répartit les instances
 # sur des machines distinctes, les réplicas supplémentaires resteraient donc en

@@ -31,6 +31,10 @@ spec:
         {{- include "kura.labels" $root | nindent 8 }}
         {{- include "kura.selectorLabels" $name | nindent 8 }}
     spec:
+      # Voir microservices.yaml : les variables <SERVICE>_PORT injectees par
+      # compatibilite avec les liens Docker ecrasent la configuration homonyme.
+      # Semaphore lit SEMAPHORE_PORT et refuse "tcp://ip:port".
+      enableServiceLinks: false
       containers:
         - name: {{ $name }}
           image: {{ $spec.image }}
@@ -47,6 +51,34 @@ spec:
           {{- end }}
           {{- if eq $name "minio" }}
           args: ["server", "/data"]
+          {{- end }}
+          {{- if eq $name "semaphore" }}
+          # Sans dialecte declare, le script de demarrage attend une base
+          # externe et interroge un hote et un port vides. Semaphore sert ici
+          # d'executeur Ansible pour un seul projet : une base embarquee sur
+          # son volume suffit et evite une base de plus a sauvegarder.
+          #
+          # bolt et non sqlite : cette version de l'image ne reconnait que
+          # mysql, bolt et postgres. SEMAPHORE_DB_PATH designe alors le
+          # repertoire, le fichier etant nomme par le script de demarrage.
+          env:
+            - name: SEMAPHORE_DB_DIALECT
+              value: bolt
+            - name: SEMAPHORE_DB_PATH
+              value: {{ $spec.dataPath }}
+            - name: SEMAPHORE_TMP_PATH
+              value: /tmp/semaphore
+            - name: SEMAPHORE_ADMIN
+              value: admin
+            - name: SEMAPHORE_ADMIN_EMAIL
+              value: admin@kura.io
+            - name: SEMAPHORE_ADMIN_NAME
+              value: Kura Admin
+            - name: SEMAPHORE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $root.Values.global.existingSecret }}
+                  key: SEMAPHORE_PASSWORD
           {{- end }}
           ports:
             - containerPort: {{ $spec.port }}

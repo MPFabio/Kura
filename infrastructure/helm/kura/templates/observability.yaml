@@ -72,6 +72,7 @@ spec:
         {{- include "kura.labels" $root | nindent 8 }}
         {{- include "kura.selectorLabels" $comp | nindent 8 }}
     spec:
+      enableServiceLinks: false
       containers:
         - name: {{ $comp }}
           image: {{ $spec.image }}
@@ -238,6 +239,7 @@ spec:
         {{- include "kura.labels" $root | nindent 8 }}
         {{- include "kura.selectorLabels" $comp | nindent 8 }}
     spec:
+      enableServiceLinks: false
       {{- if eq $comp "vmagent" }}
       serviceAccountName: vmagent
       {{- end }}
