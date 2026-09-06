@@ -91,11 +91,18 @@ services:
       requests: {cpu: 25m, memory: 32Mi}
       limits: {memory: 128Mi}
   frontend:
-    port: 80
+    # Image nginx non privilégiée : elle écoute sur 8080, un port non
+    # réservé, puisqu'un processus non root ne peut pas se lier au port 80.
+    port: 8080
     replicas: 2
     healthPath: /
     # Nginx servant le bundle React : pas d'endpoint de métriques à collecter.
     metrics: false
+    # La racine du conteneur est en lecture seule : nginx a besoin d'écrire
+    # son fichier de processus et ses tampons de requête, tous sous /tmp dans
+    # cette image.
+    writableDirs:
+      - /tmp
     # Service statique peu couteux, mais premier point de contact : on preserve
     # le temps de reponse percu en absorbant les pics de connexion.
     autoscaling:

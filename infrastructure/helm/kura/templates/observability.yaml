@@ -21,6 +21,10 @@ data:
 {{ .Files.Get "config/alert_rules.yml" | indent 4 }}
   alertmanager.yml: |
 {{ .Files.Get "config/alertmanager.yml" | indent 4 }}
+  loki.yml: |
+{{ .Files.Get "config/loki.yml" | indent 4 }}
+  tempo.yml: |
+{{ .Files.Get "config/tempo.yml" | indent 4 }}
   # Promtail en mode Kubernetes : découverte des pods du namespace, étiquette
   # "service" alignée sur app.kubernetes.io/name (même pivot métriques ↔ logs
   # qu'en dev local avec la découverte Docker).
@@ -78,6 +82,10 @@ spec:
             - --retentionPeriod={{ $spec.retention }}
             - --httpListenAddr=:{{ $spec.port }}
           {{- end }}
+          {{- if or (eq $comp "loki") (eq $comp "tempo") }}
+          args:
+            - -config.file=/etc/obs/{{ $comp }}.yml
+          {{- end }}
           {{- if eq $comp "grafana" }}
           env:
             - name: GF_SECURITY_ADMIN_USER
@@ -109,6 +117,11 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ $spec.dataPath }}
+            {{- if or (eq $comp "loki") (eq $comp "tempo") }}
+            - name: config
+              mountPath: /etc/obs
+              readOnly: true
+            {{- end }}
             {{- if eq $comp "grafana" }}
             - name: provisioning-datasources
               mountPath: /etc/grafana/provisioning/datasources
@@ -120,6 +133,12 @@ spec:
               mountPath: /var/lib/grafana/dashboards
               readOnly: true
             {{- end }}
+      {{- if or (eq $comp "loki") (eq $comp "tempo") }}
+      volumes:
+        - name: config
+          configMap:
+            name: observability-config
+      {{- end }}
       {{- if eq $comp "grafana" }}
       volumes:
         - name: provisioning-datasources

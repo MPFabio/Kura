@@ -77,11 +77,25 @@ spec:
             periodSeconds: 20
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
+          {{- if $svc.writableDirs }}
+          volumeMounts:
+            {{- range $i, $dir := $svc.writableDirs }}
+            - name: writable-{{ $i }}
+              mountPath: {{ $dir }}
+            {{- end }}
+          {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+      {{- if $svc.writableDirs }}
+      volumes:
+        {{- range $i, $dir := $svc.writableDirs }}
+        - name: writable-{{ $i }}
+          emptyDir: {}
+        {{- end }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
