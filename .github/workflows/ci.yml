@@ -5,6 +5,9 @@ on:
     branches: [master, dev]
   pull_request:
     branches: [master, dev]
+  # Permet de publier les images d'une branche de travail sans la fusionner,
+  # pour la deployer sur un environnement de test.
+  workflow_dispatch:
 
 jobs:
   frontend:
@@ -78,9 +81,9 @@ jobs:
   #
   # Le déploiement tire ses images d'un registre : sans cette étape, la chaîne
   # s'arrête au test et rien n'est déployable. Les images ne sont publiées
-  # qu'après le passage des tests et de l'analyse statique, et uniquement sur
-  # un push : une pull request construit sans publier, pour valider le
-  # Dockerfile sans encombrer le registre.
+  # qu'après le passage des tests et de l'analyse statique. Une pull request
+  # construit sans publier, pour valider le Dockerfile sans encombrer le
+  # registre ; un push ou un déclenchement manuel publie.
   images:
     name: Images (construction et publication)
     runs-on: ubuntu-latest
@@ -127,7 +130,7 @@ jobs:
         with:
           context: ${{ matrix.service == 'frontend' && 'frontend' || format('services/{0}', matrix.service) }}
           build-args: ${{ matrix.service == 'frontend' && 'VITE_API_BASE_URL=/api' || '' }}
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
