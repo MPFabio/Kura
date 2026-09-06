@@ -22,6 +22,19 @@ L'inventaire logiciel (SBOM) est produit avant l'analyse : il dit ce qui est
 embarqué, indépendamment des vulnérabilités connues du jour. Les deux questions
 sont distinctes et n'ont pas la même durée de validité.
 
+## Revue et fusion
+
+La branche principale est protégée par une règle de dépôt : la fusion passe
+obligatoirement par une demande, les dix-huit contrôles doivent être verts, et
+ni la suppression de la branche ni la réécriture d'historique ne sont
+autorisées. La règle s'applique sans exception, y compris aux administrateurs :
+un contrôle rouge bloque la fusion, il ne se contourne pas.
+
+L'approbation par un tiers n'est pas exigée, le dépôt n'ayant qu'un mainteneur.
+C'est une limite assumée : la revue humaine repose sur la relecture de sa
+propre demande, et seuls les contrôles automatisés sont réellement
+contraignants.
+
 ## Traitement d'un constat
 
 Un constat se corrige. À défaut, il fait l'objet d'une exception nominative et
@@ -90,6 +103,5 @@ non.
   porte sur le code, les dépendances et la configuration.
 - Le cloisonnement réseau entre pods n'est pas encore déclaré : tout pod du
   namespace peut joindre les briques de données.
-- La protection de branche n'est pas activée sur ce dépôt : les contrôles
-  s'exécutent sur chaque demande de fusion, mais rien n'interdit techniquement
-  de pousser sur la branche principale sans les attendre.
+- La revue de code n'est pas contradictoire : le dépôt n'a qu'un mainteneur,
+  aucune approbation par un tiers n'est donc exigée.
