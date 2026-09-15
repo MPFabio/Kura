@@ -254,7 +254,7 @@ spec:
           {{- else if eq $comp "vmalert" }}
           args:
             - --datasource.url=http://victoriametrics:{{ $obs.victoriametrics.port }}
-            - --remoteWrite.url=http://victoriametrics:{{ $obs.victoriametrics.port }}/api/v1/write
+            - --remoteWrite.url=http://victoriametrics:{{ $obs.victoriametrics.port }}
             - --notifier.url=http://alertmanager:9093
             - --rule=/etc/obs/alert_rules.yml
             - --evaluationInterval=15s
