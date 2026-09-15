@@ -358,10 +358,18 @@ services:
     paths:
     - /
     strip_path: false
+    # POST, PUT et DELETE sont indispensables : le frontend proxifie Grafana
+    # sous /grafana, dont les panneaux interrogent leur source de donnees par
+    # POST /grafana/api/ds/query. Limitee aux seules methodes de lecture, cette
+    # route laisse Kong repondre 404 et tous les graphiques affichent
+    # « No data », alors que les metriques sont bien collectees.
     methods:
     - GET
     - HEAD
     - OPTIONS
+    - POST
+    - PUT
+    - DELETE
 
 plugins:
 # Expose les métriques Kong sur la Status API (/metrics), scrapées par vmagent.
