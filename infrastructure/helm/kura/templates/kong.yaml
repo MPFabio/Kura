@@ -70,6 +70,8 @@ spec:
               command: ["kong", "health"]
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             {{- toYaml .Values.kong.resources | nindent 12 }}
       volumes:
