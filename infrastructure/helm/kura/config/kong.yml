@@ -11,6 +11,10 @@ _transform: true
 # la marquent unhealthy, et le balancer ré-interroge le DNS Docker
 # (127.0.0.11) pour retrouver la nouvelle IP du conteneur recréé.
 upstreams:
+- name: victoriametrics-upstream
+  targets:
+  - target: victoriametrics:8428
+
 - name: auth-service-upstream
   targets:
   - target: auth-service:8080
@@ -342,6 +346,27 @@ services:
     - DELETE
     - OPTIONS
 
+# Écriture distante des métriques, pour la campagne de charge k6 : elle tourne
+# sur la VM d'exploitation, hors du cluster, et ne peut donc pas joindre le
+# ClusterIP de VictoriaMetrics directement. Route dédiée à ce seul usage,
+# protégée par clé d'API (K6_API_KEY, secret du dépôt d'exploitation) : sans
+# elle, n'importe qui disposant de l'URL Kong pourrait injecter de fausses
+# métriques dans le tableau de bord.
+- name: victoriametrics-write
+  url: http://victoriametrics-upstream
+  routes:
+  - name: metrics-write-route
+    paths:
+    - /api/v1/metrics-write
+    strip_path: true
+    methods:
+    - POST
+    plugins:
+    - name: key-auth
+      config:
+        key_names:
+        - X-API-Key
+
 # Route de repli vers l'interface. Kong retient le préfixe le plus long, les
 # routes d'API ci-dessus gardent donc la priorité sur celle-ci, qui ne reçoit
 # que ce qu'aucune autre ne réclame : les pages et les fichiers du bundle.
@@ -370,6 +395,17 @@ services:
     - POST
     - PUT
     - DELETE
+
+# Identité Kong pour la route d'écriture k6 (voir victoriametrics-write
+# ci-dessus). Kong ne permet pas de tirer une clé key-auth d'un Secret
+# Kubernetes dans une configuration déclarative : clé fixe, à faire tourner en
+# la remplaçant ici si elle devait fuiter. Le seul dommage possible avec cette
+# clé est l'injection de fausses métriques de charge, jamais un accès aux
+# données ou aux autres routes de la plateforme.
+consumers:
+- username: k6-campagne-charge
+  keyauth_credentials:
+  - key: xtW3p40YfYGLKOe1clhcj9Z0zZfCyTymKx9FROsusPc
 
 plugins:
 # Expose les métriques Kong sur la Status API (/metrics), scrapées par vmagent.
