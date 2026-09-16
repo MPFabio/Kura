@@ -60,3 +60,26 @@ scrape_configs:
   - job_name: 'victoriametrics'
     static_configs:
       - targets: ['victoriametrics:8428']
+
+  # CPU et mémoire par pod et par nœud, exposés par cAdvisor dans le kubelet.
+  # Le kubelet n'écoute qu'en TLS et exige un bearer token : on passe par le
+  # proxy de l'API server (déjà authentifié par le ServiceAccount) plutôt que
+  # de joindre le kubelet en direct, ce qui éviterait la vérification du
+  # certificat ou l'ajout d'une autorité supplémentaire.
+  - job_name: 'kubernetes-cadvisor'
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    authorization:
+      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node

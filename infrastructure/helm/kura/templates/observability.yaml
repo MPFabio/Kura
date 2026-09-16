@@ -238,8 +238,10 @@ spec:
 ---
 {{- /*
 vmagent découvre ses cibles via l'API Kubernetes : il lui faut le droit de
-lister les pods. Role local et non ClusterRole, la découverte étant restreinte
-au namespace de la plateforme (voir config/vmagent-scrape.yml).
+lister les pods. Role local, la découverte des pods applicatifs étant
+restreinte au namespace de la plateforme (voir config/vmagent-scrape.yml).
+Le CPU et la mémoire par nœud (cAdvisor) exigent en plus un ClusterRole,
+défini séparément ci-dessous.
 */}}
 apiVersion: v1
 kind: ServiceAccount
@@ -272,6 +274,39 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: vmagent
+---
+{{- /*
+Le CPU et la mémoire par pod et par nœud viennent de cAdvisor, exposé par le
+kubelet et joint via le proxy de l'API server (/api/v1/nodes/<node>/proxy/...).
+Ce chemin n'est pas restreignable à un namespace : lister les nœuds et
+interroger leur sous-ressource proxy exige un ClusterRole, distinct du Role
+local ci-dessus qui reste suffisant pour la découverte des pods applicatifs.
+*/}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vmagent-cadvisor
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [nodes, nodes/metrics, nodes/proxy, nodes/stats]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vmagent-cadvisor
+  labels:
+    {{- include "kura.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vmagent-cadvisor
+subjects:
+  - kind: ServiceAccount
+    name: vmagent
+    namespace: {{ .Release.Namespace }}
 {{- range $comp := list "vmagent" "vmalert" "alertmanager" }}
 {{- $spec := index $obs $comp }}
 ---

@@ -64,3 +64,13 @@ b17521c39b7a5e01b4dd21d6b4bf728e94c32407:services/auth-service/QUICK_START.md:cu
 # Artefact de construction du frontend, indexe par erreur : chaine du paquet
 # xterm, pas un identifiant.
 f8ae92dc790848fdcc2a1b889f47a090da1a5f68:frontend/.vite/deps/xterm.js:generic-api-key:3377
+
+# Cle key-auth Kong pour la route d'ecriture distante des metriques k6
+# (victoriametrics-write). Kong en configuration declarative (DB-less) charge
+# ses consumers depuis un unique fichier statique, sans mecanisme d'injection
+# de Secret Kubernetes a ce niveau : la valeur ne peut donc pas etre tiree
+# d'ailleurs sans reecrire le chargement de la configuration Kong, hors
+# perimetre de ce correctif. Le seul dommage possible en cas de fuite est
+# l'injection de fausses metriques de charge dans VictoriaMetrics ; la route
+# n'expose ni lecture ni ecriture sur aucune autre donnee de la plateforme.
+9b0832e1678af4714a741983fab2a79ca016b53c:infrastructure/helm/kura/config/kong.yml:generic-api-key:408
