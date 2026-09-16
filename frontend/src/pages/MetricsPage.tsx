@@ -64,9 +64,15 @@ const GRAFANA_URL = `${window.location.origin}/grafana`
 const GRAFANA_DASHBOARD_URL = `${GRAFANA_URL}/d/kura-overview/kura-e28094-platform-overview?orgId=1&kiosk=tv&refresh=30s`
 
 // Grafana (observabilité projet) est relayé par k8s-service via un port-forward
-// vers le pod Grafana du cluster client (kube-prometheus-stack).
+// vers le pod Grafana du cluster client (kube-prometheus-stack). Cette route
+// reste authentifiée, mais chargée dans une <iframe> le navigateur ne pose
+// jamais d'en-tête Authorization : le jeton part donc en paramètre d'URL,
+// seule voie que k8s-service accepte en plus de l'en-tête pour ce chemin précis.
 const PROJECT_GRAFANA_URL = `${window.location.origin}/api/v1/k8s/observability/grafana`
-const PROJECT_GRAFANA_DASHBOARD_URL = `${PROJECT_GRAFANA_URL}/?orgId=1&kiosk=tv&refresh=30s`
+function projectGrafanaDashboardUrl() {
+  const token = localStorage.getItem('token') ?? ''
+  return `${PROJECT_GRAFANA_URL}/?orgId=1&kiosk=tv&refresh=30s&token=${encodeURIComponent(token)}`
+}
 
 function HealthBadge({ up }: { up: boolean }) {
   const color = up ? kuraColors.success : kuraColors.error
@@ -306,7 +312,7 @@ function MetricsTab({ scope }: { scope: ObservabilityScope }) {
           <Button
             size="small"
             endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
-            href={scope === 'project' ? PROJECT_GRAFANA_DASHBOARD_URL : GRAFANA_DASHBOARD_URL}
+            href={scope === 'project' ? projectGrafanaDashboardUrl() : GRAFANA_DASHBOARD_URL}
             target="_blank"
             rel="noopener"
             sx={{ ml: 'auto' }}
@@ -317,7 +323,7 @@ function MetricsTab({ scope }: { scope: ObservabilityScope }) {
         {/* Hauteur calee sur la fenetre : a 600 px fixes, le dashboard etait
             consulte a travers une glissiere. */}
         <iframe
-          src={scope === 'project' ? PROJECT_GRAFANA_DASHBOARD_URL : GRAFANA_DASHBOARD_URL}
+          src={scope === 'project' ? projectGrafanaDashboardUrl() : GRAFANA_DASHBOARD_URL}
           title={scope === 'project' ? 'Grafana du projet' : 'Kura Grafana Dashboard'}
           width="100%"
           style={{ border: 'none', display: 'block', height: 'calc(100vh - 220px)', minHeight: 600 }}

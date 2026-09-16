@@ -164,6 +164,15 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 			open.GET("/namespaces/:namespace/pods/:name/terminal", terminalHandler.HandleTerminal)
 		}
 
+		// Même contrainte pour le dashboard Grafana proxifié : chargé dans une
+		// <iframe>, sans en-tête Authorization possible. Le jeton accepté en
+		// paramètre reste vérifié par l'auth-service comme les autres.
+		grafanaProxy := v1.Group("/k8s/observability/grafana")
+		grafanaProxy.Use(authz.MiddlewareAllowQueryToken(cfg.AuthServiceURL, "k8s"))
+		{
+			grafanaProxy.Any("/*path", observabilityHandler.ProxyGrafana)
+		}
+
 		k8sGroup := v1.Group("/k8s")
 		k8sGroup.Use(authz.Middleware(cfg.AuthServiceURL, "k8s"))
 		{
@@ -258,7 +267,6 @@ func setupRouter(k8sHandler *handler.K8sHandler, terminalHandler *handler.Termin
 				observabilityGroup.GET("/logs/services", observabilityHandler.GetLogServices)
 				observabilityGroup.GET("/traces", observabilityHandler.SearchTraces)
 				observabilityGroup.GET("/traces/:traceID", observabilityHandler.GetTrace)
-				observabilityGroup.Any("/grafana/*path", observabilityHandler.ProxyGrafana)
 			}
 
 			// Auto-découverte des applications ArgoCD et composants
