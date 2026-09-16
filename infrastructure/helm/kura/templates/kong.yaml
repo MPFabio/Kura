@@ -87,11 +87,13 @@ metadata:
     {{- include "kura.labels" . | nindent 4 }}
     {{- include "kura.selectorLabels" "kong" | nindent 4 }}
 spec:
+  type: NodePort
   selector:
     {{- include "kura.selectorLabels" "kong" | nindent 4 }}
   ports:
     - port: {{ .Values.kong.proxyPort }}
       targetPort: proxy
+      nodePort: {{ .Values.kong.nodePort }}
       name: proxy
     - port: 8100
       targetPort: status
