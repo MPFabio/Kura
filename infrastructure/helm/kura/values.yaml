@@ -157,7 +157,7 @@ kong:
   # NodePort fixe : point d'entree unique de la plateforme depuis l'exterieur
   # du cluster, utilise par le tunnel SSH de demonstration et par la
   # campagne de charge k6 (executee depuis une VM hors cluster).
-  nodePort: 30359
+  nodePort: 30360
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {memory: 512Mi}
