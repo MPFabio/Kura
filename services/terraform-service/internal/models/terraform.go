@@ -32,7 +32,14 @@ type Resource struct {
 
 // ResourceInstance représente une instance de ressource.
 type ResourceInstance struct {
-	SchemaVersion       int64                  `json:"schema_version,omitempty"`
+	SchemaVersion int64 `json:"schema_version,omitempty"`
+	// IndexKey distingue les instances d'une ressource déclarée avec count
+	// (entier) ou for_each (chaîne). Sans ce champ, la relecture puis la
+	// réécriture du tfstate produisent plusieurs instances sans clé pour la
+	// même ressource, et tofu refuse d'initialiser : « Duplicate resource
+	// instance in state ». La détection de dérive échouait alors sur toute
+	// infrastructure utilisant count ou for_each.
+	IndexKey            interface{}            `json:"index_key,omitempty"`
 	Attributes          map[string]interface{} `json:"attributes"`
 	SensitiveAttributes []interface{}          `json:"sensitive_attributes,omitempty"`
 	Dependencies        interface{}            `json:"dependencies,omitempty"` // Peut être []Dependency, []string, ou string
