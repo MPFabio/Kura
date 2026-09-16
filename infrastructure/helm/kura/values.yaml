@@ -271,8 +271,8 @@ observability:
     port: 3100
     storage: 10Gi
     dataPath: /loki
-  promtail:
-    image: grafana/promtail:2.9.4
+  alloy:
+    image: grafana/alloy:v1.5.1
   tempo:
     image: grafana/tempo:2.3.1
     port: 3200
