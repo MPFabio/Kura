@@ -46,6 +46,23 @@ func Middleware(authServiceURL, module string) gin.HandlerFunc {
 	return ck.handle
 }
 
+// MiddlewareAllowQueryToken se comporte comme Middleware, mais accepte en plus
+// le token en paramètre ?token= quand l'en-tête Authorization est absent. Un
+// navigateur ne pose jamais d'en-tête personnalisé sur le chargement d'une
+// <iframe> : sans ce recours, le dashboard Grafana proxifié pour
+// l'observabilité projet ne peut pas s'authentifier et affiche l'erreur brute
+// de l'API au lieu du tableau de bord. Réservé aux routes de ce type ; toutes
+// les autres continuent d'exiger l'en-tête.
+func MiddlewareAllowQueryToken(authServiceURL, module string) gin.HandlerFunc {
+	ck := &checker{
+		authURL: authServiceURL,
+		module:  module,
+		client:  &http.Client{Timeout: 5 * time.Second},
+		cache:   make(map[string]cacheEntry),
+	}
+	return ck.handleAllowQueryToken
+}
+
 func (ck *checker) handle(c *gin.Context) {
 	if c.Request.Method == http.MethodOptions {
 		c.Next()
@@ -57,7 +74,29 @@ func (ck *checker) handle(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token d'authentification manquant"})
 		return
 	}
+	ck.check(c, authHeader)
+}
 
+func (ck *checker) handleAllowQueryToken(c *gin.Context) {
+	if c.Request.Method == http.MethodOptions {
+		c.Next()
+		return
+	}
+
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		if qt := c.Query("token"); qt != "" {
+			authHeader = "Bearer " + qt
+		}
+	}
+	if authHeader == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token d'authentification manquant"})
+		return
+	}
+	ck.check(c, authHeader)
+}
+
+func (ck *checker) check(c *gin.Context, authHeader string) {
 	projectID := c.GetHeader("X-Project-ID")
 	if projectID == "" {
 		projectID = c.Query("project_id")
